@@ -115,16 +115,17 @@ export interface LessonGenerationJob {
 /** Thrown when the learner has hit their daily free-tier lesson limit (HTTP 402). */
 export class LessonQuotaError extends Error {}
 
-export async function generateLesson(skill: string, topic?: string, curriculumCode?: string): Promise<LessonDetail> {
+export async function generateLesson(skill: string, topic?: string, curriculumCode?: string, trackCode?: string): Promise<LessonDetail> {
   const startedAt = Date.now();
   const waited = (cached: boolean) =>
-    track('lesson_generation_waited', { skill, cached, ms: Date.now() - startedAt, from_curriculum: !!curriculumCode });
+    track('lesson_generation_waited', { skill, cached, ms: Date.now() - startedAt, from_curriculum: !!curriculumCode, from_track: !!trackCode });
   let res;
   try {
     res = await api.post<LessonDetail | LessonGenerationAccepted>('/lessons/generate', {
       skill,
       topic: topic || null,
       curriculum_code: curriculumCode || null,
+      track_code: trackCode || null,
       // Cached curriculum content still returns synchronously (200). Anything the
       // AI has to write runs as a background job we poll, so a 30–120s generation
       // never holds an HTTP request (and a server worker) open.

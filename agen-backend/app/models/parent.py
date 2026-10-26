@@ -5,7 +5,7 @@ Master Plan §21: parent reports must be easy to read, not turn the child into a
 """
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, ForeignKey
+from sqlalchemy import Boolean, Column, String, DateTime, ForeignKey, true as sa_true
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -25,6 +25,10 @@ class ParentProfile(Base):
     display_name = Column(String(100), nullable=False)
     phone = Column(String(30), nullable=True)
 
+    # G3 · proactive e-mails: weekly report (Sunday evening) + inactivity alerts.
+    weekly_report_email = Column(Boolean, default=True, server_default=sa_true(), nullable=False)
+    last_weekly_report_week = Column(String(10), nullable=True)      # e.g. "2026-W44"
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -42,4 +46,6 @@ class ParentChildLink(Base):
     learner_id = Column(String(36), ForeignKey("learner_profiles.id"), nullable=False, index=True)
 
     relationship_label = Column(String(30), nullable=True)  # e.g. "mother", "father"
+    # G3 · last "child has not studied for 2 days" alert, local "YYYY-MM-DD" (one per quiet spell).
+    last_inactivity_alert_on = Column(String(10), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)

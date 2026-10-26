@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BookmarkPlus, Check, CircleAlert, Ear, LoaderCircle, Pause, Play, Repeat, Volume2, X } from 'lucide-react';
 import { playText, stopSpeech, type Voice } from '@/lib/speechService';
 import { addNotebookWord, lookupWord, type WordLookup } from '@/lib/reviewService';
-import { scorePronunciation, type PronunciationResult } from '@/lib/pronunciationService';
+import { getPronunciationStatus, scoreAttempt, type PronunciationResult } from '@/lib/pronunciationService';
 import { useSpeechRecorder } from '@/lib/useSpeechRecorder';
 import PronunciationFeedback from '@/components/speaking/PronunciationFeedback';
 import MicButton from '@/components/speaking/MicButton';
@@ -70,12 +70,15 @@ export default function AudioPlayerTTS({ text, scriptLines, knownWords = [], les
   const [shadowResult, setShadowResult] = useState<PronunciationResult | null>(null);
   const [scoring, setScoring] = useState(false);
   const shadowTarget = useRef('');
+  const [captureAudio, setCaptureAudio] = useState(false);
+  useEffect(() => { getPronunciationStatus().then(st => setCaptureAudio(st.phoneme_enabled)); }, []);
   const recorder = useSpeechRecorder({
-    onFinish: (transcript, duration) => {
+    captureAudio,
+    onFinish: (transcript, duration, wav) => {
       const target = shadowTarget.current;
       if (!target) return;
       setScoring(true);
-      scorePronunciation(target, transcript, duration || undefined, 'shadowing')
+      scoreAttempt({ targetText: target, transcript, durationSeconds: duration || undefined, wav, source: 'shadowing' })
         .then(setShadowResult)
         .catch(() => setError('Không chấm được. Hãy thử lại.'))
         .finally(() => setScoring(false));

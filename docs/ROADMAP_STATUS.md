@@ -4,7 +4,7 @@
 > Kế hoạch gốc (đã được chủ dự án duyệt): Claude Doc "Kế hoạch nâng cấp AGEN — Audit & Lộ trình"
 > https://claude.ai/artifact/7PHjES4CK5zB9i8rBxrCuT
 
-Cập nhật lần cuối: 2026-10-26 (G2).
+Cập nhật lần cuối: 2026-10-26 (G2 + G3).
 
 Web production: https://ai-english-learning-agent.atmarketing.vn · Backend: https://agen-api.onrender.com
 
@@ -32,7 +32,15 @@ Web production: https://ai-english-learning-agent.atmarketing.vn · Backend: htt
 | G2 | Luyện nói 3 bước + AI Coach có nhân vật: 24 tình huống bối cảnh VN (`services/speaking_scenarios.py`), học cụm từ → nói lặp lại chấm **từng từ** + mẹo âm khó cho người Việt → roleplay với nhân vật (câu sửa + gợi ý câu tiếp theo) | #11 |
 | G2 | Nghe hay hơn: giọng neural tạo ở server + cache (`/audio/tts`, Gemini TTS → OpenAI TTS, tự tắt khi không có khoá), nút 0,75×, transcript bấm từng từ để tra (`/review/lookup`) và thêm vào Sổ từ (`POST /review/items`), chế độ shadowing | #11 |
 | G2 | Kiểm tra đầu vào 4 kỹ năng: 14 câu = 10 câu chữ + 3 câu nghe (chỉ nghe audio) + 1 câu đọc to (chấm transcript; bỏ qua được nếu không có micro) | #11 |
+| G2 | Chấm phát âm **đến từng âm** qua Azure Pronunciation Assessment (`services/pronunciation_azure.py`, `POST /speaking/pronunciation-audio`): web ghi âm → WAV 16 kHz → điểm từng từ, từng âm IPA, ngữ điệu; tự về chấm theo từ khi chưa có `AZURE_SPEECH_KEY`. Voicebox tự host làm nguồn giọng đọc miễn phí (`VOICEBOX_URL`) | #13 |
+| G3 | Học thử không cần đăng ký (`POST /auth/guest`, `POST /auth/claim` giữ nguyên tiến bộ; nút trên landing/login, banner "Lưu tài khoản") | #13 |
+| G3 | Thanh toán thật VNPay + MoMo (`services/payments.py`, IPN ký HMAC, `/billing/checkout`, `/billing/vnpay/*`, `/billing/momo/ipn`), dùng thử Premium 7 ngày (`POST /billing/trial`), trang Premium có nút theo cổng đã bật | #13 |
+| G3 | Giải đấu tuần (`services/league.py`, `GET /engagement/league`, thưởng top 10 tuần trước, trang `/league`, thẻ trên trang chủ) | #13 |
+| G3 | Phụ huynh chủ động: email báo cáo tuần Chủ nhật 18h + cảnh báo con nghỉ 2 ngày (`services/parent_digest.py`, chạy trong cron nhắc học), bật/tắt ở bảng phụ huynh | #13 |
+| G3 | Khoá theo mục tiêu IELTS / TOEIC / phỏng vấn (`services/goal_tracks.py`, 36 bài theo thứ tự, `GET /curriculum/tracks`, trang `/tracks`), bài tạo ở đúng trình độ của khoá | #13 |
 | — | Sửa lỗi đăng ký/đăng nhập: báo lỗi rõ (mất kết nối, mật khẩu thiếu số, email trùng, sai mật khẩu), lỗi 500 vẫn có CORS, `APP_URL` tự vào CORS (`lib/apiError.ts`) | #12 |
+
+**G2 và G3 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
 
 **G1 hoàn tất.** Chưa làm trong G1: "sửa chuỗi trong 24 giờ" (streak repair) và mua bảo vệ chuỗi bằng XP —
 hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi người tặng sẵn 1, tối đa 2).
@@ -58,14 +66,22 @@ Khoá đã được tạo và gửi cho chủ dự án trong chat (KHÔNG có tr
 Nếu khoá bị mất: tạo lại bằng `python agen-backend/scripts/generate_vapid_keys.py` (đổi khoá thì người
 học phải bật lại thông báo).
 
-## G2 — Nói & nghe: đã làm 10, 11, 12 (PR #11). Còn 9 chờ quyết định
+## G2 — Nói & nghe: hoàn tất (PR #11, #13)
 
 | # | Hạng mục | Trạng thái |
 |---|---|---|
-| 9 | Chấm phát âm **đến từng âm** | **Chờ chủ dự án chọn** — bảng so sánh chi phí ở `docs/G2_CHAM_PHAT_AM_SO_SANH.md`. Đề xuất: pilot giữ chấm theo từ (0 đ); khi cần thì dùng Azure Pronunciation Assessment (~1 USD/giờ audio, miễn phí 5 giờ/tháng). Hiện app đã chấm **đến từng từ** + mẹo âm khó cho người Việt. |
+| 9 | Chấm phát âm **đến từng âm** | ✅ #13 — Azure Pronunciation Assessment qua REST, bật khi có `AZURE_SPEECH_KEY` (+ `AZURE_SPEECH_REGION`, mặc định `southeastasia`). Chưa có khoá → chấm theo từ như cũ. **Chưa chạy thử với tài khoản Azure thật** (test bằng phản hồi mẫu) — lần đầu bật nên thử 1 câu và xem log Render. So sánh chi phí: `docs/G2_CHAM_PHAT_AM_SO_SANH.md`. |
 | 10 | Luyện nói 3 bước + AI Coach có nhân vật | ✅ #11 — `/practice/speaking`: chọn tình huống → học cụm từ → nói lặp lại → hội thoại; vẫn có "tự chọn chủ đề" (AI dựng tình huống) |
-| 11 | Nghe hay hơn | ✅ #11 — giọng neural server (cache đĩa, giới hạn ký tự/ngày `TTS_DAILY_CHAR_LIMIT`), 0,75×, bấm từ để tra/lưu, shadowing |
+| 11 | Nghe hay hơn | ✅ #11 — giọng neural server (cache đĩa, giới hạn ký tự/ngày `TTS_DAILY_CHAR_LIMIT`), 0,75×, bấm từ để tra/lưu, shadowing. #13 thêm Voicebox tự host. |
 | 12 | Kiểm tra đầu vào đủ 4 kỹ năng | ✅ #11 — 14 câu, có nghe và nói |
+
+Voicebox (github.com/jamiepine/voicebox) thay API TTS được không? **Được, nếu có máy chạy 24/7**: Voicebox là app
+chạy máy cục bộ (REST API ở `127.0.0.1:17493`, engine Qwen3-TTS/Kokoro, CPU chạy được nhưng chậm, không có xác thực).
+Render không chạy được nó. Cách dùng: chạy Voicebox trên PC/VPS, mở ra ngoài bằng Cloudflare Tunnel (có bật
+Access), rồi đặt `VOICEBOX_URL` + `VOICEBOX_PROFILE_ID` (id giọng nữ, lấy từ `GET /profiles`), tuỳ chọn
+`VOICEBOX_PROFILE_ID_MALE`, `VOICEBOX_API_KEY` (gửi dạng Bearer nếu tunnel yêu cầu). Khi đặt, Voicebox được thử trước
+Gemini/OpenAI; lỗi thì tự chuyển sang nguồn sau. Lưu ý: giọng tạo trên CPU mất vài giây/câu; cache đĩa giúp câu đã tạo
+phát ngay.
 
 Ghi chú vận hành G2:
 - Giọng neural **tự bật** khi Render có `GEMINI_API_KEY` hoặc `OPENAI_API_KEY` (thứ tự Gemini → OpenAI). Tắt bằng
@@ -75,10 +91,25 @@ Ghi chú vận hành G2:
   Nếu Gemini TTS báo lỗi (đổi tên model, hết quota), server tự chuyển sang OpenAI rồi trình duyệt.
 - Tra từ khi bấm transcript dùng 1 lần gọi LLM mỗi từ (cache trong tiến trình).
 
-## G3 — Tăng trưởng (sau G2)
+## G3 — Tăng trưởng: hoàn tất trên code (PR #13)
 
-Học thử không cần đăng ký · Thanh toán thật (MoMo/VNPay/thẻ, webhook, dùng thử 7 ngày) · Giải đấu tuần ·
-Phụ huynh chủ động (báo cáo tuần, cảnh báo nghỉ 2 ngày) · Khoá theo mục tiêu (IELTS/TOEIC/phỏng vấn).
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Học thử không đăng ký | Không cần gì. Tài khoản khách có email `guest-…@guest.agen.local`, cùng hạn mức gói miễn phí. |
+| Thanh toán VNPay / MoMo | Đăng ký merchant rồi dán khoá vào Render: **VNPay** `VNPAY_TMN_CODE`, `VNPAY_HASH_SECRET`, `VNPAY_URL` (sandbox mặc định; production `https://pay.vnpay.vn/vpcpay.html`); **MoMo** `MOMO_PARTNER_CODE`, `MOMO_ACCESS_KEY`, `MOMO_SECRET_KEY`, `MOMO_ENDPOINT` (test mặc định; production `https://payment.momo.vn`). Đặt `API_PUBLIC_URL` = URL backend Render. Khai báo IPN với cổng: VNPay `…/api/v1/billing/vnpay/ipn`, MoMo tự lấy từ request. Khi đã bật cổng thật, đặt `ALLOW_DEMO_UPGRADE=false`. Giá: 99K/249K/799K (`services/payments.py`). |
+| Dùng thử 7 ngày | Không cần gì (mỗi tài khoản một lần, khách phải lưu tài khoản trước). |
+| Giải đấu tuần | Không cần gì. |
+| Email phụ huynh | Cần email đã bật (`RESEND_API_KEY`, `EMAIL_FROM`); chạy trong cron nhắc học hằng giờ sẵn có. |
+| Khoá mục tiêu | Không cần gì; bài tạo bằng AI khi học viên mở (tốn 1 lượt AI/bài như bài tự do). |
+
+Chưa làm trong G3: "giải đấu" chia bảng 30 người theo nhóm (hiện 1 bảng chung, top 30 hiển thị); thẻ quốc tế đi qua
+VNPay (chưa có Stripe); Zalo OA.
+
+## G4 — gợi ý tiếp theo
+
+Chia bảng giải đấu theo nhóm + hạ/thăng hạng · Nội dung Content Factory cho khoá mục tiêu (tạo sẵn 36 bài) ·
+Gói gia đình (1 phụ huynh – nhiều con, thanh toán chung) · Thống kê admin cho doanh thu/chuyển đổi học thử → trả phí ·
+Chấm viết theo band IELTS/TOEIC.
 
 ## Câu hỏi còn mở với chủ dự án
 

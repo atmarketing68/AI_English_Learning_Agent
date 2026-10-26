@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
-  getChildren, linkChild, unlinkChild, getChildReport,
-  type ChildSummary, type ChildReport,
+  getChildren, linkChild, unlinkChild, getChildReport, getParentSettings, updateParentSettings,
+  type ChildSummary, type ChildReport, type ParentSettings,
 } from '@/lib/parentService';
-import { BookOpen, BookText, ChartColumn, CircleAlert, CircleCheck, Clock, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { BookOpen, BookText, ChartColumn, CircleAlert, CircleCheck, Clock, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/apiError';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
@@ -51,6 +51,33 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
 }
 
 // ── Link child form ────────────────────────────────────────────────────────────
+// ── G3 · weekly e-mail + inactivity alerts ───────────────────────────────────
+function ParentEmailCard() {
+  const [prefs, setPrefs] = useState<ParentSettings | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { getParentSettings().then(setPrefs).catch(() => null); }, []);
+  if (!prefs) return null;
+  const toggle = async () => {
+    setBusy(true);
+    try { setPrefs(await updateParentSettings({ weekly_report_email: !prefs.weekly_report_email })); } finally { setBusy(false); }
+  };
+  return (
+    <div className="card" style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+      <span className="icon-tile" style={{ flexShrink: 0 }}><Mail size={20} strokeWidth={1.8} /></span>
+      <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ fontWeight: 600 }}>Email báo cáo tuần và cảnh báo nghỉ học</div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          Chủ nhật 18h gửi báo cáo tuần của con; cảnh báo khi con nghỉ 2 ngày liên tiếp. Gửi tới {prefs.email_address}.
+          {!prefs.email_available && ' (Máy chủ chưa bật gửi email.)'}
+        </div>
+      </div>
+      <button type="button" className={`btn btn-sm ${prefs.weekly_report_email ? 'btn-outline' : 'btn-primary'}`} onClick={toggle} disabled={busy}>
+        {busy ? <LoaderCircle className="animate-spin" size={14} /> : prefs.weekly_report_email ? 'Đang bật · Tắt' : 'Bật'}
+      </button>
+    </div>
+  );
+}
+
 function LinkChildForm({ onLinked }: { onLinked: () => void }) {
   const [code, setCode] = useState('');
   const [label, setLabel] = useState('');
@@ -322,6 +349,7 @@ export default function ParentDashboardPage() {
 
         {/* Link form */}
         <LinkChildForm onLinked={load} />
+        <ParentEmailCard />
 
         {children.length === 0 ? (
           <motion.div

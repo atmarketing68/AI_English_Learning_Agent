@@ -181,4 +181,13 @@ def run_reminders(
     secret = settings.cron_secret
     if not secret or not hmac.compare_digest(x_cron_secret, secret):
         raise HTTPException(status_code=403, detail="Forbidden")
-    return run_due_reminders(db)
+    stats = run_due_reminders(db)
+    # G3 · parents: weekly report + inactivity alerts ride the same hourly job.
+    from app.services.parent_digest import run_parent_digests
+    try:
+        stats["parents"] = run_parent_digests(db)
+    except Exception:  # never let a parent e-mail problem block learner reminders
+        import logging
+        logging.getLogger("agen.parent_digest").exception("Parent digest run failed")
+        stats["parents"] = {"error": True}
+    return stats

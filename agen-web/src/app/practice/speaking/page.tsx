@@ -18,7 +18,7 @@ import {
   finishRoleplay, getScenario, getScenarios, handleSpeakingTurn, startRoleplay, startScenarioRoleplay,
   type Persona, type ScenarioDetail, type ScenarioList, type ScenarioSummary,
 } from '@/lib/speakingApiService';
-import { scorePronunciation, type PronunciationResult } from '@/lib/pronunciationService';
+import { getPronunciationStatus, scoreAttempt, type PronunciationResult } from '@/lib/pronunciationService';
 import { playText, preloadText, stopSpeech } from '@/lib/speechService';
 import { useSpeechRecorder } from '@/lib/useSpeechRecorder';
 import { getMyProfile, notifyActivityCompleted } from '@/lib/services';
@@ -75,8 +75,9 @@ function StepBar({ phase }: { phase: Phase }) {
 // ─── Page ───────────────────────────────────────────────────────────────────
 export default function SpeakingPracticePage() {
   const { setLearner } = useAuthStore();
-  const onTake = useRef<(transcript: string, duration: number) => void>(() => {});
-  const recorder = useSpeechRecorder({ onFinish: (t, d) => onTake.current(t, d) });
+  const onTake = useRef<(transcript: string, duration: number, wav?: Blob | null) => void>(() => {});
+  const [captureAudio, setCaptureAudio] = useState(false);
+  const recorder = useSpeechRecorder({ onFinish: (t, d, wav) => onTake.current(t, d, wav), captureAudio });
 
   // Catalogue
   const [catalogue, setCatalogue] = useState<ScenarioList | null>(null);
@@ -110,6 +111,7 @@ export default function SpeakingPracticePage() {
 
   useEffect(() => {
     getScenarios().then(setCatalogue).catch(err => setLoadError(errorText(err, 'Không tải được danh sách tình huống.')));
+    getPronunciationStatus().then(st => setCaptureAudio(st.phoneme_enabled));
     return () => stopSpeech();
   }, []);
 
@@ -188,10 +190,10 @@ export default function SpeakingPracticePage() {
   };
 
   // Score as soon as a take ends with a transcript.
-  const scoreTake = useCallback((transcript: string, duration: number) => {
+  const scoreTake = useCallback((transcript: string, duration: number, wav?: Blob | null) => {
     if (!phrase) return;
     setScoring(true);
-    scorePronunciation(phrase.en, transcript, duration || undefined, 'scenario_repeat')
+    scoreAttempt({ targetText: phrase.en, transcript, durationSeconds: duration || undefined, wav, source: 'scenario_repeat' })
       .then(res => {
         setAttempt(res);
         setBestScores(b => ({ ...b, [phraseIdx]: Math.max(b[phraseIdx] ?? 0, res.overall_score) }));
@@ -260,8 +262,8 @@ export default function SpeakingPracticePage() {
 
   // A finished take is scored (step 2) or sent to the character (step 3).
   useEffect(() => {
-    onTake.current = (transcript, duration) => {
-      if (phase === 'repeat') scoreTake(transcript, duration);
+    onTake.current = (transcript, duration, wav) => {
+      if (phase === 'repeat') scoreTake(transcript, duration, wav);
       else if (phase === 'roleplay') { recorder.reset(); void send(transcript); }
     };
   }, [phase, scoreTake, send, recorder]);

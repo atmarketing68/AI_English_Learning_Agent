@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Boolean, DateTime, Text
+from sqlalchemy import Column, String, Boolean, DateTime, Text, false as sa_false
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -17,6 +17,8 @@ class User(Base):
     role = Column(String(20), default="learner", nullable=False)  # learner | parent
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)
+    # G3 · học thử: created without an email/password; claimed later via /auth/claim.
+    is_guest = Column(Boolean, default=False, server_default=sa_false(), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

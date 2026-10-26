@@ -51,6 +51,8 @@ class GenerateLessonRequest(BaseModel):
         max_length=40,
         description="Curriculum node code — serve cached content if available",
     )
+    # G3 · goal tracks: lesson code inside an IELTS/TOEIC/interview track
+    track_code: str | None = Field(default=None, max_length=40)
     background: bool = False
 
 
@@ -203,6 +205,42 @@ def _update_curriculum_progress(db: Session, learner_id: str, lesson: Lesson, sc
         progress.mastered = True
 
 
+def _track_spec(track_code: str | None) -> dict | None:
+    """Lesson spec (skill/topic/level) for a goal-track lesson code, if any."""
+    if not track_code:
+        return None
+    from app.services.goal_tracks import find_lesson
+    found = find_lesson(track_code)
+    return found[2] if found else None
+
+
+def _link_track_progress(db: Session, learner_id: str, track_code: str | None, lesson_id: str) -> None:
+    if not track_code:
+        return
+    from app.models.goal_track import GoalTrackProgress
+    prog = db.query(GoalTrackProgress).filter(
+        GoalTrackProgress.learner_id == learner_id, GoalTrackProgress.lesson_code == track_code,
+    ).first()
+    if prog:
+        prog.generated_lesson_id = lesson_id
+
+
+def _update_track_progress(db: Session, learner_id: str, lesson: Lesson, score: float) -> None:
+    """G3 · if this lesson was generated for a goal-track lesson, record the result."""
+    from app.models.goal_track import GoalTrackProgress
+    prog = db.query(GoalTrackProgress).filter(
+        GoalTrackProgress.learner_id == learner_id, GoalTrackProgress.generated_lesson_id == lesson.id,
+    ).first()
+    if not prog:
+        return
+    prog.attempts = (prog.attempts or 0) + 1
+    prog.best_score = max(prog.best_score or 0, int(round(score)))
+    prog.status = "completed"
+    prog.completed_at = datetime.now(timezone.utc)
+    if prog.best_score >= _CURRICULUM_MASTERY_THRESHOLD:
+        prog.mastered = True
+
+
 def _check_exercise_answer(exercise: Exercise, user_answer: str) -> tuple[bool, str, str]:
     """Returns (is_correct, correct_answer, explanation)"""
     content = exercise.content
@@ -245,7 +283,7 @@ def _persist_generated_lesson(
         learner_id=learner.id,
         skill=payload.skill,
         topic=lesson_data.get("topic", payload.topic or "General"),
-        level=learner.overall_level,
+        level=(_track_spec(payload.track_code) or {}).get("level") or learner.overall_level,
         title=lesson_data.get("title", "New Lesson"),
         summary=lesson_data.get("summary", ""),
         status="generated",
@@ -342,12 +380,13 @@ def _run_lesson_generation_job(
         if not learner:
             raise ValueError("Learner profile not found")
 
+        track_spec = _track_spec(payload_data.get("track_code"))
         result = execute(AgentRequest(
             agent="lesson",
             trace_id=trace_id,
             payload={
                 "skill": payload_data["skill"],
-                "level": learner.overall_level,
+                "level": track_spec["level"] if track_spec else learner.overall_level,
                 "topic": payload_data.get("topic"),
                 "learner_age": learner.age,
             },
@@ -364,6 +403,7 @@ def _run_lesson_generation_job(
             return
 
         lesson = _persist_generated_lesson(db, learner, GenerateLessonRequest(**payload_data), result.data or {})
+        _link_track_progress(db, learner.id, payload_data.get("track_code"), lesson.id)
         # ── Link the generated lesson to the curriculum progress row ──
         curriculum_code = payload_data.get("curriculum_code")
         if curriculum_code:
@@ -440,7 +480,7 @@ def generate_new_lesson(
 
     # Free practice: reuse approved Content Factory lessons the learner has not
     # done yet, so the lesson opens instantly instead of waiting on the AI.
-    if not payload.curriculum_code:
+    if not payload.curriculum_code and not payload.track_code:
         from app.services.curriculum_content_service import materialize_lesson_for_learner, pick_practice_content
         code = pick_practice_content(db, learner, payload.skill, payload.topic)
         practice_lesson = materialize_lesson_for_learner(db, learner, code) if code else None
@@ -471,12 +511,13 @@ def generate_new_lesson(
             poll_url=f"/api/v1/lessons/generation-jobs/{job['job_id']}",
         )
 
+    track_spec = _track_spec(payload.track_code)
     result = execute(AgentRequest(
         agent="lesson",
         trace_id=trace_id,
         payload={
             "skill": payload.skill,
-            "level": learner.overall_level,
+            "level": track_spec["level"] if track_spec else learner.overall_level,
             "topic": payload.topic,
             "learner_age": learner.age,
         },
@@ -489,6 +530,7 @@ def generate_new_lesson(
 
     try:
         lesson = _persist_generated_lesson(db, learner, payload, result.data or {})
+        _link_track_progress(db, learner.id, payload.track_code, lesson.id)
         # ── Link the generated lesson to the curriculum progress row ──
         if payload.curriculum_code:
             from app.models.curriculum import CurriculumLesson, LearnerCurriculumProgress
@@ -865,6 +907,7 @@ def finish_lesson(
 
     # ── Update curriculum progress if this lesson maps to a curriculum node ──
     _update_curriculum_progress(db, learner.id, lesson, result["score"])
+    _update_track_progress(db, learner.id, lesson, result["score"])
 
     # Words from this lesson go into the learner's notebook for spaced review
     words_saved = collect_lesson_vocabulary(db, learner.id, lesson, datetime.utcnow())

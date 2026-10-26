@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
@@ -271,10 +271,17 @@ class PronunciationRequest(BaseModel):
     source: str = Field(default="practice", max_length=40)
 
 
+class PhonemeVerdict(BaseModel):
+    phoneme: str
+    score: Optional[float] = None
+
+
 class WordVerdict(BaseModel):
     word: str
     status: str           # ok | wrong | missed
     heard: Optional[str] = None
+    score: Optional[float] = None               # phoneme mode only (0–100)
+    phonemes: list[PhonemeVerdict] = []         # phoneme mode only
 
 
 class SoundTip(BaseModel):
@@ -296,6 +303,60 @@ class PronunciationResponse(BaseModel):
     words: list[WordVerdict] = []
     sound_tips: list[SoundTip] = []
     xp_earned: int
+    # G2 · 9: "phoneme" when Azure scored the audio, "transcript" otherwise.
+    mode: str = "transcript"
+    completeness: Optional[float] = None
+    prosody: Optional[float] = None
+    recognized_text: Optional[str] = None
+
+
+class PronunciationStatus(BaseModel):
+    phoneme_enabled: bool
+    provider: Optional[str] = None
+
+
+def _award_pronunciation(db: Session, learner: LearnerProfile, overall: float, target_text: str, source: str,
+                         extra: dict) -> int:
+    """XP + profile + learning event shared by both scoring modes."""
+    xp = 5 + int((overall / 100) * 15)      # read-aloud is a lighter activity than roleplay
+    learner.total_xp = (learner.total_xp or 0) + xp
+    current_speaking = learner.speaking_score or 0.0
+    learner.speaking_score = round((current_speaking * 0.85) + (overall * 0.15), 1)
+    db.add(LearningEvent(
+        id=str(uuid.uuid4()),
+        learner_id=learner.id,
+        event_type="pronunciation_practice",
+        skill="speaking",
+        topic=target_text[:80],
+        score=overall,
+        xp_earned=xp,
+        extra_data={"source": source, **extra},
+    ))
+    record_activity(learner, "speaking", db)
+    db.commit()
+    return xp
+
+
+def _score_transcript(db: Session, learner: LearnerProfile, target_text: str, transcript: str,
+                      duration_seconds: float | None, source: str) -> PronunciationResponse:
+    from app.services.pronunciation_service import score_pronunciation
+    result = score_pronunciation(target_text=target_text, transcript=transcript, duration_seconds=duration_seconds)
+    xp = _award_pronunciation(db, learner, result.overall_score, target_text, source, {
+        "mode": "transcript",
+        "accuracy": round(result.accuracy, 1),
+        "coverage": round(result.coverage, 1),
+        "missed_words": result.missed_words[:10],
+        "sounds": [t["sound"] for t in result.sound_tips],
+    })
+    return PronunciationResponse(**result.to_dict(), xp_earned=xp, mode="transcript")
+
+
+@router.get("/pronunciation/status", response_model=PronunciationStatus)
+def pronunciation_status(current_user: User = Depends(get_current_user)):
+    """Whether the client should record audio for phoneme-level scoring."""
+    from app.services import pronunciation_azure
+    enabled = pronunciation_azure.is_enabled()
+    return PronunciationStatus(phoneme_enabled=enabled, provider="azure" if enabled else None)
 
 
 @router.post("/pronunciation", response_model=PronunciationResponse)
@@ -309,41 +370,81 @@ def score_pronunciation_attempt(
     The client transcribes speech with the Web Speech API and posts the text here.
     """
     learner = _learner_or_404(db, current_user)
+    return _score_transcript(db, learner, payload.target_text, payload.transcript, payload.duration_seconds, payload.source)
 
-    from app.services.pronunciation_service import score_pronunciation
-    result = score_pronunciation(
-        target_text=payload.target_text,
-        transcript=payload.transcript,
-        duration_seconds=payload.duration_seconds,
+
+@router.post("/pronunciation-audio", response_model=PronunciationResponse)
+async def score_pronunciation_audio(
+    audio: UploadFile = File(...),
+    target_text: str = Form(min_length=1, max_length=1000),
+    transcript: str = Form(default="", max_length=2000),
+    duration_seconds: Optional[float] = Form(default=None),
+    source: str = Form(default="practice", max_length=40),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """G2 · 9 — phoneme-level scoring of a WAV take (Azure). Falls back to the
+    transcript scorer when Azure is off or fails, so the learner always gets a result."""
+    from app.services import pronunciation_azure
+
+    learner = _learner_or_404(db, current_user)
+    wav = await audio.read()
+    if len(wav) > pronunciation_azure.MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Đoạn ghi âm quá dài (tối đa khoảng 60 giây).")
+    try:
+        result = pronunciation_azure.assess(wav, target_text)
+    except pronunciation_azure.AzureUnavailable as exc:
+        if not pronunciation_azure.is_enabled():
+            raise HTTPException(status_code=404, detail="phoneme_disabled")
+        import logging
+        logging.getLogger("agen.pronunciation.azure").warning("Azure assessment failed, using transcript: %s", exc)
+        return _score_transcript(db, learner, target_text, transcript, duration_seconds, source)
+
+    from app.services.pronunciation_service import _normalize
+    target_words = _normalize(target_text)
+    missed = [w["word"] for w in result.words if w["status"] == "missed"]
+    coverage = (sum(1 for w in result.words if w["status"] != "missed") / len(target_words) * 100) if target_words else 0.0
+    xp = _award_pronunciation(db, learner, result.overall_score, target_text, source, {
+        "mode": "phoneme",
+        "accuracy": round(result.accuracy, 1),
+        "fluency": round(result.fluency, 1),
+        "completeness": round(result.completeness, 1),
+        "prosody": result.prosody,
+        "missed_words": missed[:10],
+        "sounds": [t["sound"] for t in result.sound_tips],
+    })
+    return PronunciationResponse(
+        overall_score=round(result.overall_score, 1),
+        accuracy=round(result.accuracy, 1),
+        coverage=round(coverage, 1),
+        fluency=round(result.fluency, 1),
+        target_word_count=len(target_words),
+        said_word_count=len(_normalize(result.recognized_text)),
+        missed_words=missed,
+        extra_words=result.extra_words,
+        feedback_vi=_phoneme_feedback(result.overall_score, missed),
+        words=[WordVerdict(**w) for w in result.words],
+        sound_tips=[SoundTip(**t) for t in result.sound_tips],
+        xp_earned=xp,
+        mode="phoneme",
+        completeness=round(result.completeness, 1),
+        prosody=round(result.prosody, 1) if result.prosody is not None else None,
+        recognized_text=result.recognized_text,
     )
 
-    # XP: scaled by score (read-aloud is a lighter activity than roleplay).
-    xp = 5 + int((result.overall_score / 100) * 15)
 
-    learner.total_xp = (learner.total_xp or 0) + xp
-    current_speaking = learner.speaking_score or 0.0
-    learner.speaking_score = round((current_speaking * 0.85) + (result.overall_score * 0.15), 1)
-
-    db.add(LearningEvent(
-        id=str(uuid.uuid4()),
-        learner_id=learner.id,
-        event_type="pronunciation_practice",
-        skill="speaking",
-        topic=payload.target_text[:80],
-        score=result.overall_score,
-        xp_earned=xp,
-        extra_data={
-            "accuracy": round(result.accuracy, 1),
-            "coverage": round(result.coverage, 1),
-            "missed_words": result.missed_words[:10],
-            "source": payload.source,
-            "sounds": [t["sound"] for t in result.sound_tips],
-        },
-    ))
-    record_activity(learner, "speaking", db)
-    db.commit()
-
-    return PronunciationResponse(**result.to_dict(), xp_earned=xp)
+def _phoneme_feedback(overall: float, missed: list[str]) -> str:
+    if overall >= 85:
+        text = "Tuyệt vời! Từng âm đều rõ và đúng."
+    elif overall >= 70:
+        text = "Tốt! Chạm vào từ màu cam để xem âm nào cần sửa."
+    elif overall >= 50:
+        text = "Khá ổn. Nghe mẫu rồi nói chậm, nhấn rõ các âm được đánh dấu."
+    else:
+        text = "Hãy thử lại — nghe mẫu kỹ, đọc to và rõ từng từ."
+    if missed:
+        text += f" Từ chưa nghe thấy: {', '.join(missed[:5])}."
+    return text
 
 
 @router.post("/finish", response_model=FinishRoleplayResponse)

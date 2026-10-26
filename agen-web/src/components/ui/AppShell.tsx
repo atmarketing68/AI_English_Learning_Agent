@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Flame, Star } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import MobileNav from '@/components/ui/MobileNav';
+import GuestBanner from '@/components/GuestBanner';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import { SIDEBAR_ITEMS, isActive, showsAppShell } from '@/components/ui/navigation';
 
@@ -50,7 +51,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </aside>
       )}
-      <div className={shell ? 'app-content with-shell' : 'app-content'}>{children}</div>
+      <div className={shell ? 'app-content with-shell' : 'app-content'}><GuestBanner />{children}</div>
       <MobileNav />
     </>
   );
