@@ -22,6 +22,8 @@ import {
   Flame, Headphones, Lightbulb, PenLine, RotateCcw, Sparkles, Star, Target, Trophy, X, type LucideIcon,
 } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import { RETRYABLE, SKIP_ANSWER, correctAnswerText, isCorrectLocally } from '@/lib/exerciseCheck';
+import { DialogueOrder, Dictation, ListenChoose, MatchPairs, SpeakRepeat, WordBank } from '@/components/exercises/InteractiveExercises';
 import { getEngagement, type Engagement } from '@/lib/engagementService';
 import DailyQuests from '@/components/engagement/DailyQuests';
 
@@ -38,8 +40,7 @@ const SKILL_ICONS: Record<string, LucideIcon> = {
   reading: BookOpen, listening: Headphones, grammar: PenLine, vocabulary: BookText,
 };
 
-const GRADED = new Set(['multiple_choice', 'fill_blank']);
-const wrongIds = (l: LessonDetail) => l.exercises.filter(e => GRADED.has(e.type) && e.is_correct === false).map(e => e.id);
+const wrongIds = (l: LessonDetail) => l.exercises.filter(e => RETRYABLE.has(e.type) && e.is_correct === false).map(e => e.id);
 
 function vibrate(pattern: number | number[]) {
   try { navigator.vibrate?.(pattern); } catch { /* unsupported */ }
@@ -131,21 +132,6 @@ function GrammarRulePanel({ rule, defaultOpen }: { rule: GrammarExplanation; def
   );
 }
 
-// ─── Answer helpers ────────────────────────────────────────────────────────
-function correctAnswerText(ex: Exercise): string {
-  if (ex.type === 'multiple_choice') {
-    const key = String(ex.content.correct_answer ?? '');
-    const options = ex.content.options as Record<string, string>;
-    return options?.[key] ? `${key}. ${options[key]}` : key;
-  }
-  return String(ex.content.blank_word ?? '');
-}
-
-function isCorrectLocally(ex: Exercise, answer: string): boolean {
-  if (ex.type === 'multiple_choice') return answer.trim().toUpperCase() === String(ex.content.correct_answer ?? '').trim().toUpperCase();
-  return answer.trim().toLowerCase() === String(ex.content.blank_word ?? '').trim().toLowerCase();
-}
-
 // ─── Exercise view (declared OUTSIDE parent to avoid "component in render" error)
 interface Feedback {
   correct: boolean;
@@ -222,7 +208,21 @@ function ExerciseView({ exercise, picked, feedback, submitting, onAnswer }: Exer
     );
   }
 
-  return <div className="alert-error"><CircleAlert size={16} /> Dạng bài này chưa được hỗ trợ.</div>;
+  const props = {
+    content: exercise.content,
+    locked,
+    result: feedback ? (feedback.correct ? 'correct' as const : 'wrong' as const) : undefined,
+    onAnswer,
+  };
+  switch (exercise.type) {
+    case 'word_bank': return <WordBank {...props} />;
+    case 'match_pairs': return <MatchPairs {...props} />;
+    case 'listen_choose': return <ListenChoose {...props} />;
+    case 'dictation': return <Dictation {...props} />;
+    case 'speak_repeat': return <SpeakRepeat {...props} />;
+    case 'dialogue_order': return <DialogueOrder {...props} />;
+    default: return <div className="alert-error"><CircleAlert size={16} /> Dạng bài này chưa được hỗ trợ.</div>;
+  }
 }
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
@@ -376,7 +376,7 @@ export default function LessonPlayerPage() {
       const res = await submitExerciseAnswer(lesson.id, current.id, answer);
       const exercises = lesson.exercises.map(e => (e.id === current.id ? { ...e, user_answer: answer, is_correct: res.is_correct } : e));
       setLesson({ ...lesson, exercises });
-      if (current.type === 'flashcard') {
+      if (current.type === 'flashcard' || answer === SKIP_ANSWER) {
         setSubmitting(false);
         advance(exercises);
         return;
@@ -387,8 +387,8 @@ export default function LessonPlayerPage() {
         correct: res.is_correct,
         answerText: correctAnswerText(current),
         // fill_blank's server text only repeats the answer; the hint is shown in the card
-        explanation: current.type === 'multiple_choice' ? res.explanation : null,
-        canExplain: !res.is_correct,
+        explanation: current.type === 'fill_blank' ? null : res.explanation,
+        canExplain: !res.is_correct && ['multiple_choice', 'fill_blank', 'word_bank'].includes(current.type),
       });
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -435,7 +435,7 @@ export default function LessonPlayerPage() {
   useEffect(() => {
     if (!current || (mode !== 'main' && mode !== 'retry')) return;
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
       if (feedback) {
         if (e.key === 'Enter') { e.preventDefault(); handleNext(); }
         return;
@@ -633,7 +633,7 @@ export default function LessonPlayerPage() {
             <div className="review-feedback-title">
               {feedback.correct
                 ? <><CircleCheck size={20} /> {combo >= 3 ? `Tuyệt vời! Combo ${combo}` : 'Chính xác!'}</>
-                : <><CircleX size={20} /> Đáp án đúng: {feedback.answerText}</>}
+                : <><CircleX size={20} /> {feedback.answerText ? `Đáp án đúng: ${feedback.answerText}` : 'Chưa đúng'}</>}
             </div>
             {feedback.explanation && <p>{feedback.explanation}</p>}
 
@@ -725,7 +725,7 @@ export default function LessonPlayerPage() {
         {mode === 'main' && rule && <GrammarRulePanel key={currentIndex === 0 ? 'intro' : 'later'} rule={rule} defaultOpen={currentIndex === 0} />}
 
         {/* Vocabulary reference panel — shown when lesson has vocab content */}
-        {mode === 'main' && lesson.skill === 'vocabulary' && lesson.content?.vocabulary && lesson.content.vocabulary.length > 0 && (
+        {mode === 'main' && current.type === 'flashcard' && lesson.skill === 'vocabulary' && lesson.content?.vocabulary && lesson.content.vocabulary.length > 0 && (
           <VocabReferencePanel items={lesson.content.vocabulary} skillColor={skillColor} />
         )}
 

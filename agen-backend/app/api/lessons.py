@@ -25,6 +25,7 @@ from app.services.agent_jobs import create_job, get_job, update_job
 from app.worker import enqueue_lesson_generation
 from app.services.streak_service import record_activity
 from app.services.srs import collect_lesson_vocabulary, record_mistake
+from app.services.exercise_builder import NEW_TYPES, SKIP_ANSWER, check_answer as check_new_type, extra_exercises
 from app.services.adaptive_engine import (
     decide as adaptive_decide,
     AdaptiveInput,
@@ -222,6 +223,9 @@ def _check_exercise_answer(exercise: Exercise, user_answer: str) -> tuple[bool, 
         # Flashcards are always "correct" — they're for study, not grading
         return True, "", ""
 
+    elif ex_type in NEW_TYPES:
+        return check_new_type(ex_type, content, user_answer)
+
     elif ex_type == "writing_prompt":
         # Writing prompts are self-assessed; mark as correct if submitted
         return True, "", "Writing submitted for self-review."
@@ -258,6 +262,10 @@ def _persist_generated_lesson(
             type=ex_data.get("type", "multiple_choice"),
             content=ex_data.get("content", {}),
         ))
+    next_order = max((e.get("order", 0) for e in lesson_data.get("exercises", [])), default=-1) + 1
+    for i, extra in enumerate(extra_exercises(payload.skill, lesson_data)):
+        db.add(Exercise(id=str(uuid.uuid4()), lesson_id=lesson.id, order=next_order + i, **extra))
+        lesson.total_exercises += 1
 
     if payload.skill == "vocabulary" and "vocabulary" in lesson_data:
         lesson.content = {"vocabulary": lesson_data["vocabulary"]}
@@ -642,7 +650,7 @@ def submit_exercise_answer(
 
     # ── Golden Data: record a per-exercise LearningEvent (Master Plan §30) ──
     # Flashcards are study-only, not graded → skip event to avoid skewing analytics.
-    if exercise.type != "flashcard":
+    if exercise.type != "flashcard" and payload.answer != SKIP_ANSWER:
         error_type = None
         if not is_correct:
             error_type = f"{exercise.type}_incorrect"
@@ -681,6 +689,9 @@ def _mistake_prompt(exercise: Exercise, lesson: Lesson, correct_text: str, wrong
         options = content.get("options") or {}
         question = content.get("question", "")
         context = "Options: " + "; ".join(f"{k}. {v}" for k, v in options.items())
+    elif exercise.type == "word_bank":
+        question = f"Translate into English by arranging words: {content.get('prompt_vi', '')}"
+        context = f"Word bank: {' / '.join(content.get('tokens') or [])}"
     else:
         question = content.get("sentence", "")
         context = f"Options: {', '.join(content.get('options') or [])}"
@@ -721,7 +732,7 @@ def explain_mistake(
     )
     if not exercise:
         raise HTTPException(status_code=404, detail="Exercise not found.")
-    if exercise.type not in ("multiple_choice", "fill_blank") or exercise.user_answer is None or exercise.is_correct:
+    if exercise.type not in ("multiple_choice", "fill_blank", "word_bank") or exercise.user_answer is None or exercise.is_correct:
         raise HTTPException(status_code=400, detail="Chỉ giải thích được câu bạn đã trả lời sai.")
 
     content = dict(exercise.content or {})
@@ -770,7 +781,7 @@ def finish_lesson(
     answered = [
         {"is_correct": e.is_correct, "type": e.type}
         for e in lesson.exercises
-        if e.user_answer is not None and e.type != "flashcard"
+        if e.user_answer is not None and e.type != "flashcard" and e.user_answer != SKIP_ANSWER
     ]
 
     result = compute_lesson_score(answered)

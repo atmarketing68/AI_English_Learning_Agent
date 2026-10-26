@@ -5,7 +5,8 @@ import { track } from '@/lib/analytics';
 export interface Exercise {
   id: string;
   order: number;
-  type: 'multiple_choice' | 'fill_blank' | 'flashcard' | 'writing_prompt';
+  type: 'multiple_choice' | 'fill_blank' | 'flashcard' | 'writing_prompt'
+    | 'word_bank' | 'match_pairs' | 'listen_choose' | 'dictation' | 'speak_repeat' | 'dialogue_order';
   content: Record<string, unknown>;
   user_answer?: string;
   is_correct?: boolean;
