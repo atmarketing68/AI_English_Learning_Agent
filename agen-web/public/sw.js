@@ -1,7 +1,48 @@
-/* AI AGENT ENGLISH service worker — daily learning reminders (web push). */
+/* AI AGENT ENGLISH service worker: installable app shell, offline page and
+   daily learning reminders (web push). API calls are never cached. */
 
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+const VERSION = 'v1';
+const STATIC_CACHE = `static-${VERSION}`;
+const PRECACHE = ['/offline.html', '/icons/icon-192.png', '/logo.png'];
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter((k) => k !== STATIC_CACHE).map((k) => caches.delete(k)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  // Pages: always fresh from the network; offline → friendly fallback page.
+  if (request.mode === 'navigate') {
+    event.respondWith(fetch(request).catch(() => caches.match('/offline.html')));
+    return;
+  }
+
+  // Fingerprinted build assets and icons never change: cache-first.
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/icons/')) {
+    event.respondWith((async () => {
+      const cached = await caches.match(request);
+      if (cached) return cached;
+      const response = await fetch(request);
+      if (response.ok) {
+        const cache = await caches.open(STATIC_CACHE);
+        cache.put(request, response.clone());
+      }
+      return response;
+    })());
+  }
+});
 
 self.addEventListener('push', (event) => {
   let data = {};
@@ -9,8 +50,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'AI AGENT ENGLISH';
   event.waitUntil(self.registration.showNotification(title, {
     body: data.body || 'Đến giờ học tiếng Anh rồi!',
-    icon: '/logo.png',
-    badge: '/logo.png',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
     tag: data.tag || 'daily-reminder',
     renotify: false,
     data: { url: data.url || '/dashboard' },

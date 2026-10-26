@@ -3,9 +3,10 @@ AGEN — Admin / Quality API
 Read-only views over the AI Evaluation Framework (Master Plan §29).
 Access restricted to authenticated users for now; tighten to an admin role later.
 """
+import hmac
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, Integer, cast
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -153,6 +154,40 @@ def batch_generate_content(
         db, payload.level,
         force=payload.force, auto_approve=payload.auto_approve, limit=payload.limit,
     )
+
+
+@router.get("/content/coverage")
+def get_content_coverage(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """How much of the A1–B1 roadmap has ready (approved) content."""
+    _require_admin(current_user)
+    from app.services.curriculum_content_service import content_coverage
+
+    return content_coverage(db)
+
+
+@router.post("/content/cron")
+def scheduled_content_factory(
+    limit: int = Query(3, ge=1, le=10),
+    x_cron_secret: str = Header(default=""),
+    db: Session = Depends(get_db),
+):
+    """Scheduled Content Factory run (see .github/workflows/content-factory.yml).
+
+    Generates the next few A1–B1 roadmap lessons that have no content yet, so
+    lessons open instantly instead of waiting on the AI. Small batches keep the
+    AI provider's daily quota free for learners.
+    """
+    secret = settings.cron_secret
+    if not secret or not hmac.compare_digest(x_cron_secret, secret):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    from app.services.curriculum_content_service import content_coverage, generate_missing_content
+
+    summary = generate_missing_content(db, limit=limit)
+    summary["coverage"] = content_coverage(db)
+    return summary
 
 
 @router.post("/content/{code}/generate", response_model=ContentItemOut)

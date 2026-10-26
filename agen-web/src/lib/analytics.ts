@@ -36,7 +36,9 @@ export type AnalyticsEvent =
   | 'weekly_goal_claimed'
   | 'weekly_goal_set'
   | 'reminder_set'
-  | 'reminder_push_enabled';
+  | 'reminder_push_enabled'
+  | 'app_installed'
+  | 'install_prompt_answered';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

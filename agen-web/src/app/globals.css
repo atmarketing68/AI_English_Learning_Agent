@@ -1633,3 +1633,22 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 @media (max-width: 560px) {
   .reminder-hours { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ============================================
+   INSTALLABLE APP (PWA)
+   ============================================ */
+.install-card { display: flex; align-items: flex-start; gap: 14px; padding: 16px 20px; background: linear-gradient(135deg, var(--bg-tint), var(--bg-surface)); }
+.install-icon { flex-shrink: 0; border-radius: 12px; }
+.install-title { font-weight: 600; color: var(--text-primary); }
+.install-sub { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+.install-steps { margin: 10px 0 0; padding-left: 18px; font-size: 0.88rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px; }
+.install-steps svg { vertical-align: -2px; color: var(--agen-primary); }
+.install-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+@media (max-width: 480px) {
+  .install-card { flex-wrap: wrap; }
+  .install-actions { width: 100%; justify-content: space-between; padding-left: 62px; }
+}
+/* Launched from the home screen: no browser chrome, so respect the notch. */
+@media (display-mode: standalone) {
+  body { padding-top: env(safe-area-inset-top); }
+}

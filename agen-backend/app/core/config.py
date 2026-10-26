@@ -59,7 +59,9 @@ class Settings(BaseSettings):
     # Email via Resend (https://resend.com); EMAIL_FROM must use a verified domain.
     RESEND_API_KEY: str = ""
     EMAIL_FROM: str = ""
-    # Shared secret for the scheduler that calls POST /reminders/cron/run.
+    # Shared secret for scheduled jobs (reminders, Content Factory). CRON_SECRET
+    # wins; REMINDER_CRON_SECRET is kept as the original name for the same value.
+    CRON_SECRET: str = ""
     REMINDER_CRON_SECRET: str = ""
 
     @field_validator("SECRET_KEY")
@@ -88,6 +90,10 @@ class Settings(BaseSettings):
     def app_url(self) -> str:
         url = self.APP_URL or (self.allowed_origins_list[0] if self.allowed_origins_list else "")
         return url.rstrip("/")
+
+    @property
+    def cron_secret(self) -> str:
+        return self.CRON_SECRET or self.REMINDER_CRON_SECRET
 
     @property
     def push_enabled(self) -> bool:

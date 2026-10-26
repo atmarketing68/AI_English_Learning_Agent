@@ -430,6 +430,18 @@ def generate_new_lesson(
             logger.info("Served cached content for %s to learner %s", payload.curriculum_code, learner.id)
             return _lesson_detail(cached_lesson)
 
+    # Free practice: reuse approved Content Factory lessons the learner has not
+    # done yet, so the lesson opens instantly instead of waiting on the AI.
+    if not payload.curriculum_code:
+        from app.services.curriculum_content_service import materialize_lesson_for_learner, pick_practice_content
+        code = pick_practice_content(db, learner, payload.skill, payload.topic)
+        practice_lesson = materialize_lesson_for_learner(db, learner, code) if code else None
+        if practice_lesson is not None:
+            db.commit()
+            db.refresh(practice_lesson)
+            logger.info("Served cached practice content %s to learner %s", code, learner.id)
+            return _lesson_detail(practice_lesson)
+
     trace_id = str(uuid.uuid4())
     input_data = {"skill": payload.skill, "topic": payload.topic}
 

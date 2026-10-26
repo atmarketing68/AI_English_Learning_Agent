@@ -178,7 +178,7 @@ def run_reminders(
     db: Session = Depends(get_db),
 ):
     """Called hourly by the scheduler (see .github/workflows/reminders.yml)."""
-    secret = settings.REMINDER_CRON_SECRET
+    secret = settings.cron_secret
     if not secret or not hmac.compare_digest(x_cron_secret, secret):
         raise HTTPException(status_code=403, detail="Forbidden")
     return run_due_reminders(db)
