@@ -9,7 +9,39 @@ export interface SubscriptionInfo {
   status: 'active' | 'canceled' | 'expired';
   is_premium: boolean;
   current_period_end: string | null;
+  provider?: string | null;
 }
+
+// G3 · real checkout + trial
+export type PaymentProvider = 'vnpay' | 'momo';
+
+export interface BillingOptions {
+  prices: { months: number; amount_vnd: number }[];
+  providers: PaymentProvider[];
+  demo_enabled: boolean;
+  trial_available: boolean;
+  trial_days: number;
+}
+
+export interface CheckoutResult {
+  order_id: string;
+  provider: PaymentProvider;
+  pay_url: string;
+}
+
+export interface OrderInfo {
+  order_id: string;
+  provider: PaymentProvider;
+  months: number;
+  amount_vnd: number;
+  status: 'pending' | 'paid' | 'failed';
+}
+
+export const getBillingOptions = async (): Promise<BillingOptions> => (await api.get('/billing/options')).data;
+export const startPremiumTrial = async (): Promise<SubscriptionInfo> => (await api.post('/billing/trial')).data;
+export const checkout = async (months: number, provider: PaymentProvider): Promise<CheckoutResult> =>
+  (await api.post('/billing/checkout', { months, provider })).data;
+export const getOrder = async (orderId: string): Promise<OrderInfo> => (await api.get(`/billing/orders/${orderId}`)).data;
 
 export interface QuotaInfo {
   plan: string;

@@ -56,3 +56,21 @@ export async function getChildReport(learnerId: string): Promise<ChildReport> {
   const res = await api.get(`/parent/child/${learnerId}/report`);
   return res.data;
 }
+
+// ── G3 · proactive e-mails ────────────────────────────────────────────────────
+export interface ParentSettings {
+  weekly_report_email: boolean;
+  email_available: boolean;
+  email_address: string;
+  last_weekly_report_week: string | null;
+}
+
+export async function getParentSettings(): Promise<ParentSettings> {
+  const res = await api.get('/parent/settings');
+  return res.data;
+}
+
+export async function updateParentSettings(payload: { weekly_report_email: boolean }): Promise<ParentSettings> {
+  const res = await api.put('/parent/settings', payload);
+  return res.data;
+}

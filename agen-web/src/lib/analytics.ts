@@ -44,7 +44,16 @@ export type AnalyticsEvent =
   | 'speaking_phrase_scored'
   | 'listening_word_lookup'
   | 'listening_word_saved'
-  | 'listening_shadowing_started';
+  | 'listening_shadowing_started'
+  // G3 · growth
+  | 'guest_trial_started'
+  | 'guest_claimed'
+  | 'checkout_started'
+  | 'trial_started'
+  | 'league_opened'
+  | 'league_reward_claimed'
+  | 'track_started'
+  | 'track_lesson_started';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { register, login, getMyProfile } from '@/lib/services';
+import { register, login, getMyProfile, claimGuestAccount } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
 import Logo from '@/components/ui/Logo';
 import { CircleAlert, GraduationCap, Users } from 'lucide-react';
@@ -21,7 +21,10 @@ const GRADES = [
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { setAuth, setLearner, setUserRole } = useAuthStore();
+  const { setAuth, setLearner, setUserRole, setGuest, isGuest, isAuthenticated } = useAuthStore();
+  // G3 · a guest arriving from the "Lưu tài khoản" banner keeps their progress.
+  const [claimMode] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('claim') === '1');
+  const claiming = claimMode && isAuthenticated && isGuest;
   const [role, setRole] = useState<'learner' | 'parent'>('learner');
   const [form, setForm] = useState({
     full_name: '', display_name: '', email: '', password: '', age: '', grade: '',
@@ -37,6 +40,14 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
+      if (claiming) {
+        await claimGuestAccount({ ...form, age: form.age ? parseInt(form.age) : undefined, role: 'learner' });
+        setGuest(false);
+        setLearner(await getMyProfile());
+        track('guest_claimed');
+        router.push('/dashboard');
+        return;
+      }
       const created = await register({
         ...form,
         age: role === 'learner' && form.age ? parseInt(form.age) : undefined,
@@ -71,13 +82,13 @@ export default function RegisterPage() {
         <div className="card" style={{ padding: 'clamp(24px, 5vw, 40px)', boxShadow: 'var(--shadow-md)', border: 'none' }}>
 
           <div className="text-center" style={{ marginBottom: 'var(--spacing-xl)' }}>
-            <h2 style={{ fontSize: '1.75rem' }}>Tạo tài khoản AI AGENT ENGLISH</h2>
-            <p style={{ marginTop: 8, fontSize: '0.95rem' }}>Bắt đầu hành trình tiếng Anh cá nhân hóa của bạn.</p>
+            <h2 style={{ fontSize: '1.75rem' }}>{claiming ? 'Lưu tài khoản học thử' : 'Tạo tài khoản AI AGENT ENGLISH'}</h2>
+            <p style={{ marginTop: 8, fontSize: '0.95rem' }}>{claiming ? 'Thêm email và mật khẩu — XP, chuỗi ngày và sổ từ của bạn được giữ nguyên.' : 'Bắt đầu hành trình tiếng Anh cá nhân hóa của bạn.'}</p>
           </div>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
             {/* Role selector */}
-            <div className="form-group">
+            {!claiming && <div className="form-group">
               <label className="form-label">Bạn là</label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {([
@@ -103,7 +114,7 @@ export default function RegisterPage() {
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
               <div className="form-group">
@@ -149,7 +160,7 @@ export default function RegisterPage() {
             )}
 
             <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading} style={{ marginTop: 8 }}>
-              {loading ? 'Đang tạo tài khoản…' : role === 'parent' ? 'Tạo tài khoản phụ huynh' : 'Bắt đầu học ngay'}
+              {loading ? (claiming ? 'Đang lưu…' : 'Đang tạo tài khoản…') : claiming ? 'Lưu tài khoản' : role === 'parent' ? 'Tạo tài khoản phụ huynh' : 'Bắt đầu học ngay'}
             </button>
           </form>
 

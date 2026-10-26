@@ -74,6 +74,30 @@ class Settings(BaseSettings):
     TTS_CACHE_MAX_FILES: int = 3000
     GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
     OPENAI_TTS_MODEL: str = "tts-1"
+    # Self-hosted Voicebox (https://github.com/jamiepine/voicebox) as a free TTS
+    # source: the URL its REST API is reachable at (e.g. through a tunnel) and the
+    # voice profile ids to use. Tried first when set.
+    VOICEBOX_URL: str = ""
+    VOICEBOX_PROFILE_ID: str = ""
+    VOICEBOX_PROFILE_ID_MALE: str = ""
+    VOICEBOX_API_KEY: str = ""
+
+    # G2 · 9 — phoneme-level pronunciation scoring (Azure AI Speech). Off without a key.
+    AZURE_SPEECH_KEY: str = ""
+    AZURE_SPEECH_REGION: str = "southeastasia"
+
+    # G3 · Thanh toán thật. Each gateway is off until its merchant keys are set.
+    # VNPay: register at https://vnpay.vn (sandbox: https://sandbox.vnpayment.vn).
+    VNPAY_TMN_CODE: str = ""
+    VNPAY_HASH_SECRET: str = ""
+    VNPAY_URL: str = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
+    # MoMo: https://business.momo.vn (test endpoint below; production https://payment.momo.vn).
+    MOMO_PARTNER_CODE: str = ""
+    MOMO_ACCESS_KEY: str = ""
+    MOMO_SECRET_KEY: str = ""
+    MOMO_ENDPOINT: str = "https://test-payment.momo.vn"
+    # Public URL of this API (for gateway callbacks); defaults to the request's own origin.
+    API_PUBLIC_URL: str = ""
 
     @field_validator("SECRET_KEY")
     @classmethod

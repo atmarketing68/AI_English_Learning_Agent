@@ -10,7 +10,10 @@ interface AuthState {
   learner: LearnerProfile | null;
   isAuthenticated: boolean;
   userRole: 'learner' | 'parent' | null;
+  /** G3 · guest trial account (no email yet). */
+  isGuest: boolean;
   setAuth: (accessToken: string, refreshToken: string | null) => void;
+  setGuest: (isGuest: boolean) => void;
   setLearner: (learner: LearnerProfile) => void;
   setUserRole: (role: 'learner' | 'parent' | null) => void;
   logout: () => void;
@@ -23,11 +26,14 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       learner: null,
       userRole: null,
+      isGuest: false,
       isAuthenticated: false,
 
       setAuth: (accessToken, refreshToken) => {
         set({ token: accessToken, refreshToken, isAuthenticated: true });
       },
+
+      setGuest: (isGuest) => set({ isGuest }),
 
       setLearner: (learner) => set({ learner }),
 
@@ -35,7 +41,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         resetAnalytics();
-        set({ token: null, refreshToken: null, learner: null, userRole: null, isAuthenticated: false });
+        set({ token: null, refreshToken: null, learner: null, userRole: null, isGuest: false, isAuthenticated: false });
       },
     }),
     {
@@ -45,6 +51,7 @@ export const useAuthStore = create<AuthState>()(
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         userRole: state.userRole,
+        isGuest: state.isGuest,
       }),
     }
   )

@@ -28,9 +28,12 @@ class Subscription(Base):
     # For premium: when the current paid period ends (None for free / perpetual).
     current_period_end = Column(DateTime, nullable=True)
 
-    # Payment provider linkage (unused in pilot; reserved for real integration).
-    provider = Column(String(30), nullable=True)                     # stripe | vnpay | ...
+    # Payment provider linkage: pilot_manual | trial | vnpay | momo, and the order id.
+    provider = Column(String(30), nullable=True)
     provider_ref = Column(String(120), nullable=True)
+
+    # G3 · 7-day Premium trial, once per account.
+    trial_started_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

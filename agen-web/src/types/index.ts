@@ -50,6 +50,7 @@ export interface User {
   email: string;
   full_name: string | null;
   role: 'learner' | 'parent';
+  is_guest?: boolean;
 }
 
 export interface LoginPayload {

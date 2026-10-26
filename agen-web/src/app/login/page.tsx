@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { login, getMyProfile, getMe } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
 import Logo from '@/components/ui/Logo';
+import GuestTrialButton from '@/components/GuestTrialButton';
 import { CircleAlert } from 'lucide-react';
 import { identifyUser, track } from '@/lib/analytics';
 
@@ -97,6 +98,9 @@ export default function LoginPage() {
             <Link href="/register" style={{ color: 'var(--agen-primary-light)', fontWeight: 500 }}>
               Đăng ký miễn phí
             </Link>
+            <div style={{ marginTop: 14 }}>
+              <GuestTrialButton className="btn btn-ghost btn-sm" label="Học thử không cần tài khoản" />
+            </div>
           </div>
         </div>
       </div>

@@ -12,6 +12,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
+import GuestTrialButton from '@/components/GuestTrialButton';
 
 // ─── Palette for icon tiles ──────────────────────────────────────────────────
 const G = {
@@ -58,8 +59,8 @@ const TOPICS: { icon: LucideIcon; label: string }[] = [
 ];
 
 const STEPS: { icon: LucideIcon; tone: Tone; title: string; desc: string }[] = [
-  { icon: UserPlus, tone: 'blue', title: 'Tạo tài khoản miễn phí', desc: 'Chỉ cần email, không cần thẻ tín dụng.' },
-  { icon: ClipboardCheck, tone: 'purple', title: 'Kiểm tra đầu vào 5 phút', desc: '10 câu hỏi để AI AGENT ENGLISH xác định đúng trình độ của bạn.' },
+  { icon: UserPlus, tone: 'blue', title: 'Học thử hoặc tạo tài khoản', desc: 'Học thử ngay không cần đăng ký; lưu tài khoản bằng email khi muốn giữ tiến bộ.' },
+  { icon: ClipboardCheck, tone: 'purple', title: 'Kiểm tra đầu vào 8 phút', desc: '14 câu hỏi về đọc, nghe và nói để AI AGENT ENGLISH xác định đúng trình độ của bạn.' },
   { icon: Rocket, tone: 'pink', title: 'Nhận lộ trình và học ngay', desc: 'Bài học được tạo riêng theo mục tiêu và thời gian của bạn.' },
 ];
 
@@ -82,7 +83,7 @@ const PLANS = [
 
 const FAQS = [
   { q: 'AI AGENT ENGLISH có miễn phí không?', a: 'Có. Gói miễn phí gồm 3 bài học AI mỗi ngày, luyện nói nhập vai, luyện viết có chấm điểm, bài kiểm tra đầu vào và hệ thống XP, chuỗi ngày học. Bạn không cần thẻ tín dụng để bắt đầu.' },
-  { q: 'Bài kiểm tra đầu vào mất bao lâu?', a: 'Khoảng 5–8 phút với 10 câu hỏi về từ vựng, ngữ pháp và đọc hiểu. Kết quả dùng để xếp trình độ theo chuẩn CEFR và tạo lộ trình học riêng cho bạn.' },
+  { q: 'Bài kiểm tra đầu vào mất bao lâu?', a: 'Khoảng 8–10 phút với 14 câu hỏi về từ vựng, ngữ pháp, đọc, nghe và một câu đọc to. Kết quả dùng để xếp trình độ theo chuẩn CEFR và tạo lộ trình học riêng cho bạn.' },
   { q: 'Mỗi ngày nên học bao nhiêu phút?', a: 'Bạn tự chọn 5, 10, 15 hoặc 30 phút mỗi ngày. AI AGENT ENGLISH chia nhỏ bài học cho vừa lịch của bạn; 15 phút mỗi ngày là mức được khuyên dùng.' },
   { q: 'Phụ huynh theo dõi việc học của con như thế nào?', a: 'Con chia sẻ mã liên kết có trong ứng dụng. Phụ huynh tạo tài khoản phụ huynh, nhập mã và xem báo cáo hằng tuần: con đã tiến bộ gì, cần hỗ trợ gì và phụ huynh nên làm gì.' },
   { q: 'Gói Premium khác gì gói miễn phí?', a: 'Premium mở khoá bài học không giới hạn, báo cáo cho phụ huynh, lộ trình cá nhân hoá và ưu tiên hỗ trợ. Giá từ 99.000₫/tháng, hoặc chỉ khoảng 67.000₫/tháng khi chọn gói 12 tháng.' },
@@ -224,6 +225,7 @@ export default function HomePage() {
             <Link href="/register" className="btn btn-primary btn-lg btn-shine">
               Bắt đầu học miễn phí <ArrowRight size={18} />
             </Link>
+            <GuestTrialButton className="btn btn-lg hero-guest-btn" />
             <Link href="/login" className="hero-link">
               Đăng nhập <ChevronRight size={18} />
             </Link>
