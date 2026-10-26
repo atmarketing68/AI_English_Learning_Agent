@@ -2182,3 +2182,26 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 .guest-banner strong { color: var(--text-primary); }
 .hero-guest-btn { background: rgba(255,255,255,0.85); color: var(--text-primary); border: 1px solid rgba(0,0,0,0.1); }
 .hero-guest-btn:hover { background: #fff; color: var(--text-primary); }
+
+/* ============================================
+   G3 — WEEKLY LEAGUE
+   ============================================ */
+.league-page { min-height: 100vh; padding: clamp(20px, 4vw, 40px) var(--page-gutter) 40px; }
+.league-column { max-width: 640px; margin: 0 auto; }
+.league-hero { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.league-hero-icon { width: 60px; height: 60px; border-radius: 18px; background: color-mix(in srgb, #D4A017 14%, transparent); color: #D4A017; flex-shrink: 0; }
+.league-reward { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; border-color: color-mix(in srgb, var(--agen-accent) 40%, transparent); }
+.league-reward > svg { color: var(--agen-accent); flex-shrink: 0; }
+.league-reward[data-claimed="true"] { opacity: 0.8; }
+.league-rewards { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.league-reward-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; background: var(--bg-surface); border: 1px solid var(--border-subtle); font-size: 0.78rem; font-weight: 600; }
+.league-board { list-style: none; margin: 0; padding: 4px 0; }
+.league-row { display: grid; grid-template-columns: 36px 36px 1fr auto auto; align-items: center; gap: 10px; padding: 10px 16px; border-top: 1px solid var(--border-subtle); }
+.league-row:first-child { border-top: none; }
+.league-row[data-me="true"] { background: var(--bg-tint); }
+.league-rank { font-weight: 700; text-align: center; color: var(--text-muted); display: inline-flex; justify-content: center; }
+.league-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.league-name small { color: var(--text-muted); font-weight: 400; }
+.league-xp { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--agen-accent); font-variant-numeric: tabular-nums; }
+.league-empty { padding: 24px 16px; text-align: center; color: var(--text-muted); }
+.league-note { margin-top: 12px; font-size: 0.8rem; color: var(--text-muted); text-align: center; }

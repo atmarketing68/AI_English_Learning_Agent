@@ -62,6 +62,8 @@ class LearnerProfile(Base):
     # Weekly goal: number of study days per Mon–Sun week; reward claimed once per ISO week.
     weekly_goal_days = Column(Integer, default=5, server_default="5", nullable=False)
     weekly_goal_claimed_week = Column(String(10), nullable=True)   # e.g. "2026-W44"
+    # G3 · weekly league: reward claimed for this ISO week (last week's standing).
+    league_reward_claimed_week = Column(String(10), nullable=True)
     # Daily reminder: local hour (0–23) or None for off; email is opt-in.
     reminder_hour = Column(Integer, nullable=True)
     reminder_email = Column(Boolean, default=False, server_default=sa_false(), nullable=False)

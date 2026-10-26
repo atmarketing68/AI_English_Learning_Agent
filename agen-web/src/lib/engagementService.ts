@@ -75,3 +75,38 @@ export async function setWeeklyGoal(days: number): Promise<Engagement> {
   const { data } = await api.put('/engagement/weekly-goal', { days });
   return data;
 }
+
+// ── G3 · Giải đấu tuần ───────────────────────────────────────────────────────
+export interface LeagueEntry {
+  rank: number;
+  learner_id: string;
+  display_name: string;
+  level: string;
+  xp: number;
+  is_me: boolean;
+  tier: string | null;
+}
+
+export interface League {
+  week: string;
+  starts_on: string;
+  ends_on: string;
+  board_size: number;
+  rewards: { up_to_rank: number; xp: number }[];
+  entries: LeagueEntry[];
+  me: { rank: number | null; xp: number; participants: number };
+  last_week: {
+    week: string; rank: number | null; xp: number; participants: number;
+    reward_xp: number; tier: string | null; claimed: boolean; claimable: boolean;
+  };
+}
+
+export async function getLeague(): Promise<League> {
+  const { data } = await api.get('/engagement/league');
+  return data;
+}
+
+export async function claimLeagueReward(): Promise<{ xp_awarded: number; total_xp: number }> {
+  const { data } = await api.post('/engagement/league/claim');
+  return data;
+}
