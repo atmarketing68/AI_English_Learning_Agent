@@ -133,31 +133,38 @@ def _email_html(message: ReminderMessage, unsubscribe_url: str) -> str:
 </div>"""
 
 
-def send_email(to: str, message: ReminderMessage, user_id: str) -> bool:
+def deliver_email(to: str, subject: str, html_body: str, text: str, unsubscribe_url: str | None = None) -> bool:
+    """Send one e-mail through Resend. False (and a log line) on any failure."""
     if not settings.email_enabled:
         return False
-    unsubscribe_url = f"{settings.app_url}/unsubscribe?token={unsubscribe_token(user_id)}"
+    payload = {"from": settings.EMAIL_FROM, "to": [to], "subject": subject, "html": html_body, "text": text}
+    if unsubscribe_url:
+        payload["headers"] = {"List-Unsubscribe": f"<{unsubscribe_url}>"}
     try:
         res = httpx.post(
             "https://api.resend.com/emails",
             headers={"Authorization": f"Bearer {settings.RESEND_API_KEY}"},
-            json={
-                "from": settings.EMAIL_FROM,
-                "to": [to],
-                "subject": message.title,
-                "html": _email_html(message, unsubscribe_url),
-                "text": f"{message.title}\n\n{message.body}\n\n{settings.app_url}{message.url}\n\nTắt email nhắc học: {unsubscribe_url}",
-                "headers": {"List-Unsubscribe": f"<{unsubscribe_url}>"},
-            },
+            json=payload,
             timeout=10,
         )
     except httpx.HTTPError as exc:
-        logger.warning("Reminder email failed: %s", exc)
+        logger.warning("Email failed: %s", exc)
         return False
     if res.status_code >= 300:
-        logger.warning("Reminder email rejected (%s): %s", res.status_code, res.text[:200])
+        logger.warning("Email rejected (%s): %s", res.status_code, res.text[:200])
         return False
     return True
+
+
+def send_email(to: str, message: ReminderMessage, user_id: str) -> bool:
+    if not settings.email_enabled:
+        return False
+    unsubscribe_url = f"{settings.app_url}/unsubscribe?token={unsubscribe_token(user_id)}"
+    return deliver_email(
+        to, message.title, _email_html(message, unsubscribe_url),
+        f"{message.title}\n\n{message.body}\n\n{settings.app_url}{message.url}\n\nTắt email nhắc học: {unsubscribe_url}",
+        unsubscribe_url=unsubscribe_url,
+    )
 
 
 # ── Scheduler entry point ────────────────────────────────────────────────────
