@@ -23,7 +23,8 @@ npx cap add ios              # cần macOS + Xcode
 - Icon/splash: đặt `icon.png` (1024×1024) và `splash.png` (2732×2732) vào `agen-web/resources/` rồi chạy
   `npx @capacitor/assets generate` (tạo đủ kích thước cho hai nền tảng).
 - Web push trên app gốc: iOS WebView không nhận Web Push → dùng `@capacitor/push-notifications` (APNs/FCM).
-  Backend có thể thêm kênh FCM sau; hiện web push vẫn hoạt động trên Android (Chrome) và trên PWA iOS 16.4+.
+  **G8: backend đã có kênh FCM** (`POST /api/v1/notifications/device-tokens`), xem mục "Push gốc" bên dưới.
+  Web push vẫn hoạt động trên Android (Chrome) và trên PWA iOS 16.4+.
 
 ## 3. Build & chạy thử
 ```bash
@@ -44,3 +45,33 @@ npx cap open ios        # Xcode → Run (cần Apple Developer để lên TestFl
 - Giao diện đáp ứng điện thoại (tab bar dưới), vùng an toàn (`env(safe-area-inset-bottom)`).
 - Đăng nhập, học, nói, nghe đều chạy trong WebView; micro cần quyền `RECORD_AUDIO` (Android) và
   `NSMicrophoneUsageDescription` (iOS) — khai báo trong `AndroidManifest.xml` / `Info.plist`.
+
+## Push gốc (FCM) — G8
+
+1. Firebase console → tạo project → thêm app Android (`google-services.json` vào `android/app/`) và iOS (`GoogleService-Info.plist`,
+   bật APNs key trong Cloud Messaging).
+2. Project settings → Service accounts → *Generate new private key* → dán **nguyên nội dung JSON** vào biến môi trường
+   `FIREBASE_SERVICE_ACCOUNT_JSON` trên Render. Không có biến này, backend bỏ qua FCM (web push vẫn chạy).
+3. Trong app, sau khi người dùng đăng nhập, đăng ký token và gửi lên backend (kèm JWT như mọi API khác):
+
+```ts
+import { PushNotifications } from '@capacitor/push-notifications';
+import api from '@/lib/api';
+
+export async function registerNativePush() {
+  const perm = await PushNotifications.requestPermissions();
+  if (perm.receive !== 'granted') return;
+  await PushNotifications.register();
+  PushNotifications.addListener('registration', ({ value }) => {
+    void api.post('/notifications/device-tokens', { token: value, platform: Capacitor.getPlatform() === 'ios' ? 'ios' : 'android' });
+  });
+  PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
+    const url = (notification.data as { url?: string })?.url;
+    if (url) window.location.assign(url);              // "/dashboard", "/review"…
+  });
+}
+```
+
+4. Khi đăng xuất, gọi `DELETE /notifications/device-tokens` với cùng token để thiết bị không nhận nhắc của tài khoản cũ.
+5. Thử: Render → Shell → `python -c "from app.services import fcm; print(fcm.enabled())"` phải in `True`; rồi chạy workflow
+   *Learning reminders* — học viên có token sẽ nhận thông báo gốc, log ghi `agen.fcm` nếu lỗi.

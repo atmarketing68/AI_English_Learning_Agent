@@ -48,6 +48,11 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
   `plan=team` + `Subscription.seats`, phủ `subscription_service.team_covered_learners()`. Push phụ huynh:
   `PushSubscription.user_id` (learner_id có thể null), gửi trong `parent_digest.run_parent_digests` qua `reminders.push_to_user`.
   Web: trang chủ nhóm `app/teacher`, học viên `app/classes`, `/learn?assignment=<id>`.
+- G8: đề thi thử tĩnh trong `services/mock_exams.py` (`grade()` chấm xác định, `estimate_score()` quy đổi band/điểm), lưu `ExamAttempt`;
+  Bo hỏi đáp `agents/tutor_agent.py` qua orchestrator `tutor_answer` + `TutorMessage` (fallback không trừ lượt miễn phí); CSV nhóm
+  `groups.report_csv`; hoá đơn VAT `PaymentOrder.invoice_info`/`invoice_issued_at`; FCM `services/fcm.py` (gọi trong
+  `reminders.push_to_learner/push_to_user`, tắt khi không có `FIREBASE_SERVICE_ACCOUNT_JSON`). Web: `/exams/<id>` là chế độ tập trung
+  (không shell), chat Bo dùng class `chat-*`, báo cáo nhóm in `app/teacher/[groupId]/report`.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

@@ -29,5 +29,9 @@ class PaymentOrder(Base):
     pay_url = Column(String(2000), nullable=True)
     callback = Column(JSON, nullable=True)
 
+    # G8 · hoá đơn VAT cho doanh nghiệp: {company_name, tax_code, address, email}; set when the buyer asks for one.
+    invoice_info = Column(JSON, nullable=True)
+    invoice_issued_at = Column(DateTime, nullable=True)       # admin marks the e-invoice as sent
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     paid_at = Column(DateTime, nullable=True)

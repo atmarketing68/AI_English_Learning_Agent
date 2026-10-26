@@ -2810,3 +2810,65 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 .assignment-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--bg-elevated); }
 .assignment-row[data-done="true"] { opacity: 0.75; }
 .assignment-row[data-overdue="true"] { background: color-mix(in srgb, var(--agen-secondary) 7%, var(--bg-elevated)); }
+
+/* ============================================
+   G8 — MOCK EXAMS · HỎI BO (chat) · GROUP REPORT
+   ============================================ */
+.exam-card { display: flex; flex-direction: column; }
+.exam-page { min-height: 100vh; background: var(--bg-base); padding: 0 var(--page-gutter) 48px; }
+.exam-column { max-width: 820px; margin: 0 auto; padding-top: 20px; }
+.exam-topbar {
+  position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 calc(-1 * var(--page-gutter)); padding: 10px var(--page-gutter); background: var(--bg-glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.exam-clock { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: var(--radius-full); background: var(--bg-tint); color: var(--agen-primary); font-weight: 600; font-variant-numeric: tabular-nums; }
+.exam-clock[data-low="true"] { background: color-mix(in srgb, var(--agen-secondary) 14%, transparent); color: var(--agen-secondary); animation: exam-pulse 1s ease-in-out infinite; }
+@keyframes exam-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.exam-audio { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: var(--radius-md); background: var(--bg-tint); color: var(--agen-primary); }
+.exam-passage { white-space: pre-line; line-height: 1.65; font-size: 0.95rem; padding: 14px 16px; border-radius: var(--radius-md); background: var(--bg-elevated); max-height: 420px; overflow: auto; }
+.exam-q .choice-grid { grid-template-columns: 1fr; }
+.exam-result-hero { text-align: center; display: grid; gap: 6px; justify-items: center; }
+.exam-result-band { font-size: clamp(2.2rem, 7vw, 3.2rem); font-weight: 700; letter-spacing: -0.04em; background: linear-gradient(135deg, var(--agen-primary), var(--skill-writing)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.exam-sections { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle); width: 100%; }
+.exam-sections strong { font-size: 1.1rem; }
+.exam-review { padding: 10px 12px; border-radius: var(--radius-md); background: var(--bg-elevated); border-left: 3px solid var(--agen-success); }
+.exam-review[data-ok="false"] { border-left-color: var(--agen-secondary); }
+.exam-review-mark { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; background: color-mix(in srgb, var(--agen-success) 15%, transparent); color: var(--agen-success); margin-top: 2px; }
+.exam-review[data-ok="false"] .exam-review-mark { background: color-mix(in srgb, var(--agen-secondary) 15%, transparent); color: var(--agen-secondary); }
+.exam-transcript { font-size: 0.85rem; color: var(--text-secondary); }
+.exam-transcript summary { cursor: pointer; color: var(--agen-primary); font-weight: 600; }
+.exam-transcript p { margin: 6px 0 0; }
+
+/* Hỏi Bo */
+.chat-log { display: grid; gap: 12px; margin-top: 14px; }
+.chat-row { display: flex; gap: 8px; align-items: flex-end; }
+.chat-row.is-user { justify-content: flex-end; }
+.chat-avatar { width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: flex-end; }
+.chat-avatar .mascot { margin: 0; }
+.chat-bubble { max-width: 85%; padding: 10px 14px; border-radius: 18px; background: var(--agen-primary); color: #fff; font-size: 0.92rem; line-height: 1.5; border-bottom-right-radius: 6px; }
+.chat-bubble.is-bo { background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-subtle); border-bottom-right-radius: 18px; border-bottom-left-radius: 6px; box-shadow: var(--shadow-sm); }
+.chat-bubble p { margin: 0; }
+.chat-rule { margin-top: 8px; padding: 8px 10px; border-radius: 10px; background: var(--bg-tint); color: var(--agen-primary); font-weight: 600; font-size: 0.85rem; }
+.chat-examples { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; font-size: 0.88rem; }
+.chat-examples li { display: flex; gap: 6px; align-items: flex-start; }
+.chat-examples .icon-btn { flex-shrink: 0; width: 26px; height: 26px; }
+.chat-mistake { margin-top: 8px; font-size: 0.85rem; color: var(--text-secondary); }
+.chat-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chat-chip { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: var(--radius-full); border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-primary); font: inherit; font-size: 0.8rem; cursor: pointer; transition: border-color var(--transition-fast), background var(--transition-fast); }
+.chat-chip:hover { border-color: var(--agen-primary); background: var(--bg-tint); }
+.chat-input { display: flex; gap: 8px; position: sticky; bottom: calc(var(--tabbar-height, 0px) + 10px); background: var(--bg-base); padding-top: 8px; }
+.chat-input .form-input { flex: 1; }
+.chat-typing { display: inline-flex; gap: 4px; align-items: center; padding: 14px 16px; }
+.chat-typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); animation: chat-dot 1.2s ease-in-out infinite; }
+.chat-typing span:nth-child(2) { animation-delay: 0.15s; }
+.chat-typing span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes chat-dot { 0%, 80%, 100% { opacity: 0.3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+:root[data-skin="vivid"] .chat-bubble { background: var(--agen-primary); }
+
+/* Group report (print) */
+.report-h2 { font-size: 1.05rem; margin: 22px 0 10px; color: #1D1D1F; }
+.report-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; color: #1D1D1F; }
+.report-table th, .report-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #E5E5EA; }
+.report-table th { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #86868B; }
+@media print { .report-table th, .report-table td { padding: 6px 8px; } .exam-topbar { display: none; } }

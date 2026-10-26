@@ -3,13 +3,14 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
 from app.models.learner_profile import LearnerProfile
 from app.models.notification import Notification
+from app.services import fcm
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
@@ -27,6 +28,17 @@ class NotificationOut(BaseModel):
 
 class UnreadCountOut(BaseModel):
     unread: int
+
+
+class DeviceTokenIn(BaseModel):
+    token: str = Field(min_length=20, max_length=400)
+    platform: str = Field(default="android", pattern="^(android|ios)$")
+
+
+class DeviceTokenOut(BaseModel):
+    id: str
+    platform: str
+    native_push_enabled: bool
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -113,3 +125,33 @@ def mark_all_read(
     ).update({"is_read": True, "read_at": datetime.now(timezone.utc)})
     db.commit()
     return UnreadCountOut(unread=0)
+
+
+# ── G8 · Native push (Capacitor app) ─────────────────────────────────────────
+@router.get("/native-push", response_model=dict)
+def native_push_status(current_user: User = Depends(get_current_user)):
+    """Whether the server can send native push (FCM configured)."""
+    return {"enabled": fcm.enabled()}
+
+
+@router.post("/device-tokens", response_model=DeviceTokenOut)
+def register_device_token(
+    payload: DeviceTokenIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Register this device's FCM token; learners and parents alike (learner_id is set when there is a profile)."""
+    learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == current_user.id).first()
+    row = fcm.register(db, current_user.id, learner.id if learner else None, payload.token.strip(), payload.platform)
+    db.commit()
+    return DeviceTokenOut(id=row.id, platform=row.platform, native_push_enabled=fcm.enabled())
+
+
+@router.delete("/device-tokens", status_code=204)
+def unregister_device_token(
+    payload: DeviceTokenIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    fcm.unregister(db, current_user.id, payload.token.strip())
+    db.commit()

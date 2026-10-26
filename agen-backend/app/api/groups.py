@@ -3,6 +3,7 @@ from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -170,6 +171,20 @@ def group_detail(group_id: str, current_user: User = Depends(get_current_user), 
         assignments=[_assignment_out(a) for a in svc.group_assignments(db, g.id)],
         covered_seats=len(team_covered_learners(db, current_user.id)),
     )
+
+
+@router.get("/{group_id}/report.csv")
+def group_report_csv(group_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G8 · Progress of every member as CSV (UTF-8 with BOM so Excel opens it with Vietnamese intact)."""
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    csv_text = svc.report_csv(db, g)
+    safe = "".join(c if c.isascii() and c.isalnum() else "-" for c in g.name).strip("-")[:40] or "nhom"
+    return Response(content="\ufeff" + csv_text, media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="bao-cao-{safe}.csv"'})
 
 
 @router.delete("/{group_id}/members/{learner_id}", status_code=204)

@@ -1,6 +1,6 @@
 /** Shared navigation for the learner app shell (desktop sidebar + mobile tab bar). */
 import {
-  BookMarked, BookOpen, Brain, ChartColumn, House, Map as MapIcon, Mic, PenLine, School, ShoppingBag, Sparkles, Target, Trophy, UserRound, Users, Zap, type LucideIcon,
+  BookMarked, BookOpen, Brain, ChartColumn, ClipboardCheck, House, Map as MapIcon, MessageCircleQuestion, Mic, PenLine, School, ShoppingBag, Sparkles, Target, Trophy, UserRound, Users, Zap, type LucideIcon,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -23,6 +23,8 @@ export const SIDEBAR_ITEMS: NavItem[][] = [
   [
     { href: '/practice/speaking', label: 'Luyện nói', icon: Mic, match: ['/practice/speaking'] },
     { href: '/practice/writing', label: 'Luyện viết', icon: PenLine, match: ['/practice/writing'] },
+    { href: '/exams', label: 'Thi thử', icon: ClipboardCheck, match: ['/exams'] },
+    { href: '/tutor', label: 'Hỏi Bo', icon: MessageCircleQuestion, match: ['/tutor'] },
     { href: '/tracks', label: 'Mục tiêu', icon: Target, match: ['/tracks'] },
     { href: '/league', label: 'Giải đấu', icon: Trophy, match: ['/league'] },
     { href: '/friends', label: 'Bạn học', icon: Users, match: ['/friends'] },
@@ -39,12 +41,12 @@ export const SIDEBAR_ITEMS: NavItem[][] = [
 export const TAB_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Học', icon: House, match: ['/dashboard', '/learn', '/curriculum'] },
   { href: '/review', label: 'Ôn tập', icon: Brain, match: ['/review', '/vocabulary', '/blitz'] },
-  { href: '/practice/speaking', label: 'Luyện tập', icon: Mic, match: ['/practice'] },
+  { href: '/practice/speaking', label: 'Luyện tập', icon: Mic, match: ['/practice', '/exams', '/tutor'] },
   { href: '/progress', label: 'Tiến bộ', icon: ChartColumn, match: ['/progress', '/league', '/tracks', '/friends', '/classes'] },
   { href: '/profile', label: 'Hồ sơ', icon: UserRound, match: ['/profile', '/upgrade', '/shop'] },
 ];
 
-const SHELL_PREFIXES = ['/dashboard', '/curriculum', '/learn', '/vocabulary', '/practice', '/progress', '/profile', '/upgrade', '/league', '/tracks', '/shop', '/blitz', '/friends', '/classes'];
+const SHELL_PREFIXES = ['/dashboard', '/curriculum', '/learn', '/vocabulary', '/practice', '/progress', '/profile', '/upgrade', '/league', '/tracks', '/shop', '/blitz', '/friends', '/classes', '/exams', '/tutor'];
 
 /**
  * Pages that show the app navigation. Focus modes keep the whole screen:
@@ -52,6 +54,7 @@ const SHELL_PREFIXES = ['/dashboard', '/curriculum', '/learn', '/vocabulary', '/
  */
 export function showsAppShell(pathname: string): boolean {
   if (/^\/learn\/[^/]+/.test(pathname)) return false;
+  if (/^\/exams\/[^/]+/.test(pathname)) return false;      // G8 · taking a mock test is a focus mode
   return SHELL_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`));
 }
 

@@ -459,7 +459,7 @@ def revenue_summary(
         prov.orders += 1
         plan = o.plan or PLAN_PREMIUM
         pk = f"{plan}·{o.months}"
-        label = f"{'Gia đình' if plan == PLAN_FAMILY else 'Premium'} {o.months} tháng"
+        label = f"{'Gia đình' if plan == PLAN_FAMILY else 'Doanh nghiệp' if plan == 'team' else 'Premium'} {o.months} tháng"
         bucket = by_plan.setdefault(pk, RevenueBucket(key=pk, label=label, revenue_vnd=0, orders=0))
         bucket.revenue_vnd += o.amount_vnd
         bucket.orders += 1
@@ -494,3 +494,62 @@ def revenue_summary(
         guests_claimed=guests_claimed,
         registered_learners=registered,
     )
+
+
+# ── G8 · Đơn hàng & hoá đơn VAT ──────────────────────────────────────────────
+class AdminOrder(BaseModel):
+    order_id: str
+    email: Optional[str]
+    role: Optional[str]
+    provider: str
+    plan: str
+    seats: int
+    months: int
+    amount_vnd: int
+    status: str
+    invoice: Optional[dict]
+    invoice_issued_at: Optional[datetime]
+    created_at: datetime
+    paid_at: Optional[datetime]
+
+
+@router.get("/revenue/orders", response_model=list[AdminOrder])
+def revenue_orders(
+    invoice_only: bool = False,
+    limit: int = Query(default=100, ge=1, le=500),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Recent orders, newest first; `invoice_only` lists the ones that asked for a VAT invoice."""
+    _require_admin(current_user)
+    q = db.query(PaymentOrder, User.email, User.role).join(User, User.id == PaymentOrder.user_id)
+    if invoice_only:
+        q = q.filter(PaymentOrder.invoice_info.isnot(None))
+    rows = q.order_by(PaymentOrder.created_at.desc()).limit(limit).all()
+    return [AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
+                       amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
+                       invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at) for o, email, role in rows]
+
+
+class InvoiceIssuedIn(BaseModel):
+    issued: bool = True
+
+
+@router.post("/revenue/orders/{order_id}/invoice-issued", response_model=AdminOrder)
+def mark_invoice_issued(
+    order_id: str,
+    payload: InvoiceIssuedIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark the e-invoice for an order as issued (or undo)."""
+    _require_admin(current_user)
+    row = db.query(PaymentOrder, User.email, User.role).join(User, User.id == PaymentOrder.user_id).filter(PaymentOrder.id == order_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
+    o, email, role = row
+    o.invoice_issued_at = datetime.utcnow() if payload.issued else None
+    db.commit()
+    return AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
+                      amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
+                      invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at)

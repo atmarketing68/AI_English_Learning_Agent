@@ -26,7 +26,7 @@ import { PageSkeleton } from '@/components/Skeleton';
 import type { LearnerProfile } from '@/types';
 import Link from 'next/link';
 import {
-  ArrowRight, BookMarked, BookOpen, BookText, Brain, ChevronRight, CircleCheck, Copy, Flame, Gem, GraduationCap, Headphones,
+  ArrowRight, BookMarked, BookOpen, BookText, Brain, ChevronRight, CircleCheck, ClipboardCheck, Copy, Flame, Gem, GraduationCap, Headphones, MessageCircleQuestion,
   Mic, PenLine, Sparkles, Star, Target, Users, type LucideIcon,
 } from 'lucide-react';
 
@@ -275,6 +275,8 @@ export default function DashboardPage() {
               { icon: Mic,        label: 'Speaking',  sub: 'Roleplay với AI', a: '#F472B6', b: '#E11D48', href: '/practice/speaking' },
               { icon: BookOpen,   label: 'Reading',   sub: 'Bài đọc theo cấp', a: '#34D399', b: '#059669', href: '/learn' },
               { icon: PenLine,    label: 'Writing',   sub: 'Chấm AI · band IELTS', a: '#A78BFA', b: '#7C3AED', href: '/practice/writing' },
+              { icon: ClipboardCheck, label: 'Thi thử', sub: 'IELTS · TOEIC mini test', a: '#FBBF24', b: '#D97706', href: '/exams' },
+              { icon: MessageCircleQuestion, label: 'Hỏi Bo', sub: 'Giải đáp ngữ pháp', a: '#2DD4BF', b: '#0D9488', href: '/tutor' },
             ].map(({ icon: Icon, label, sub, a, b, href }) => (
               <Link key={label} href={href} className="card card-hover quick-tile" style={{ '--qt-a': a, '--qt-b': b } as React.CSSProperties}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>

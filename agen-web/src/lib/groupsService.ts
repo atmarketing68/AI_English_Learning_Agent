@@ -81,4 +81,17 @@ export const leaveGroup = async (groupId: string): Promise<{ groups: LearnerGrou
 export const startAssignment = async (assignmentId: string): Promise<{ assignment_id: string; skill: AssignmentSkill; topic: string; title: string }> =>
   (await api.post(`/groups/assignments/${assignmentId}/start`)).data;
 
+/** G8 · Download the group's progress report as CSV (Excel-friendly, UTF-8 BOM). */
+export const downloadGroupReport = async (groupId: string, groupName: string): Promise<void> => {
+  const res = await api.get(`/groups/${groupId}/report.csv`, { responseType: 'blob' });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `bao-cao-${groupName.replace(/[^\w-]+/g, '-')}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
 export const SKILL_LABELS: Record<AssignmentSkill, string> = { vocabulary: 'Từ vựng', grammar: 'Ngữ pháp', reading: 'Đọc', listening: 'Nghe' };

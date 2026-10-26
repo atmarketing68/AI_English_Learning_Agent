@@ -24,6 +24,9 @@ from app.models.goal_track import GoalTrackProgress
 from app.models.league_membership import LeagueMembership
 from app.models.friendship import Friendship
 from app.models.group import Group, GroupMember, GroupAssignment, GroupAssignmentDone
+from app.models.exam_attempt import ExamAttempt
+from app.models.tutor_message import TutorMessage
+from app.models.device_token import DeviceToken
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -45,4 +48,5 @@ __all__ = [
     "LeagueMembership",
     "Friendship",
     "Group", "GroupMember", "GroupAssignment", "GroupAssignmentDone",
+    "ExamAttempt", "TutorMessage", "DeviceToken",
 ]

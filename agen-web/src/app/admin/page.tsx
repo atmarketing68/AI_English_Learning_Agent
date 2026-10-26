@@ -6,8 +6,8 @@ import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getAdminMe, getEvaluationSummary, listEvaluations,
   listContent, setContentStatus, batchGenerateContent,
-  getPilotSummary, getRevenueSummary,
-  type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
+  getPilotSummary, getRevenueSummary, listOrders, markInvoiceIssued,
+  type AdminOrder, type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
 } from '@/lib/adminService';
 import { ArrowLeft, Check, Flag, LoaderCircle, Lock, Settings, ShieldCheck, X, Zap } from 'lucide-react';
 
@@ -101,6 +101,67 @@ function RevenuePanel({ r }: { r: RevenueSummary }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── G8 · Đơn hàng & hoá đơn VAT ──────────────────────────────────────────────
+const PLAN_VI: Record<string, string> = { premium: 'Premium', family: 'Gia đình', team: 'Doanh nghiệp' };
+
+function OrdersPanel() {
+  const [orders, setOrders] = useState<AdminOrder[] | null>(null);
+  const [invoiceOnly, setInvoiceOnly] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => { listOrders(invoiceOnly, 200).then(setOrders).catch(() => setOrders([])); }, [invoiceOnly]);
+
+  const toggle = async (o: AdminOrder) => {
+    setBusy(o.order_id);
+    try {
+      const updated = await markInvoiceIssued(o.order_id, !o.invoice_issued_at);
+      setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
+    } finally { setBusy(null); }
+  };
+  const exportCsv = () => {
+    if (!orders) return;
+    const head = ['Ngày', 'Email', 'Gói', 'Tháng', 'Ghế', 'Số tiền', 'Cổng', 'Trạng thái', 'Tên đơn vị', 'MST', 'Địa chỉ', 'Email HĐ', 'Đã xuất HĐ'];
+    const rows = orders.map(o => [new Date(o.created_at).toLocaleDateString('vi-VN'), o.email ?? '', PLAN_VI[o.plan] ?? o.plan, o.months, o.seats, o.amount_vnd, o.provider, o.status,
+      o.invoice?.company_name ?? '', o.invoice?.tax_code ?? '', o.invoice?.address ?? '', o.invoice?.email ?? '', o.invoice_issued_at ? 'x' : '']);
+    const csv = '\ufeff' + [head, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'don-hang-hoa-don.csv'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  return (
+    <div className="card" style={{ marginTop: 'var(--spacing-lg)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ fontWeight: 600, flex: 1 }}>Đơn hàng & hoá đơn VAT</div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
+          <input type="checkbox" checked={invoiceOnly} onChange={e => setInvoiceOnly(e.target.checked)} /> Chỉ đơn yêu cầu hoá đơn
+        </label>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!orders?.length}>Tải CSV</button>
+      </div>
+      {!orders ? <div style={{ color: 'var(--text-muted)' }}>Đang tải…</div> : orders.length === 0 ? <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có đơn nào.</div> : (
+        <div style={{ overflowX: 'auto', margin: '0 calc(-1 * var(--spacing-lg, 24px))', padding: '0 var(--spacing-lg, 24px)' }}>
+          <table className="teacher-table" style={{ minWidth: 980 }}>
+            <thead><tr><th>Ngày</th><th>Khách</th><th>Gói</th><th>Số tiền</th><th>Trạng thái</th><th>Đơn vị · MST</th><th>Email HĐ</th><th>Hoá đơn</th></tr></thead>
+            <tbody>
+              {orders.map(o => (
+                <tr key={o.order_id}>
+                  <td>{new Date(o.created_at).toLocaleDateString('vi-VN')}</td>
+                  <td>{o.email}</td>
+                  <td>{PLAN_VI[o.plan] ?? o.plan} · {o.months} th{o.plan === 'team' ? ` · ${o.seats} ghế` : ''}</td>
+                  <td>{vnd(o.amount_vnd)}</td>
+                  <td><span className={`plan-chip${o.status === 'paid' ? ' is-premium' : ''}`}>{o.status === 'paid' ? 'Đã trả' : o.status === 'pending' ? 'Chờ' : 'Lỗi'}</span></td>
+                  <td style={{ whiteSpace: 'normal', minWidth: 200 }}>{o.invoice ? <>{o.invoice.company_name}<div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>MST {o.invoice.tax_code} · {o.invoice.address}</div></> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                  <td>{o.invoice?.email ?? '—'}</td>
+                  <td>{o.invoice ? <button type="button" className={`btn btn-sm ${o.invoice_issued_at ? 'btn-ghost' : 'btn-primary'}`} disabled={busy === o.order_id || o.status !== 'paid'} onClick={() => toggle(o)} title={o.status !== 'paid' ? 'Chỉ xuất khi đơn đã thanh toán' : ''}>{o.invoice_issued_at ? <><Check size={13} /> Đã xuất</> : 'Đánh dấu đã xuất'}</button> : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -399,7 +460,7 @@ export default function AdminDashboardPage() {
         {tab === 'pilot' ? (
           pilotSummary ? <div className="card"><PilotPanel summary={pilotSummary} /></div> : <div className="card">Chưa có dữ liệu pilot.</div>
         ) : tab === 'revenue' ? (
-          revenue ? <RevenuePanel r={revenue} /> : <div className="card">Chưa có dữ liệu doanh thu.</div>
+          <>{revenue ? <RevenuePanel r={revenue} /> : <div className="card">Chưa có dữ liệu doanh thu.</div>}<OrdersPanel /></>
         ) : tab === 'content' ? (
           <ContentPanel />
         ) : (

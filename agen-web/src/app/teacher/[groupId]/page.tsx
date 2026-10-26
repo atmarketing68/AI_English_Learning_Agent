@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Check, CircleAlert, Copy, Flame, LoaderCircle, Plus, Star, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Check, CircleAlert, Copy, FileText, Flame, LoaderCircle, Plus, Star, Trash2, X } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import {
   SKILL_LABELS, createAssignment, deleteAssignment, getGroupDetail, removeGroupMember,
@@ -66,7 +66,10 @@ export default function TeacherGroupPage() {
             <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', margin: '2px 0 4px' }}>{group.name}</h1>
             <div style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>{members.length} thành viên{detail.covered_seats ? ` · ${Math.min(members.length, detail.covered_seats)} ghế Premium` : ''}. Học viên vào mục <b>Lớp học</b> trong ứng dụng và nhập mã này.</div>
           </div>
-          <button type="button" className="code-chip" onClick={copy} aria-label="Sao chép mã nhóm">{group.code} {copied ? <Check size={15} /> : <Copy size={15} />}</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Link href={`/teacher/${group.id}/report`} className="btn btn-outline btn-sm"><FileText size={14} /> Báo cáo · PDF / CSV</Link>
+            <button type="button" className="code-chip" onClick={copy} aria-label="Sao chép mã nhóm">{group.code} {copied ? <Check size={15} /> : <Copy size={15} />}</button>
+          </div>
         </section>
 
         {error && <div className="alert-error" style={{ marginBottom: 12 }}><CircleAlert size={16} /> {error}</div>}
