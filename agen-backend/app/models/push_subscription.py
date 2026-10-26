@@ -16,7 +16,9 @@ class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    learner_id = Column(String(36), ForeignKey("learner_profiles.id"), nullable=False, index=True)
+    learner_id = Column(String(36), ForeignKey("learner_profiles.id"), nullable=True, index=True)
+    # G7 · parents (and any non-learner account) subscribe by user id instead
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=True, index=True)
     endpoint = Column(Text, nullable=False, unique=True)
     p256dh = Column(String(200), nullable=False)
     auth = Column(String(100), nullable=False)

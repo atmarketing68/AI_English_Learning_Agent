@@ -73,11 +73,11 @@ def compose_message(db: Session, learner: LearnerProfile, now_local: datetime) -
 
 
 # ── Web push ─────────────────────────────────────────────────────────────────
-def send_push(db: Session, sub: PushSubscription, message: ReminderMessage) -> bool:
+def send_push(db: Session, sub: PushSubscription, message: ReminderMessage, tag: str = "daily-reminder") -> bool:
     """Deliver one push. Expired subscriptions are deleted. Returns success."""
     from pywebpush import WebPushException, webpush  # heavy import, only when sending
 
-    payload = {"title": message.title, "body": message.body, "url": message.url, "tag": "daily-reminder"}
+    payload = {"title": message.title, "body": message.body, "url": message.url, "tag": tag}
     try:
         webpush(
             subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
@@ -106,6 +106,14 @@ def push_to_learner(db: Session, learner: LearnerProfile, message: ReminderMessa
         return 0
     subs = db.query(PushSubscription).filter(PushSubscription.learner_id == learner.id).all()
     return sum(send_push(db, sub, message) for sub in subs)
+
+
+def push_to_user(db: Session, user_id: str, message: ReminderMessage, tag: str = "parent-alert") -> int:
+    """G7 · Push to a non-learner account's devices (parents)."""
+    if not settings.push_enabled:
+        return 0
+    subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
+    return sum(send_push(db, sub, message, tag) for sub in subs)
 
 
 # ── Email ────────────────────────────────────────────────────────────────────

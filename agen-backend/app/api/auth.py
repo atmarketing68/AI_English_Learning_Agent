@@ -55,12 +55,12 @@ class UserRegister(BaseModel):
     display_name: str
     age: int | None = None
     grade: str | None = None
-    role: str = "learner"   # learner | parent
+    role: str = "learner"   # learner | parent | teacher (G7 · giáo viên / doanh nghiệp)
 
     @field_validator("role")
     @classmethod
     def valid_role(cls, v: str) -> str:
-        if v not in ("learner", "parent"):
+        if v not in ("learner", "parent", "teacher"):
             raise ValueError("Vai tro khong hop le.")
         return v
 
@@ -139,6 +139,8 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
             user_id=user.id,
             display_name=payload.display_name,
         ))
+    elif payload.role == "teacher":
+        pass    # G7 · teachers/companies own groups; no learner or parent profile
     else:
         # Learner account — create LearnerProfile with a unique invite code
         db.add(LearnerProfile(
