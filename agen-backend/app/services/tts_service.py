@@ -1,8 +1,8 @@
 """
 G2 · Giọng đọc neural tạo ở server + cache.
 
-Provider chain follows the LLM order (Gemini → OpenAI) unless TTS_PROVIDER pins
-one. Everything is optional: with no key, or TTS_PROVIDER=off, `synthesize()`
+Provider chain: a self-hosted Voicebox (free, when VOICEBOX_URL is set), then the
+LLM order (Gemini → OpenAI), unless TTS_PROVIDER pins one. Everything is optional: with no key, or TTS_PROVIDER=off, `synthesize()`
 returns None and the web app falls back to the browser's own voice.
 
 Costs are bounded two ways:
@@ -62,6 +62,8 @@ def providers() -> list[str]:
     if mode == "off":
         return []
     available = []
+    if settings.VOICEBOX_URL and settings.VOICEBOX_PROFILE_ID:
+        available.append("voicebox")
     if settings.GEMINI_API_KEY:
         available.append("gemini")
     if settings.OPENAI_API_KEY:
@@ -138,7 +140,11 @@ def budget_used_today() -> int:
 
 # ── Providers ────────────────────────────────────────────────────────────────
 def _model_for(provider: str) -> str:
-    return settings.GEMINI_TTS_MODEL if provider == "gemini" else settings.OPENAI_TTS_MODEL
+    if provider == "gemini":
+        return settings.GEMINI_TTS_MODEL
+    if provider == "voicebox":
+        return f"voicebox:{settings.VOICEBOX_PROFILE_ID}:{settings.VOICEBOX_PROFILE_ID_MALE}"
+    return settings.OPENAI_TTS_MODEL
 
 
 def _pcm_to_wav(pcm: bytes, rate: int = 24000) -> bytes:
@@ -201,7 +207,30 @@ def _call_openai(text: str, voice: str) -> tuple[bytes, str]:
     return response.content, "audio/mpeg"
 
 
-_CALLERS = {"gemini": _call_gemini, "openai": _call_openai}
+def _call_voicebox(text: str, voice: str) -> tuple[bytes, str]:
+    """Voicebox REST: POST /generate → {id, audio_path…}; GET /audio/{id} → wav bytes."""
+    import httpx
+
+    base = settings.VOICEBOX_URL.rstrip("/")
+    headers = {"Authorization": f"Bearer {settings.VOICEBOX_API_KEY}"} if settings.VOICEBOX_API_KEY else {}
+    profile = settings.VOICEBOX_PROFILE_ID
+    if voice == "male" and settings.VOICEBOX_PROFILE_ID_MALE:
+        profile = settings.VOICEBOX_PROFILE_ID_MALE
+    with httpx.Client(timeout=90, headers=headers) as client:
+        created = client.post(f"{base}/generate", json={"profile_id": profile, "text": text, "language": "en"})
+        created.raise_for_status()
+        generation_id = created.json().get("id")
+        if not generation_id:
+            raise RuntimeError("voicebox: no generation id")
+        audio = client.get(f"{base}/audio/{generation_id}")
+        audio.raise_for_status()
+    mime = (audio.headers.get("content-type") or "audio/wav").split(";")[0].strip().lower()
+    if mime not in _MIME_EXT:
+        mime = "audio/mpeg" if audio.content[:3] == b"ID3" or audio.content[:2] == b"\xff\xfb" else "audio/wav"
+    return audio.content, mime
+
+
+_CALLERS = {"gemini": _call_gemini, "openai": _call_openai, "voicebox": _call_voicebox}
 
 
 def synthesize(text: str, voice: str = "female") -> Optional[TTSResult]:

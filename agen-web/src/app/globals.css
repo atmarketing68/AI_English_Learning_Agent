@@ -2073,6 +2073,16 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 .pron-word[data-state="ok"] { border-color: color-mix(in srgb, var(--agen-success) 40%, transparent); background: color-mix(in srgb, var(--agen-success) 10%, transparent); color: var(--agen-success); }
 .pron-word[data-state="wrong"] { border-color: color-mix(in srgb, var(--agen-accent) 50%, transparent); background: color-mix(in srgb, var(--agen-accent) 10%, transparent); color: var(--agen-accent); }
 .pron-word[data-state="missed"] { border-color: color-mix(in srgb, var(--agen-secondary) 40%, transparent); background: color-mix(in srgb, var(--agen-secondary) 8%, transparent); color: var(--agen-secondary); text-decoration: line-through; }
+.pron-mode { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px; font-size: 0.74rem; color: var(--text-muted); }
+.pron-word[data-open="true"] { box-shadow: 0 0 0 3px color-mix(in srgb, var(--agen-primary) 20%, transparent); }
+.pron-phonemes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--bg-elevated); }
+.pron-phonemes-word { font-size: 0.82rem; color: var(--text-muted); margin-right: 4px; }
+.pron-phoneme { display: inline-flex; flex-direction: column; align-items: center; min-width: 34px; padding: 4px 8px; border-radius: 8px; background: var(--bg-surface); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1rem; font-weight: 600; color: var(--text-primary); border: 1.5px solid var(--border-subtle); }
+.pron-phoneme small { font-size: 0.66rem; font-weight: 500; color: var(--text-muted); }
+.pron-phoneme[data-tone="good"] { border-color: color-mix(in srgb, var(--agen-success) 50%, transparent); color: var(--agen-success); }
+.pron-phoneme[data-tone="mid"] { border-color: color-mix(in srgb, var(--agen-accent) 60%, transparent); color: var(--agen-accent); }
+.pron-phoneme[data-tone="low"] { border-color: color-mix(in srgb, var(--agen-secondary) 50%, transparent); color: var(--agen-secondary); background: color-mix(in srgb, var(--agen-secondary) 8%, var(--bg-surface)); }
+.pron-phonemes-hint { width: 100%; font-size: 0.72rem; color: var(--text-muted); }
 .pron-tips { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 0.88rem; }
 .pron-tips li { display: flex; gap: 8px; align-items: flex-start; color: var(--text-secondary); }
 .pron-tips li svg { flex-shrink: 0; margin-top: 2px; color: var(--agen-accent); }
