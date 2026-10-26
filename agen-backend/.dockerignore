@@ -1,0 +1,16 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.db.bak
+.env
+.env.*
+!.env.example
+.DS_Store
+.git/
+.gitignore
+*.md
+sprint*.txt
+scripts/evaluate_ai.py

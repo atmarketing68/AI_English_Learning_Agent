@@ -1,0 +1,128 @@
+import api from '@/lib/api';
+
+// ── Types (mirror backend api/admin.py) ───────────────────────────────────────
+export interface AdminMe {
+  email: string;
+  is_admin: boolean;
+}
+
+export interface EvalTraceItem {
+  trace_id: string;
+  agent: string;
+  status: string;
+  eval_score: number | null;
+  eval_flags: string[] | null;
+  eval_flagged: boolean | null;
+  duration_ms: number;
+  created_at: string;
+}
+
+export interface AgentEvalStat {
+  agent: string;
+  total: number;
+  flagged: number;
+  avg_score: number | null;
+}
+
+export interface EvalSummary {
+  total_traces: number;
+  evaluated: number;
+  flagged: number;
+  flagged_pct: number;
+  avg_score: number | null;
+  per_agent: AgentEvalStat[];
+}
+
+export interface PilotMetric {
+  value: number;
+  rate: number | null;
+}
+
+export interface PilotSummary {
+  registered_learners: number;
+  placement_completed: PilotMetric;
+  first_lesson_completed: PilotMetric;
+  d7_retention: PilotMetric;
+  weekly_habit: PilotMetric;
+  ai_quality: PilotMetric;
+  lesson_generation: PilotMetric;
+}
+
+export interface ListEvaluationsParams {
+  flaggedOnly?: boolean;
+  agent?: string;
+  limit?: number;
+}
+
+// ── API Calls ────────────────────────────────────────────────────────────────
+export async function getAdminMe(): Promise<AdminMe> {
+  const res = await api.get('/admin/me');
+  return res.data;
+}
+
+export async function getEvaluationSummary(): Promise<EvalSummary> {
+  const res = await api.get('/admin/evaluations/summary');
+  return res.data;
+}
+
+export async function getPilotSummary(): Promise<PilotSummary> {
+  const res = await api.get('/admin/pilot/summary');
+  return res.data;
+}
+
+export async function listEvaluations(params: ListEvaluationsParams = {}): Promise<EvalTraceItem[]> {
+  const query = new URLSearchParams();
+  if (params.flaggedOnly) query.set('flagged_only', 'true');
+  if (params.agent) query.set('agent', params.agent);
+  query.set('limit', String(params.limit ?? 50));
+  const res = await api.get(`/admin/evaluations?${query.toString()}`);
+  return res.data;
+}
+
+// ── Content Factory (cached curriculum content) ───────────────────────────────
+export interface ContentItem {
+  curriculum_code: string;
+  level: string;
+  skill: string;
+  topic: string;
+  status: string;
+  eval_score: number | null;
+  eval_flagged: boolean | null;
+  total_exercises: number;
+}
+
+export async function listContent(level?: string, status?: string): Promise<ContentItem[]> {
+  const query = new URLSearchParams();
+  if (level) query.set('level', level);
+  if (status) query.set('status', status);
+  const qs = query.toString();
+  const res = await api.get(`/admin/content${qs ? `?${qs}` : ''}`);
+  return res.data;
+}
+
+export async function setContentStatus(code: string, status: string): Promise<ContentItem> {
+  const res = await api.post(`/admin/content/${code}/status`, { status });
+  return res.data;
+}
+
+export interface BatchGenerateResult {
+  level: string;
+  attempted: number;
+  generated: number;
+  skipped: number;
+  failed: number;
+  errors: { code: string; error: string }[];
+}
+
+export async function batchGenerateContent(
+  level: string,
+  autoApprove = false,
+  limit?: number,
+): Promise<BatchGenerateResult> {
+  const res = await api.post('/admin/content/generate', {
+    level,
+    auto_approve: autoApprove,
+    limit: limit ?? null,
+  });
+  return res.data;
+}
