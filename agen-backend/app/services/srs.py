@@ -200,6 +200,32 @@ def collect_lesson_vocabulary(db: Session, learner_id: str, lesson: Lesson, now:
     return added
 
 
+def add_vocab_item(
+    db: Session,
+    learner_id: str,
+    word: str,
+    meaning: str,
+    phonetic: str | None = None,
+    example: str | None = None,
+    source_lesson_id: str | None = None,
+    now: datetime | None = None,
+) -> tuple[ReviewItem, bool]:
+    """G2 · Save a word the learner tapped (listening transcript) to the notebook."""
+    now = now or datetime.utcnow()
+    word, meaning = _clean(word)[:60], _clean(meaning)
+    if not word or not meaning:
+        raise ValueError("word and meaning are required")
+    return _upsert(
+        db, learner_id, "vocab", word.lower()[:128],
+        front=word,
+        back=meaning,
+        phonetic=(_clean(phonetic)[:100] or None),
+        example=(_clean(example) or None),
+        source_lesson_id=source_lesson_id,
+        due_at=now + timedelta(days=1),
+    )
+
+
 def record_mistake(db: Session, learner_id: str, exercise: Exercise, user_answer: str, now: datetime) -> Optional[ReviewItem]:
     """Save a wrongly answered question so it comes back in the next review."""
     content = exercise.content if isinstance(exercise.content, dict) else {}

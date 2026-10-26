@@ -4,12 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
-  startPlacement, getPlacementQuestion, submitAnswer, finishPlacement,
+  startPlacement, getPlacementQuestion, submitAnswer, finishPlacement, PLACEMENT_SKIP,
   PlacementQuestion, PlacementAnswerRes, PlacementResult,
 } from '@/lib/placementService';
 import Logo from '@/components/ui/Logo';
-import { ArrowRight, BookOpen, BookText, Check, CircleAlert, CircleCheck, CircleX, Gauge, Headphones, Lightbulb, ListChecks, LoaderCircle, PenLine, X, Zap, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BookOpen, BookText, Check, CircleAlert, CircleCheck, CircleX, Gauge, Headphones, Lightbulb, ListChecks, LoaderCircle, Mic, PenLine, Volume2, X, Zap, type LucideIcon } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import { playText, stopSpeech } from '@/lib/speechService';
+import { useSpeechRecorder } from '@/lib/useSpeechRecorder';
+import MicButton from '@/components/speaking/MicButton';
 
 // ──── Sub Components ────────────────────────────────────────────────────────
 
@@ -18,6 +21,7 @@ const SKILL_LABELS: Record<string, { icon: LucideIcon; label: string; color: str
   grammar:    { icon: PenLine,    label: 'Grammar',    color: 'var(--agen-primary-light)' },
   reading:    { icon: BookOpen,   label: 'Reading',    color: 'var(--skill-reading)' },
   listening:  { icon: Headphones, label: 'Listening',  color: 'var(--skill-listening)' },
+  speaking:   { icon: Mic,        label: 'Speaking',   color: 'var(--skill-speaking)' },
 };
 
 function IntroScreen({ onStart, loading }: { onStart: () => void; loading: boolean }) {
@@ -25,14 +29,14 @@ function IntroScreen({ onStart, loading }: { onStart: () => void; loading: boole
     <div className="card animate-fade-in-up" style={{ maxWidth: 560, width: '100%', textAlign: 'center', padding: 'clamp(24px, 5vw, 44px)', border: 'none', boxShadow: 'var(--shadow-md)' }}>
       <h2 style={{ marginBottom: 12 }}>Bài kiểm tra đầu vào</h2>
       <p style={{ marginBottom: 28, lineHeight: 1.6 }}>
-        AI AGENT ENGLISH sẽ đặt <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>10 câu hỏi</strong> về Vocabulary,
-        Grammar và Reading để xác định chính xác trình độ của bạn. Kết quả được dùng để tạo{' '}
+        AI AGENT ENGLISH sẽ đặt <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>14 câu hỏi</strong> về từ vựng,
+        ngữ pháp, đọc, <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>nghe và nói</strong> để xác định chính xác trình độ của bạn. Kết quả được dùng để tạo{' '}
         <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>lộ trình học cá nhân hóa</strong>.
       </p>
       
       <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 28 }}>
         {[
-          { icon: ListChecks, text: '10 câu hỏi' },
+          { icon: ListChecks, text: '14 câu · 4 kỹ năng' },
           { icon: Zap, text: 'Thích ứng' },
           { icon: Gauge, text: 'Kết quả ngay' },
         ].map(item => (
@@ -46,7 +50,49 @@ function IntroScreen({ onStart, loading }: { onStart: () => void; loading: boole
       <button className="btn btn-primary btn-lg btn-full" onClick={onStart} disabled={loading}>
         {loading ? 'Đang chuẩn bị…' : 'Bắt đầu kiểm tra'}
       </button>
-      <p style={{ marginTop: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Thời gian hoàn thành: khoảng 5–8 phút</p>
+      <p style={{ marginTop: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Khoảng 8–10 phút · bật loa và micro (Chrome/Edge) để làm phần nghe và nói</p>
+    </div>
+  );
+}
+
+function SpeakingQuestion({ question, onAnswer, submitting, feedback }: {
+  question: PlacementQuestion;
+  onAnswer: (ans: string) => void;
+  submitting: boolean;
+  feedback: PlacementAnswerRes | null;
+}) {
+  const recorder = useSpeechRecorder();
+  const target = question.target_text || '';
+  useEffect(() => () => { stopSpeech(); }, []);
+
+  return (
+    <div>
+      <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', marginBottom: 10 }}>{question.instruction_vi}</div>
+      <div className="speak-target">
+        <span>{target}</span>
+        <button type="button" className="review-speak" aria-label="Nghe mẫu" onClick={() => void playText(target)}><Volume2 size={20} /></button>
+      </div>
+      {!feedback && (recorder.supported ? (
+        <div className="speak-mic">
+          <MicButton listening={recorder.listening} onClick={() => { if (recorder.listening) recorder.stop(); else { stopSpeech(); recorder.start(); } }} disabled={submitting} />
+          <div className="speak-transcript">
+            {recorder.listening ? (recorder.transcript || 'Đang nghe… nói xong chạm để dừng') : recorder.transcript ? `Máy nghe được: “${recorder.transcript}”` : 'Chạm micro, đọc to cả câu, rồi chạm lại để dừng'}
+          </div>
+          {recorder.error && <div className="alert-error">{recorder.error}</div>}
+          {recorder.transcript && !recorder.listening && (
+            <button className="btn btn-primary btn-full" onClick={() => onAnswer(recorder.transcript)} disabled={submitting}>
+              {submitting ? 'Đang chấm…' : 'Kiểm tra'}
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="speak-unsupported">Trình duyệt này chưa hỗ trợ nhận giọng nói (hãy dùng Chrome hoặc Edge). Bạn có thể bỏ qua câu này — kết quả không bị ảnh hưởng.</div>
+      ))}
+      {!feedback && (
+        <button className="btn btn-ghost btn-full" style={{ marginTop: 10 }} onClick={() => onAnswer(PLACEMENT_SKIP)} disabled={submitting}>
+          Bỏ qua phần nói
+        </button>
+      )}
     </div>
   );
 }
@@ -64,6 +110,16 @@ function QuestionCard({
   const [selected, setSelected] = useState<string | null>(null);
   const skill = SKILL_LABELS[question.skill] || { icon: BookOpen, label: question.skill, color: 'var(--text-muted)' };
   const progress = ((questionIndex) / totalQuestions) * 100;
+  const isListening = question.skill === 'listening' && !!question.audio_text;
+  const isSpeaking = question.skill === 'speaking';
+  const audioText = question.audio_text || '';
+
+  // Listening item: play once automatically; the text stays hidden until answered.
+  useEffect(() => {
+    if (!isListening) return;
+    const t = setTimeout(() => void playText(audioText), 300);
+    return () => { clearTimeout(t); stopSpeech(); };
+  }, [isListening, audioText]);
 
   const handleSelect = (key: string) => {
     if (feedback || submitting) return;
@@ -127,6 +183,18 @@ function QuestionCard({
           <span className="level-badge">{question.level}</span>
         </div>
 
+        {/* Audio (listening) */}
+        {isListening && (
+          <div style={{ marginBottom: 16 }}>
+            <div className="listen-buttons" style={{ margin: '4px 0 8px' }}>
+              <button type="button" className="listen-play" onClick={() => void playText(audioText)} aria-label="Nghe lại"><Volume2 size={30} /></button>
+              <button type="button" className="listen-slow" onClick={() => void playText(audioText, { rate: 0.75 })} aria-label="Nghe chậm" title="0,75×"><span style={{ fontSize: '0.7rem', fontWeight: 700 }}>0,75×</span></button>
+            </div>
+            <div style={{ textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Nghe đoạn audio rồi chọn đáp án (có thể nghe lại)</div>
+            {feedback && <div className="listen-reveal" style={{ marginTop: 12, fontStyle: 'italic' }}>“{audioText}”</div>}
+          </div>
+        )}
+
         {/* Passage (reading) */}
         {question.passage && (
           <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', marginBottom: 16, borderLeft: '3px solid var(--skill-reading)', fontSize: '0.92rem', lineHeight: 1.7, color: 'var(--text-secondary)' }}>
@@ -137,8 +205,10 @@ function QuestionCard({
         {/* Question */}
         <h3 style={{ marginBottom: 20, fontWeight: 600, lineHeight: 1.5 }}>{question.question}</h3>
 
+        {isSpeaking && <SpeakingQuestion question={question} onAnswer={onAnswer} submitting={submitting} feedback={feedback} />}
+
         {/* Options */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
+        {!isSpeaking && <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 20 }}>
           {Object.entries(question.options).map(([key, value]) => (
             <button key={key} onClick={() => handleSelect(key)} style={getOptionStyle(key)}>
               <span style={{ fontWeight: 700, minWidth: 24, color: selected === key && !feedback ? 'var(--agen-primary-light)' : 'var(--text-muted)' }}>{key}.</span>
@@ -147,7 +217,7 @@ function QuestionCard({
               {feedback && key === selected && !feedback.is_correct && key !== feedback.correct_answer && <X size={18} style={{ marginLeft: 'auto', color: 'var(--agen-secondary)', flexShrink: 0 }} />}
             </button>
           ))}
-        </div>
+        </div>}
 
         {/* Feedback */}
         {feedback && (
@@ -156,14 +226,15 @@ function QuestionCard({
             style={{
               padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
-              background: feedback.is_correct ? 'rgba(52,199,89,0.08)' : 'rgba(255,59,48,0.06)',
+              background: feedback.skipped ? 'var(--bg-elevated)' : feedback.is_correct ? 'rgba(52,199,89,0.08)' : 'rgba(255,59,48,0.06)',
               marginBottom: 16,
               fontSize: '0.875rem',
               lineHeight: 1.6,
             }}
           >
-            <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, color: feedback.is_correct ? 'var(--agen-success)' : 'var(--agen-secondary)' }}>
-              {feedback.is_correct ? <><CircleCheck size={16} /> Chính xác</> : <><CircleX size={16} /> Chưa đúng</>}
+            <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, color: feedback.skipped ? 'var(--text-muted)' : feedback.is_correct ? 'var(--agen-success)' : 'var(--agen-secondary)' }}>
+              {feedback.skipped ? <>Đã bỏ qua</> : feedback.is_correct ? <><CircleCheck size={16} /> {isSpeaking ? 'Phát âm tốt' : 'Chính xác'}</> : <><CircleX size={16} /> {isSpeaking ? 'Cần luyện thêm' : 'Chưa đúng'}</>}
+              {typeof feedback.speaking_score === 'number' && <span style={{ marginLeft: 8, fontSize: '0.8rem' }}>{Math.round(feedback.speaking_score)}/100</span>}
               {feedback.score_delta > 0 && <span style={{ marginLeft: 8, color: 'var(--agen-accent)', fontSize: '0.8rem' }}>+{feedback.score_delta} XP</span>}
             </div>
             <div style={{ color: 'var(--text-secondary)' }}>{feedback.explanation}</div>
@@ -171,7 +242,7 @@ function QuestionCard({
         )}
 
         {/* Action Button */}
-        {!feedback ? (
+        {!feedback && isSpeaking ? null : !feedback ? (
           <button className="btn btn-primary btn-full" onClick={handleSubmit} disabled={!selected || submitting}>
             {submitting ? 'Đang chấm…' : 'Xác nhận'}
           </button>

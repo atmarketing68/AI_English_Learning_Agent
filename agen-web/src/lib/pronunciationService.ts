@@ -1,6 +1,18 @@
 import api from '@/lib/api';
 
 // ── Types (mirror backend api/speaking.py pronunciation endpoint) ─────────────
+export interface WordVerdict {
+  word: string;
+  status: 'ok' | 'wrong' | 'missed';
+  heard?: string | null;
+}
+
+export interface SoundTip {
+  sound: string;
+  tip_vi: string;
+  words: string[];
+}
+
 export interface PronunciationResult {
   overall_score: number;
   accuracy: number;
@@ -11,6 +23,8 @@ export interface PronunciationResult {
   missed_words: string[];
   extra_words: string[];
   feedback_vi: string;
+  words: WordVerdict[];
+  sound_tips: SoundTip[];
   xp_earned: number;
 }
 
@@ -22,11 +36,13 @@ export async function scorePronunciation(
   targetText: string,
   transcript: string,
   durationSeconds?: number,
+  source: string = 'practice',
 ): Promise<PronunciationResult> {
   const res = await api.post('/speaking/pronunciation', {
     target_text: targetText,
     transcript,
     duration_seconds: durationSeconds ?? null,
+    source,
   });
   return res.data;
 }

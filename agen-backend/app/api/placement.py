@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.security import get_current_user
@@ -13,6 +13,7 @@ from app.models.learner_profile import LearnerProfile
 from app.models.placement import PlacementSession
 from app.models.learning_event import LearningEvent
 from app.agents.assessment_agent import (
+    build_speaking_question,
     evaluate_answer,
     calculate_final_result,
 )
@@ -21,10 +22,11 @@ from app.services.trace_recorder import record_agent_trace
 
 router = APIRouter(prefix="/placement", tags=["Placement Test"])
 
-TOTAL_QUESTIONS = 10
+# G2 · 4 skills: 10 text questions + 3 listening + 1 read-aloud speaking item (last).
+TOTAL_QUESTIONS = 14
 SKILL_ROTATION = [
-    "vocabulary", "grammar", "vocabulary", "grammar", "reading",
-    "vocabulary", "grammar", "reading", "vocabulary", "grammar",
+    "vocabulary", "grammar", "listening", "vocabulary", "grammar", "reading", "listening",
+    "vocabulary", "grammar", "reading", "listening", "vocabulary", "grammar", "speaking",
 ]
 
 # ─── Schemas ─────────────────────────────────────────────────────────────────
@@ -44,11 +46,16 @@ class QuestionResponse(BaseModel):
     passage: Optional[str]
     question: str
     options: dict[str, str]
+    # G2 · listening: the client plays this (TTS) and never shows it before answering.
+    audio_text: Optional[str] = None
+    # G2 · speaking: sentence to read aloud; the answer is the transcript (or "__skip__").
+    target_text: Optional[str] = None
+    instruction_vi: Optional[str] = None
 
 
 class AnswerPayload(BaseModel):
     session_id: str
-    answer: str  # "A", "B", "C", or "D"
+    answer: str = Field(max_length=2000)  # "A"–"D", or a speech transcript for the speaking item
 
 
 class AnswerResponse(BaseModel):
@@ -59,6 +66,8 @@ class AnswerResponse(BaseModel):
     question_index: int
     total_questions: int
     is_finished: bool
+    skipped: bool = False
+    speaking_score: Optional[float] = None
 
 
 class FinishResponse(BaseModel):
@@ -96,7 +105,7 @@ def start_placement(
 
     return StartResponse(
         session_id=session.id,
-        message="Bài Placement Test của bạn đã bắt đầu! Hãy trả lời 10 câu hỏi để AI AGENT ENGLISH tìm hiểu trình độ của bạn.",
+        message=f"Bài Placement Test của bạn đã bắt đầu! Hãy trả lời {TOTAL_QUESTIONS} câu hỏi (đọc, nghe và nói) để AI AGENT ENGLISH tìm hiểu trình độ của bạn.",
         total_questions=TOTAL_QUESTIONS,
         assessment_type=assessment_type,
     )
@@ -124,6 +133,24 @@ def get_next_question(
         raise HTTPException(status_code=400, detail="Bài test đã hoàn thành. Hãy gọi /finish để xem kết quả.")
 
     skill = SKILL_ROTATION[idx]
+    if skill == "speaking":
+        # Read-aloud item: built locally from the adaptive level, no LLM call.
+        question = build_speaking_question(session.level, session.id)
+        session.current_question = question
+        db.commit()
+        return QuestionResponse(
+            session_id=session_id,
+            question_index=idx,
+            total_questions=TOTAL_QUESTIONS,
+            skill="speaking",
+            level=question["effective_level"],
+            passage=None,
+            question=question["question"],
+            options={},
+            target_text=question["target_text"],
+            instruction_vi=question["instruction_vi"],
+        )
+
     result = execute(AgentRequest(
         agent="placement_question",
         payload={
@@ -157,6 +184,7 @@ def get_next_question(
         passage=question.get("passage") or None,
         question=question["question"],
         options=question["options"],
+        audio_text=(question.get("audio_text") or None) if skill == "listening" else None,
     )
 
 
@@ -199,8 +227,10 @@ def submit_answer(
     session.answers = [*(session.answers or []), answer_record]
     session.last_correct = result["is_correct"]
 
-    # Update adaptive level
-    if result["is_correct"] and level_idx < len(CEFR_LEVELS) - 1:
+    # Update adaptive level (a skipped speaking item says nothing about the level)
+    if result.get("skipped"):
+        pass
+    elif result["is_correct"] and level_idx < len(CEFR_LEVELS) - 1:
         session.level = CEFR_LEVELS[level_idx + 1]
     elif not result["is_correct"] and level_idx > 0:
         session.level = CEFR_LEVELS[level_idx - 1]
@@ -219,6 +249,8 @@ def submit_answer(
         question_index=idx,
         total_questions=TOTAL_QUESTIONS,
         is_finished=is_finished,
+        skipped=bool(result.get("skipped")),
+        speaking_score=result.get("speaking_score"),
     )
 
 
@@ -259,6 +291,7 @@ def finish_placement(
             "grammar": "grammar_score",
             "reading": "reading_score",
             "listening": "listening_score",
+            "speaking": "speaking_score",
         }
         for skill_key, db_field in skill_map.items():
             if skill_key in final["skill_scores"]:

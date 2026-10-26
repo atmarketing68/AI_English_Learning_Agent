@@ -126,11 +126,12 @@ def test_finish_placement_unlocks_a2_roadmap(client, db_session):
     )
     assert learner is not None
 
-    # Seed a COMPLETED-answers placement session that maps to A2 (ratio ~0.5).
-    # 5 correct of 10 → ratio 0.5 → A2 per calculate_final_result thresholds.
+    # Seed a COMPLETED-answers placement session that maps to A2 (ratio 0.5).
+    # Half correct → ratio 0.5 → A2 per calculate_final_result thresholds.
+    from app.api.placement import TOTAL_QUESTIONS
     answers = []
-    for i in range(10):
-        correct = i < 5
+    for i in range(TOTAL_QUESTIONS):
+        correct = i < TOTAL_QUESTIONS // 2
         answers.append({
             "skill": "grammar",
             "is_correct": correct,
@@ -143,7 +144,7 @@ def test_finish_placement_unlocks_a2_roadmap(client, db_session):
     session = PlacementSession(
         learner_id=learner.id,
         answers=answers,
-        current_index=10,
+        current_index=TOTAL_QUESTIONS,
         level="A2",
         status="active",
     )

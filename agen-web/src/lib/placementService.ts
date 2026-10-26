@@ -14,10 +14,18 @@ export interface PlacementQuestion {
   total_questions: number;
   skill: string;
   level: string;
-  passage?: string;
+  passage?: string | null;
   question: string;
   options: Record<string, string>;
+  /** Listening item: play this, never show it before answering. */
+  audio_text?: string | null;
+  /** Speaking item: sentence to read aloud; the answer is the transcript. */
+  target_text?: string | null;
+  instruction_vi?: string | null;
 }
+
+/** Answer value for a speaking item when the learner has no microphone. */
+export const PLACEMENT_SKIP = '__skip__';
 
 export interface PlacementAnswerRes {
   is_correct: boolean;
@@ -27,6 +35,8 @@ export interface PlacementAnswerRes {
   question_index: number;
   total_questions: number;
   is_finished: boolean;
+  skipped?: boolean;
+  speaking_score?: number | null;
 }
 
 export interface PlacementResult {
