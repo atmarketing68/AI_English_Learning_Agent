@@ -5,14 +5,14 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
   ArrowRight, BadgeCheck, BookOpen, Brain, Briefcase, Check, ChevronDown, ChevronRight,
-  ClipboardCheck, Clock, Coffee, Crown, Flame, Gem, GraduationCap, Headphones, Heart, Hotel,
+  ClipboardCheck, Clock, Coffee, Crown, Flame, GraduationCap, Headphones, Heart, Hotel,
   MessageCircle, Mic, PenLine, Plane, Presentation, Quote, Rocket, Route, ShieldCheck,
   Smartphone, Sparkles, Star, Target, TrendingUp, Trophy, UserPlus, Users, Utensils, Zap,
   type LucideIcon,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import GuestTrialButton from '@/components/GuestTrialButton';
-import SkillRing from '@/components/ui/SkillRing';
+import HeroScene3D from '@/components/landing/HeroScene3D';
 
 // ─── Palette for icon tiles ──────────────────────────────────────────────────
 const G = {
@@ -244,37 +244,13 @@ export default function HomePage() {
             </div>
           </motion.div>
 
-          {/* Live-looking app preview */}
+          {/* 3D "knowledge universe" scene */}
           <motion.div
-            className="lp-mock"
-            initial={{ opacity: 0, y: 24, rotate: 1 }} animate={{ opacity: 1, y: 0, rotate: 0 }}
-            transition={{ duration: 0.9, ease: EASE, delay: 0.15 }}
-            aria-hidden="true"
+            className="lp-hero-scene"
+            initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1.1, ease: EASE, delay: 0.1 }}
           >
-            <div className="lp-mock-head">
-              <span className="lp-mock-avatar">M</span>
-              <div>
-                <div className="lp-mock-eyebrow">Thứ Hai · 15 phút mỗi ngày</div>
-                <div className="lp-mock-title">Chào buổi sáng, Minh Anh</div>
-              </div>
-            </div>
-            <div className="lp-mock-chips">
-              <span><GraduationCap size={13} /> B1</span>
-              <span><Flame size={13} color="#FFB454" /> 12 ngày</span>
-              <span><Star size={13} color="#FFD60A" fill="#FFD60A" /> 1.840 XP</span>
-              <span><Gem size={13} color="#7DD3FC" /> 96</span>
-            </div>
-            <div className="lp-mock-rings">
-              <SkillRing label="Nghe" icon={Headphones} score={72} color="#64D2FF" size={76} stroke={7} />
-              <SkillRing label="Nói" icon={Mic} score={58} color="#FF6B9A" size={76} stroke={7} />
-              <SkillRing label="Đọc" icon={BookOpen} score={81} color="#4ADE80" size={76} stroke={7} />
-              <SkillRing label="Viết" icon={PenLine} score={64} color="#C084FC" size={76} stroke={7} />
-            </div>
-            <div className="lp-mock-next">
-              <div className="lp-mock-eyebrow"><Target size={12} /> Bài học tiếp theo</div>
-              <div className="lp-mock-lesson"><Mic size={16} /> Gọi món ở quán cà phê · Speaking</div>
-              <span className="lp-mock-btn">Bắt đầu <ArrowRight size={14} /></span>
-            </div>
+            <HeroScene3D />
           </motion.div>
         </div>
       </section>
