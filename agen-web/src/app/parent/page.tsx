@@ -10,7 +10,7 @@ import {
 } from '@/lib/parentService';
 import Link from 'next/link';
 import { getSubscription, type SubscriptionInfo } from '@/lib/billingService';
-import { BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
@@ -449,13 +449,16 @@ export default function ParentDashboardPage() {
                         {selectedChild.current_streak > 0 && ` · chuỗi ${selectedChild.current_streak} ngày`}
                       </div>
                     </div>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => handleUnlink(selected)}
-                      style={{ color: 'var(--agen-secondary)', fontSize: '0.8rem' }}
-                    >
-                      Hủy liên kết
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Link href={`/parent/report/${selected}`} className="btn btn-outline btn-sm"><Printer size={14} /> Tải PDF</Link>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleUnlink(selected)}
+                        style={{ color: 'var(--agen-secondary)', fontSize: '0.8rem' }}
+                      >
+                        Hủy liên kết
+                      </button>
+                    </div>
                   </div>
 
                   <ChildReportPanel key={selected} learnerId={selected} childName={selectedChild.display_name} />

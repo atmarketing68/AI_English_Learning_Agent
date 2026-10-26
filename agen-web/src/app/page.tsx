@@ -1,18 +1,18 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
   ArrowRight, BadgeCheck, BookOpen, Brain, Briefcase, Check, ChevronDown, ChevronRight,
-  ClipboardCheck, Clock, Coffee, Crown, Flame, GraduationCap, Headphones, Heart, Hotel,
+  ClipboardCheck, Clock, Coffee, Crown, Flame, Gem, GraduationCap, Headphones, Heart, Hotel,
   MessageCircle, Mic, PenLine, Plane, Presentation, Quote, Rocket, Route, ShieldCheck,
   Smartphone, Sparkles, Star, Target, TrendingUp, Trophy, UserPlus, Users, Utensils, Zap,
   type LucideIcon,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import GuestTrialButton from '@/components/GuestTrialButton';
+import SkillRing from '@/components/ui/SkillRing';
 
 // ─── Palette for icon tiles ──────────────────────────────────────────────────
 const G = {
@@ -76,8 +76,12 @@ const PLANS = [
     features: ['3 bài học AI mỗi ngày', 'Luyện nói roleplay với AI', 'Luyện viết và chấm điểm AI', 'Bài kiểm tra đầu vào', 'XP, chuỗi ngày học, thành tựu'],
   },
   {
-    name: 'Premium', price: '67K₫', period: '/tháng · gói 12 tháng', highlight: true, cta: 'Dùng thử ngay',
-    features: ['Mọi thứ trong gói Miễn phí', 'Bài học không giới hạn', 'Báo cáo tiến bộ cho phụ huynh', 'Lộ trình học cá nhân hoá', 'Ưu tiên hỗ trợ'],
+    name: 'Premium', price: '67K₫', period: '/tháng · gói 12 tháng', highlight: true, cta: 'Dùng thử 7 ngày',
+    features: ['Mọi thứ trong gói Miễn phí', 'Bài học không giới hạn', 'Báo cáo tiến bộ cho phụ huynh', 'Lộ trình IELTS / TOEIC / phỏng vấn', 'Chấm viết theo band IELTS/TOEIC'],
+  },
+  {
+    name: 'Gia đình', price: '124K₫', period: '/tháng · gói 12 tháng · tối đa 4 con', highlight: false, cta: 'Tạo tài khoản phụ huynh',
+    features: ['Một lần thanh toán cho cả nhà', 'Mỗi con đều là Premium', 'Báo cáo tuần + cảnh báo nghỉ học qua email', 'Báo cáo PDF để in', 'Giao diện vui nhộn cho bé, chuyên nghiệp cho người lớn'],
   },
 ];
 
@@ -200,51 +204,79 @@ export default function HomePage() {
       </header>
 
       {/* ─── HERO ─────────────────────────────────────────────────────── */}
-      <section className="hero">
-        <div className="hero-media">
-          <Image
-            src="/hero-banner.webp"
-            alt="Robot AI Coach của AI AGENT ENGLISH đọc sách tiếng Anh, xung quanh là biểu tượng luyện nghe, nói, viết"
-            fill
-            priority
-            sizes="100vw"
-            style={{ objectFit: 'cover' }}
-          />
-        </div>
-        <motion.div
-          className="hero-content"
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: EASE }}
-        >
-          <span className="hero-badge"><Sparkles size={14} /> AI Coach tiếng Anh cá nhân cho người Việt</span>
-          <h1><span className="nowrap">Học tiếng Anh</span> <span className="nowrap">cùng AI.</span><br /><span className="nowrap">Theo cách của</span> <span className="nowrap">riêng bạn.</span></h1>
-          <p>
-            Người thầy, người bạn và huấn luyện viên tiếng Anh — đồng hành từ nền tảng đến nâng cao, theo đúng tốc độ của bạn.
-          </p>
-          <div className="hero-actions">
-            <Link href="/register" className="btn btn-primary btn-lg btn-shine">
-              Bắt đầu học miễn phí <ArrowRight size={18} />
-            </Link>
-            <GuestTrialButton className="btn btn-lg hero-guest-btn" />
-            <Link href="/login" className="hero-link">
-              Đăng nhập <ChevronRight size={18} />
-            </Link>
-          </div>
-          <div className="hero-trust">
-            <div className="avatar-stack" aria-hidden="true">
-              {(['pink', 'blue', 'green', 'orange'] as Tone[]).map((t, i) => (
-                <span key={t} style={{ background: `linear-gradient(135deg, ${G[t][0]}, ${G[t][1]})` }}>{'MLHT'[i]}</span>
-              ))}
+      <section className="lp-hero">
+        <span className="lp-hero-orb lp-hero-orb-a" aria-hidden="true" />
+        <span className="lp-hero-orb lp-hero-orb-b" aria-hidden="true" />
+        <span className="lp-hero-orb lp-hero-orb-c" aria-hidden="true" />
+        <div className="lp-hero-inner">
+          <motion.div
+            className="lp-hero-copy"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: EASE }}
+          >
+            <span className="hero-badge"><Sparkles size={14} /> AI Coach tiếng Anh cá nhân cho người Việt</span>
+            <h1><span className="nowrap">Học tiếng Anh</span> <span className="nowrap">cùng AI.</span><br /><span className="nowrap">Theo cách của</span> <span className="nowrap">riêng bạn.</span></h1>
+            <p>
+              Người thầy, người bạn và huấn luyện viên tiếng Anh — đồng hành từ nền tảng đến nâng cao, theo đúng tốc độ của bạn.
+            </p>
+            <div className="hero-actions">
+              <Link href="/register" className="btn btn-primary btn-lg btn-shine">
+                Bắt đầu học miễn phí <ArrowRight size={18} />
+              </Link>
+              <GuestTrialButton className="btn btn-lg hero-guest-btn" />
+              <Link href="/login" className="hero-link">
+                Đăng nhập <ChevronRight size={18} />
+              </Link>
             </div>
-            <div>
-              <div className="stars" aria-label="4.9 trên 5 sao">
-                {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} fill="#F59E0B" color="#F59E0B" />)}
-                <b>4.9</b>
+            <div className="hero-trust">
+              <div className="avatar-stack" aria-hidden="true">
+                {(['pink', 'blue', 'green', 'orange'] as Tone[]).map((t, i) => (
+                  <span key={t} style={{ background: `linear-gradient(135deg, ${G[t][0]}, ${G[t][1]})` }}>{'MLHT'[i]}</span>
+                ))}
               </div>
-              <div className="hero-trust-text">1,247 học viên đang học cùng AI AGENT ENGLISH</div>
+              <div>
+                <div className="stars" aria-label="4.9 trên 5 sao">
+                  {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} fill="#F59E0B" color="#F59E0B" />)}
+                  <b>4.9</b>
+                </div>
+                <div className="hero-trust-text">1,247 học viên đang học cùng AI AGENT ENGLISH</div>
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+
+          {/* Live-looking app preview */}
+          <motion.div
+            className="lp-mock"
+            initial={{ opacity: 0, y: 24, rotate: 1 }} animate={{ opacity: 1, y: 0, rotate: 0 }}
+            transition={{ duration: 0.9, ease: EASE, delay: 0.15 }}
+            aria-hidden="true"
+          >
+            <div className="lp-mock-head">
+              <span className="lp-mock-avatar">M</span>
+              <div>
+                <div className="lp-mock-eyebrow">Thứ Hai · 15 phút mỗi ngày</div>
+                <div className="lp-mock-title">Chào buổi sáng, Minh Anh</div>
+              </div>
+            </div>
+            <div className="lp-mock-chips">
+              <span><GraduationCap size={13} /> B1</span>
+              <span><Flame size={13} color="#FFB454" /> 12 ngày</span>
+              <span><Star size={13} color="#FFD60A" fill="#FFD60A" /> 1.840 XP</span>
+              <span><Gem size={13} color="#7DD3FC" /> 96</span>
+            </div>
+            <div className="lp-mock-rings">
+              <SkillRing label="Nghe" icon={Headphones} score={72} color="#64D2FF" size={76} stroke={7} />
+              <SkillRing label="Nói" icon={Mic} score={58} color="#FF6B9A" size={76} stroke={7} />
+              <SkillRing label="Đọc" icon={BookOpen} score={81} color="#4ADE80" size={76} stroke={7} />
+              <SkillRing label="Viết" icon={PenLine} score={64} color="#C084FC" size={76} stroke={7} />
+            </div>
+            <div className="lp-mock-next">
+              <div className="lp-mock-eyebrow"><Target size={12} /> Bài học tiếp theo</div>
+              <div className="lp-mock-lesson"><Mic size={16} /> Gọi món ở quán cà phê · Speaking</div>
+              <span className="lp-mock-btn">Bắt đầu <ArrowRight size={14} /></span>
+            </div>
+          </motion.div>
+        </div>
       </section>
 
       {/* ─── STATS ────────────────────────────────────────────────────── */}

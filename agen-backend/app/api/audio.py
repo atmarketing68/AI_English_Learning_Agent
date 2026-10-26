@@ -23,11 +23,12 @@ def tts_status(current_user: User = Depends(get_current_user)):
 def text_to_speech(
     text: str = Query(min_length=1, max_length=tts_service.MAX_TEXT_CHARS),
     voice: str = Query(default="female"),
+    lang: str = Query(default="en", pattern="^(en|vi)$"),     # G6 · "vi" for the mascot
     current_user: User = Depends(get_current_user),
 ):
     if not tts_service.is_enabled():
         raise HTTPException(status_code=404, detail="tts_disabled")
-    result = tts_service.synthesize(text, voice)
+    result = tts_service.synthesize(text, voice, lang)
     if result is None:
         raise HTTPException(status_code=503, detail="tts_unavailable")
     return Response(

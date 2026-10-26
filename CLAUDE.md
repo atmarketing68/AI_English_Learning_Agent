@@ -40,6 +40,9 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
   doanh thu `GET /admin/revenue/summary`; band thi: `writing_agent.EXAM_GENRES` + `exam_band` chỉ với genre thi.
   Web: lớp "pro" cho skin classic ở cuối `globals.css` (`.pro-hero`, `.stat-card`, `.quick-tile`, `SkillRing`, `CountUp`) —
   mọi rule chỉ-classic dùng tiền tố `:root:not([data-skin="vivid"])`.
+- G6: bạn học `services/friends.py` (1 dòng/cặp, `a_id < b_id`, thử thách đôi tính từ `league.weekly_xp`); giọng Bo
+  `/audio/tts?lang=vi` → web `playVietnamese()` trong `lib/speechService.ts`; báo cáo in `app/parent/report/[learnerId]`
+  (CSS `@media print` ở cuối `globals.css`); gói gia đình chỉ phủ `subscription_service.covered_children()` (4 con đầu).
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

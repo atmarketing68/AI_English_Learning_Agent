@@ -49,7 +49,13 @@ Cập nhật lần cuối: 2026-10-26 (G2 + G3).
 | G5 | **Chấm viết theo band IELTS/TOEIC**: 4 dạng đề thi thật (IELTS Task 2, Task 1 thư, TOEIC trả lời email, TOEIC essay) ở `/practice/writing`; AI trả thêm `exam_band` (IELTS 0–9 theo 4 tiêu chí hoặc TOEIC 0–200) + mẹo lên band; nhóm "Luyện thi" hiện trước với người có mục tiêu thi/đi làm | — |
 | G5 | **Bo nói**: nút loa trên bong bóng mascot, đọc bằng giọng tiếng Việt của trình duyệt (tự ẩn nếu máy không có giọng vi-VN) | — |
 
-**G2, G3, G4 và G5 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
+| G6 | **Thử thách bạn bè** (`services/friends.py`, `/friends`, trang `/friends`, thẻ trên trang chủ): kết bạn bằng mã (cùng mã liên kết phụ huynh), mỗi tuần hai người cùng kiếm 200 XP (mỗi người ≥ 50) → mỗi bên nhận +30 XP, +10 đá quý; tối đa 10 bạn | — |
+| G6 | **Trang landing làm mới** theo giao diện cao cấp: hero gradient có quầng sáng, khối "xem trước ứng dụng" với vòng tròn kỹ năng, bảng giá thêm gói Gia đình | — |
+| G6 | **Bo nói bằng giọng neural**: `/audio/tts?lang=vi` (cache theo ngôn ngữ, prompt Gemini tiếng Việt, Voicebox `language=vi`); web `playVietnamese()` dùng giọng server trước, giọng vi-VN của trình duyệt khi không có | — |
+| G6 | **Báo cáo PDF cho phụ huynh**: trang `/parent/report/<learnerId>` kiểu tài liệu in, nút "Tải PDF / In" mở hộp thoại in của trình duyệt (Lưu thành PDF); không cần thư viện PDF | — |
+| G6 | **Gói gia đình tối đa 4 con**: chỉ 4 con liên kết sớm nhất được Premium; khi gói đang hoạt động, liên kết con thứ 5 bị từ chối với hướng dẫn huỷ liên kết | — |
+
+**G2 → G6 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
 
 **G1 hoàn tất.** Chưa làm trong G1: "sửa chuỗi trong 24 giờ" (streak repair) và mua bảo vệ chuỗi bằng XP —
 hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi người tặng sẵn 1, tối đa 2).
@@ -139,10 +145,20 @@ Chưa làm trong G4: âm thanh/giọng của Bo (hiện chỉ bong bóng chữ);
 
 Chưa làm trong G5: thử thách bạn bè (friend quest); giọng neural cho Bo (có thể nối vào `/audio/tts` khi muốn); chặn liên kết quá 4 con cho gói gia đình.
 
-## G6 — gợi ý tiếp theo
+## G6 — Bạn bè, landing mới, giọng Bo, PDF phụ huynh, giới hạn gia đình: hoàn tất trên code
 
-Thử thách bạn bè · Thông báo đẩy khi con xuống hạng/giữ chuỗi cho phụ huynh · Trang landing làm mới theo giao diện mới ·
-Bo nói bằng giọng neural · Báo cáo PDF cho phụ huynh.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Thử thách bạn bè | Không cần gì. Migration `v9e0f1a2b3c4` tự chạy. Đổi mục tiêu/thưởng: hằng số đầu `services/friends.py`. |
+| Landing mới | Không cần gì. Ảnh `public/hero-banner.webp` không còn dùng ở hero (có thể xoá hoặc giữ). |
+| Bo nói giọng neural | Cần giọng server đã bật ở G2 (`GEMINI_API_KEY`/`OPENAI_API_KEY`/`VOICEBOX_URL`); không có thì dùng giọng vi-VN của trình duyệt; không có cả hai thì nút loa tự ẩn. Tiếng Việt tính vào ngân sách ký tự TTS hằng ngày. |
+| Báo cáo PDF | Không cần gì; phụ huynh bấm "Tải PDF / In" → chọn "Lưu thành PDF" trong hộp thoại in. |
+| Giới hạn 4 con | Không cần gì; đổi số: `FAMILY_MAX_CHILDREN` trong `services/payments.py`. |
+
+## G7 — gợi ý tiếp theo
+
+Thông báo đẩy cho phụ huynh khi con xuống hạng / giữ chuỗi · Bảng xếp hạng bạn bè · Nhóm lớp cho giáo viên (nhiều học viên, giao bài) ·
+Gói doanh nghiệp (công ty mua cho nhân viên, báo cáo HR) · Ứng dụng di động gốc (Capacitor) từ PWA hiện có.
 
 ## Câu hỏi còn mở với chủ dự án
 
