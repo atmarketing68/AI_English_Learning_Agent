@@ -19,6 +19,7 @@ class User(Base):
     is_verified = Column(Boolean, default=False)
     # G3 · học thử: created without an email/password; claimed later via /auth/claim.
     is_guest = Column(Boolean, default=False, server_default=sa_false(), nullable=False)
+    claimed_at = Column(DateTime, nullable=True)      # G5 · when a guest saved the account (conversion stats)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

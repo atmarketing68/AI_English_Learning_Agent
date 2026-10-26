@@ -43,7 +43,13 @@ Cập nhật lần cuối: 2026-10-26 (G2 + G3).
 | G4 | **Giải đấu chia nhóm 30 người theo 4 hạng** Đồng → Bạc → Vàng → Kim cương (`LeagueMembership`, `services/league.py`): top 7 thăng hạng, 5 người cuối (nhóm ≥ 10) xuống hạng, nghỉ cả tuần tụt 1 hạng; trang `/league` hiện dải hạng, vùng thăng/xuống hạng, avatar, thưởng XP + đá quý | — |
 | G4 | **Content Factory sinh sẵn bài khoá mục tiêu** (33 bài IELTS/TOEIC/phỏng vấn sau khi hết bài A1–B1; hàng `TRACKS` trong `content_coverage`); học viên mở bài khoá sẽ lấy bản đã duyệt từ cache, không tốn AI | — |
 
-**G2, G3 và G4 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
+| G5 | **Giao diện "Chuyên nghiệp" làm mới theo hướng cao cấp**: hero gradient xanh đậm có quầng sáng chuyển động, 4 vòng tròn kỹ năng (SVG animate), số đếm tăng (count-up), nút chính gradient có vệt sáng khi hover, sidebar có vạch chỉ mục đang chọn, nền ánh sáng dịu, thẻ "Luyện nhanh" có icon gradient. Skin Vui nhộn dùng cùng hero với màu tím-hồng | — |
+| G5 | **Gói gia đình**: phụ huynh mua (179K/1 tháng, 1.490K/12 tháng), tối đa 4 con đã liên kết tự động Premium (`premium_source=family`); thẻ trên bảng phụ huynh, trang `/upgrade` tự chuyển sang gói gia đình với tài khoản phụ huynh; mua qua VNPay/MoMo hoặc demo | — |
+| G5 | **Thống kê doanh thu & chuyển đổi cho admin** (`GET /admin/revenue/summary`, tab "Doanh thu" ở `/admin`): doanh thu 6 tháng, theo cổng, theo gói; Premium/gia đình đang hoạt động; dùng thử → trả phí; học thử → đăng ký (`users.claimed_at`) | — |
+| G5 | **Chấm viết theo band IELTS/TOEIC**: 4 dạng đề thi thật (IELTS Task 2, Task 1 thư, TOEIC trả lời email, TOEIC essay) ở `/practice/writing`; AI trả thêm `exam_band` (IELTS 0–9 theo 4 tiêu chí hoặc TOEIC 0–200) + mẹo lên band; nhóm "Luyện thi" hiện trước với người có mục tiêu thi/đi làm | — |
+| G5 | **Bo nói**: nút loa trên bong bóng mascot, đọc bằng giọng tiếng Việt của trình duyệt (tự ẩn nếu máy không có giọng vi-VN) | — |
+
+**G2, G3, G4 và G5 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
 
 **G1 hoàn tất.** Chưa làm trong G1: "sửa chuỗi trong 24 giờ" (streak repair) và mua bảo vệ chuỗi bằng XP —
 hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi người tặng sẵn 1, tối đa 2).
@@ -121,10 +127,22 @@ thay vì đổi toàn bộ.
 
 Chưa làm trong G4: âm thanh/giọng của Bo (hiện chỉ bong bóng chữ); vật phẩm theo mùa; "học cùng bạn" (friend streak).
 
-## G5 — gợi ý tiếp theo
+## G5 — Giao diện cao cấp cho người lớn + gói gia đình + doanh thu + band thi: hoàn tất trên code
 
-Gói gia đình (1 phụ huynh – nhiều con, thanh toán chung) · Thống kê admin cho doanh thu/chuyển đổi học thử → trả phí ·
-Chấm viết theo band IELTS/TOEIC · Thử thách bạn bè (friend quest) · Bo "nói" bằng TTS trong skin Vui nhộn.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Giao diện Chuyên nghiệp mới | Không cần gì. Toàn bộ nằm ở `globals.css` (khối "G5 — PRO LAYER"), `components/ui/SkillRing.tsx`, `CountUp.tsx`, hero ở `app/dashboard/page.tsx`. |
+| Gói gia đình | Không cần gì ngoài cổng thanh toán đã bật ở G3 (demo vẫn hoạt động khi `ALLOW_DEMO_UPGRADE`). Giá ở `FAMILY_PRICES_VND` trong `services/payments.py`; số con tối đa `FAMILY_MAX_CHILDREN` (hiện chỉ hiển thị, chưa chặn liên kết con thứ 5). Migration `u8d9e0f1a2b3` tự chạy khi deploy. |
+| Doanh thu admin | Không cần gì; cần email trong `ADMIN_EMAILS` để vào `/admin`. |
+| Band IELTS/TOEIC | Không cần gì; dùng cùng agent chấm viết (tốn 1 lượt AI như bài viết thường). Band là ước tính của AI, có ghi chú trên màn hình. |
+| Bo nói | Không cần gì; phụ thuộc giọng vi-VN của trình duyệt (Chrome/Edge máy tính và Android thường có; iOS có nếu người dùng đã cài giọng tiếng Việt). |
+
+Chưa làm trong G5: thử thách bạn bè (friend quest); giọng neural cho Bo (có thể nối vào `/audio/tts` khi muốn); chặn liên kết quá 4 con cho gói gia đình.
+
+## G6 — gợi ý tiếp theo
+
+Thử thách bạn bè · Thông báo đẩy khi con xuống hạng/giữ chuỗi cho phụ huynh · Trang landing làm mới theo giao diện mới ·
+Bo nói bằng giọng neural · Báo cáo PDF cho phụ huynh.
 
 ## Câu hỏi còn mở với chủ dự án
 

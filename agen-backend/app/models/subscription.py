@@ -14,6 +14,8 @@ from app.core.database import Base
 
 PLAN_FREE = "free"
 PLAN_PREMIUM = "premium"
+PLAN_FAMILY = "family"          # G5 · a parent pays; linked children are Premium
+PAID_PLANS = (PLAN_PREMIUM, PLAN_FAMILY)
 
 
 class Subscription(Base):

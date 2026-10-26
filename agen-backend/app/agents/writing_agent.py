@@ -30,6 +30,56 @@ WRITING_TOPICS = {
     ],
 }
 
+# G5 · Exam-style genres: the prompt follows the real task format and the
+# evaluation adds a band (IELTS 0–9 by 4 criteria) or a TOEIC Writing score.
+EXAM_GENRES: dict[str, dict] = {
+    "ielts_task2": {
+        "exam": "ielts", "label": "IELTS Writing Task 2", "words": "250+",
+        "format": "IELTS Academic/General Writing Task 2: a 250-word essay answering a question on the topic. "
+                  "Use one of the real question types: agree/disagree, discuss both views, advantages/disadvantages, problem/solution, two-part question.",
+        "topics": [
+            "Some people think that universities should only teach job-related subjects. To what extent do you agree or disagree?",
+            "Many people now shop online instead of in shops. Discuss the advantages and disadvantages.",
+            "Traffic congestion is increasing in big cities. What problems does this cause and what solutions can you suggest?",
+            "Some believe children should start learning a foreign language at primary school. Discuss both views and give your opinion.",
+            "In many countries people are living longer. What are the causes and is this a positive or negative development?",
+        ],
+    },
+    "ielts_task1": {
+        "exam": "ielts", "label": "IELTS Writing Task 1 (General – letter)", "words": "150+",
+        "format": "IELTS General Training Writing Task 1: a 150-word letter (formal, semi-formal or informal) covering three bullet points given in the task.",
+        "topics": [
+            "You recently stayed at a hotel and had a problem with your room. Write a letter to the manager.",
+            "A friend has invited you to visit, but you cannot go. Write a letter explaining why and suggesting another time.",
+            "You want to take a short English course abroad. Write a letter to the school asking for information.",
+            "You have lost an item on public transport. Write a letter to the transport company.",
+        ],
+    },
+    "toeic_email": {
+        "exam": "toeic", "label": "TOEIC Writing – Respond to an email (Q6–7)", "words": "80–120",
+        "format": "TOEIC Speaking & Writing, Questions 6–7: read a short business e-mail and write a reply that does the two or three things the instructions ask for (e.g. ask two questions and make one suggestion).",
+        "topics": [
+            "A customer e-mails asking about delivery options for an order. Reply: give two options and ask one question.",
+            "Your manager asks you to organise a team lunch. Reply: suggest two places and ask one question.",
+            "A supplier e-mails about a delayed shipment. Reply: ask two questions and make one request.",
+            "A colleague asks for help preparing a presentation. Reply: make two suggestions and ask one question.",
+        ],
+    },
+    "toeic_essay": {
+        "exam": "toeic", "label": "TOEIC Writing – Opinion essay (Q8)", "words": "300",
+        "format": "TOEIC Writing Question 8: an opinion essay of at least 300 words that states an opinion, gives reasons and examples.",
+        "topics": [
+            "Do you agree or disagree: Employees should be allowed to work from home at least two days a week?",
+            "Some companies reward employees with money, others with extra holiday. Which is better and why?",
+            "Is it better to work for a large company or a small one? Give reasons and examples.",
+            "Do you agree or disagree: It is more important to have a good salary than to enjoy your job?",
+        ],
+    },
+}
+
+IELTS_CRITERIA = {"task_response": "Task Response", "coherence_cohesion": "Coherence & Cohesion", "lexical_resource": "Lexical Resource", "grammatical_range": "Grammatical Range & Accuracy"}
+TOEIC_CRITERIA = {"task_completion": "Hoàn thành yêu cầu", "organisation": "Tổ chức ý", "vocabulary": "Từ vựng", "grammar": "Ngữ pháp"}
+
 # Approximate word counts and structure guidance per CEFR level
 LEVEL_GUIDANCE = {
     "PRE_A1": {"words": "20–30",  "sentences": 3},
@@ -59,16 +109,20 @@ def generate_writing_prompt(level: str, genre: str = "opinion") -> dict:
     }
     """
     import random
-    topics = WRITING_TOPICS.get(genre, WRITING_TOPICS["opinion"])
+    exam = EXAM_GENRES.get(genre)
+    topics = exam["topics"] if exam else WRITING_TOPICS.get(genre, WRITING_TOPICS["opinion"])
     topic = random.choice(topics)
     guidance = LEVEL_GUIDANCE.get(level, LEVEL_GUIDANCE["A2"])
+    if exam:
+        guidance = {"words": exam["words"], "sentences": "exam format"}
+    exam_note = f"\nExam format (follow it exactly): {exam['format']}\n" if exam else ""
 
     prompt = f"""You are an English writing teacher creating a writing task for a CEFR {level} Vietnamese learner.
 
 Topic: {topic}
 Genre: {genre}
 Word target: {guidance['words']} words
-
+{exam_note}
 Create a clear, motivating writing prompt with scaffolding support.
 
 Output ONLY JSON (no markdown):
@@ -102,7 +156,32 @@ Rules:
     return result
 
 
-def evaluate_writing(prompt_text: str, user_text: str, level: str) -> dict:
+def _exam_rubric(genre: str) -> str:
+    exam = EXAM_GENRES.get(genre)
+    if not exam:
+        return ""
+    if exam["exam"] == "ielts":
+        return """
+EXAM BAND (this is an IELTS task): also return
+    "exam_band": {
+        "exam": "ielts",
+        "overall": 6.0,
+        "criteria": {"task_response": 6.0, "coherence_cohesion": 6.0, "lexical_resource": 5.5, "grammatical_range": 6.0},
+        "next_band_tips": ["2-3 concrete, Vietnamese tips to reach the next half band"]
+    }
+Use the official public IELTS band descriptors (0–9 in 0.5 steps) for each criterion; overall = mean of the four, rounded to the nearest 0.5 (round .25 up). A text well under the word limit is penalised in task_response."""
+    return """
+EXAM SCORE (this is a TOEIC Writing task): also return
+    "exam_band": {
+        "exam": "toeic",
+        "overall": 140,
+        "criteria": {"task_completion": 4, "organisation": 3, "vocabulary": 4, "grammar": 3},
+        "next_band_tips": ["2-3 concrete, Vietnamese tips to raise the score"]
+    }
+Rate each criterion 0–5 as an ETS rater would (e-mail tasks 0–4, essay 0–5; use the 0–5 scale here), then map the average to the TOEIC Writing scaled score 0–200 (5 → 200, 4 → 170, 3 → 140, 2 → 100, 1 → 60, 0 → 0, interpolate)."""
+
+
+def evaluate_writing(prompt_text: str, user_text: str, level: str, genre: str = "opinion") -> dict:
     """
     Evaluates a learner's writing submission in detail.
 
@@ -176,9 +255,12 @@ Rules:
 - grammar_errors: list up to 5 most important errors (not all minor ones)
 - corrected_version: full corrected text preserving learner's ideas and voice
 - Be encouraging and constructive, appropriate for CEFR {level}
-- All Vietnamese feedback should be warm and specific"""
+- All Vietnamese feedback should be warm and specific
+{_exam_rubric(genre)}"""
 
     raw = get_llm_response(prompt)
     result = parse_and_validate(raw, WritingEvaluationOutput)
     result["word_count"] = word_count  # Ensure accuracy
+    if genre not in EXAM_GENRES:
+        result["exam_band"] = None
     return result
