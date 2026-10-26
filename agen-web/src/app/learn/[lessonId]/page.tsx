@@ -16,7 +16,7 @@ import { PageSkeleton } from '@/components/Skeleton';
 import AudioPlayerTTS from '@/components/AudioPlayerTTS';
 import confetti from 'canvas-confetti';
 import { playSound } from '@/lib/soundEffects';
-import { ArrowRight, BookOpen, BookText, ChevronDown, ChevronUp, CircleAlert, CircleCheck, CircleX, Flame, Headphones, PenLine, Sparkles, Star, Trophy, X, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BookMarked, BookOpen, BookText, ChevronDown, ChevronUp, CircleAlert, CircleCheck, CircleX, Flame, Headphones, PenLine, Sparkles, Star, Trophy, X, type LucideIcon } from 'lucide-react';
 import { track } from '@/lib/analytics';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
@@ -306,6 +306,12 @@ export default function LessonPlayerPage() {
             <span className="xp-badge"><Star size={13} fill="currentColor" /> +{lesson.xp_earned} XP</span>
             <span className="xp-badge">{lesson.correct_exercises}/{lesson.total_exercises} câu đúng</span>
           </div>
+
+          {!!finishResult?.words_saved && (
+            <Link href="/vocabulary" className="animate-fade-in-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 20, fontSize: '0.9rem', opacity: 1 }}>
+              <BookMarked size={16} /> Đã lưu {finishResult.words_saved} từ mới vào Sổ từ vựng
+            </Link>
+          )}
 
           {/* Streak & Daily Challenge result */}
           {activityResult && (

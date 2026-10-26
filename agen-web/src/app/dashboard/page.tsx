@@ -6,12 +6,13 @@ import { motion, Variants } from 'framer-motion';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import { getMyProfile, getDailyChallenge } from '@/lib/services';
 import { getNextLesson, type NextLesson } from '@/lib/curriculumService';
+import { getReviewSummary, type ReviewSummary } from '@/lib/reviewService';
 import NotificationBell from '@/components/NotificationBell';
 import { PageSkeleton } from '@/components/Skeleton';
 import type { LearnerProfile, DailyChallenge } from '@/types';
 import Link from 'next/link';
 import {
-  ArrowRight, BookOpen, BookText, ChevronRight, CircleCheck, Copy, Flame, GraduationCap, Headphones,
+  ArrowRight, BookMarked, BookOpen, BookText, Brain, ChevronRight, CircleCheck, Copy, Flame, GraduationCap, Headphones,
   Mic, PenLine, Sparkles, Star, Target, Trophy, Users, type LucideIcon,
 } from 'lucide-react';
 
@@ -141,6 +142,44 @@ function DailyChallengeCard({ challenge }: { challenge: DailyChallenge }) {
   );
 }
 
+// --- Review Card (spaced repetition) ---
+function ReviewCard({ summary }: { summary: ReviewSummary }) {
+  const due = summary.due_count;
+  const empty = summary.vocab_total + summary.mistake_total === 0;
+  return (
+    <div className="card" style={{ padding: 'var(--spacing-xl)', borderRadius: 'var(--radius-xl)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--spacing-lg)', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, minWidth: 0 }}>
+        <span className="icon-tile" style={{ flexShrink: 0, width: 48, height: 48, borderRadius: 16, background: 'color-mix(in srgb, var(--skill-reading) 12%, transparent)', color: 'var(--skill-reading)' }}>
+          <Brain size={24} strokeWidth={1.8} />
+        </span>
+        <div>
+          <div className="eyebrow" style={{ marginBottom: 4 }}>Ôn tập thông minh</div>
+          {empty ? (
+            <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)' }}>Học xong một bài, từ mới và câu sai sẽ tự vào đây để ôn đúng lúc sắp quên.</div>
+          ) : due > 0 ? (
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+              <span className="review-card-count">{due}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>mục cần ôn hôm nay · ~{Math.max(1, Math.round(due * 0.25))} phút</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <CircleCheck size={16} color="var(--agen-success)" /> Đã ôn xong hôm nay · {summary.mastered_count}/{summary.vocab_total + summary.mistake_total} mục đã thuộc
+            </div>
+          )}
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+        <Link href="/vocabulary" className="btn btn-ghost"><BookMarked size={16} /> Sổ từ vựng</Link>
+        {!empty && (
+          <Link href="/review" className={due > 0 ? 'btn btn-primary' : 'btn btn-outline'}>
+            {due > 0 ? 'Ôn tập ngay' : 'Luyện thêm'} <ArrowRight size={16} />
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // --- Main Dashboard Page ---
 export default function DashboardPage() {
   const router = useRouter();
@@ -148,6 +187,7 @@ export default function DashboardPage() {
   const hydrated = useAuthHydrated();
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [nextLesson, setNextLesson] = useState<NextLesson | null>(null);
+  const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -160,6 +200,7 @@ export default function DashboardPage() {
       .then((profile) => {
         setLearner(profile);
         getDailyChallenge().then(setDailyChallenge).catch(console.error);
+        getReviewSummary().then(setReviewSummary).catch(console.error);
         // Only fetch the roadmap next lesson once placement is done
         if (profile.placement_completed === 'done') {
           getNextLesson(profile.overall_level).then(setNextLesson).catch(console.error);
@@ -209,6 +250,12 @@ export default function DashboardPage() {
           <MissionCard learner={learner} nextLesson={nextLesson} />
           {dailyChallenge && <DailyChallengeCard challenge={dailyChallenge} />}
         </motion.div>
+
+        {reviewSummary && (
+          <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)' }}>
+            <ReviewCard summary={reviewSummary} />
+          </motion.div>
+        )}
 
         {/* Stats Row */}
         <motion.div variants={itemVariants} className="grid-4" style={{ gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>

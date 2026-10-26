@@ -73,6 +73,7 @@ export interface FinishLessonResult {
   adaptive_decision?: string | null;
   adaptive_reason?: string | null;
   recommended_difficulty?: number | null;
+  words_saved?: number;
 }
 
 export interface SubmitExerciseResult {

@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { House, Mic, ChartColumn, Sparkles } from 'lucide-react';
+import { Brain, House, Mic, ChartColumn, Sparkles } from 'lucide-react';
 
 export default function MobileNav() {
   const pathname = usePathname();
@@ -22,12 +22,13 @@ export default function MobileNav() {
   }, []);
 
   // Hide nav on certain routes (like login, register, onboarding) or if not logged in
-  const hideNavRoutes = ['/login', '/register', '/onboarding', '/placement'];
+  const hideNavRoutes = ['/login', '/register', '/onboarding', '/placement', '/review'];
   if (!isAuthenticated || hideNavRoutes.includes(pathname) || !isMobile) return null;
   if (userRole === 'parent' && pathname !== '/parent') return null; // Parents don't need this bottom nav for now
 
   const NAV_ITEMS = [
     { href: '/dashboard', match: '/dashboard', label: 'Học', icon: House },
+    { href: '/review', match: '/review', label: 'Ôn tập', icon: Brain },
     { href: '/practice/speaking', match: '/practice', label: 'Luyện tập', icon: Mic },
     { href: '/progress', match: '/progress', label: 'Tiến bộ', icon: ChartColumn },
     { href: '/upgrade', match: '/upgrade', label: 'Pro', icon: Sparkles },
