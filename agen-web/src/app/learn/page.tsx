@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import { generateLesson, getDailyRecommendations, getMyLessons, LessonQuotaError, DailyRecommendation, LessonSummary } from '@/lib/lessonService';
-import { startCurriculumLesson } from '@/lib/curriculumService';
+import { startCurriculumLesson, startTrackLesson } from '@/lib/curriculumService';
 import { PageSkeleton } from '@/components/Skeleton';
 import LessonGeneratingOverlay from '@/components/LessonGeneratingOverlay';
 import { ArrowLeft, BookOpen, BookText, ChevronRight, CircleAlert, Headphones, LayoutGrid, PenLine, type LucideIcon } from 'lucide-react';
@@ -31,6 +31,9 @@ function LearnHubContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const curriculumCode = searchParams.get('code');
+  // G3 · goal tracks: /learn?track=<trackId>&lesson=<code>
+  const trackId = searchParams.get('track');
+  const trackLesson = searchParams.get('lesson');
   const { isAuthenticated, learner } = useAuthStore();
   const hydrated = useAuthHydrated();
 
@@ -39,7 +42,7 @@ function LearnHubContent() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string>(''); // skill being generated
   // Initialize to true when arriving with a curriculum code so we don't setState in the effect body
-  const [curriculumStarting, setCurriculumStarting] = useState(!!curriculumCode);
+  const [curriculumStarting, setCurriculumStarting] = useState(!!curriculumCode || !!(trackId && trackLesson));
   const [error, setError] = useState('');
   const [skillFilter, setSkillFilter] = useState<string>('all');
 
@@ -64,6 +67,23 @@ function LearnHubContent() {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
 
+    // Goal track lesson: mark it started, then generate at the track's level
+    if (trackId && trackLesson) {
+      startTrackLesson(trackId, trackLesson)
+        .then((node) => generateLesson(node.skill, node.topic, undefined, node.code))
+        .then((lesson) => router.push(`/learn/${lesson.id}`))
+        .catch((err: unknown) => {
+          if (err instanceof LessonQuotaError) {
+            setError(err.message);
+          } else {
+            const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+            setError(detail || 'Không thể bắt đầu bài học của khoá mục tiêu.');
+          }
+          setCurriculumStarting(false);
+        });
+      return;
+    }
+
     // If arriving with a curriculum code, start that node then generate its lesson
     if (curriculumCode) {
       startCurriculumLesson(curriculumCode)
@@ -86,7 +106,7 @@ function LearnHubContent() {
       .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, isAuthenticated, curriculumCode]);
+  }, [hydrated, isAuthenticated, curriculumCode, trackId, trackLesson]);
 
   // While preparing a curriculum lesson: show the friendly generating overlay,
   // unless generation failed — then show the error with a way back.
@@ -96,7 +116,7 @@ function LearnHubContent() {
         <div className="card" style={{ maxWidth: 440, textAlign: 'center', padding: 40 }}>
           <CircleAlert size={32} strokeWidth={1.6} color="var(--agen-secondary)" style={{ marginBottom: 12 }} />
           <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>{error}</p>
-          <Link href="/curriculum" className="btn btn-ghost"><ArrowLeft size={16} /> Về lộ trình</Link>
+          <Link href={trackId ? `/tracks/${trackId}` : '/curriculum'} className="btn btn-ghost"><ArrowLeft size={16} /> {trackId ? 'Về khoá mục tiêu' : 'Về lộ trình'}</Link>
         </div>
       </main>
     );

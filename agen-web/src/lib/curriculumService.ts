@@ -84,3 +84,66 @@ export async function startCurriculumLesson(code: string): Promise<StartCurricul
   const res = await api.post('/curriculum/start', { code });
   return res.data;
 }
+
+// ── G3 · Khoá theo mục tiêu ──────────────────────────────────────────────────
+export interface TrackLesson {
+  code: string;
+  title_vi: string;
+  skill: string;
+  topic: string;
+  level: string;
+  status: 'not_started' | 'in_progress' | 'completed';
+  best_score: number;
+  mastered: boolean;
+  locked: boolean;
+}
+
+export interface TrackModule {
+  code: string;
+  title_vi: string;
+  lessons: TrackLesson[];
+  completed_count: number;
+  total_count: number;
+}
+
+export interface TrackSummary {
+  id: string;
+  emoji: string;
+  title_vi: string;
+  title_en: string;
+  description_vi: string;
+  target_level: string;
+  total_lessons: number;
+  completed_lessons: number;
+  progress_pct: number;
+  recommended: boolean;
+  next_lesson_code: string | null;
+}
+
+export interface TrackDetail extends TrackSummary {
+  modules: TrackModule[];
+}
+
+export interface StartTrackLessonResult {
+  track_id: string;
+  code: string;
+  skill: string;
+  topic: string;
+  level: string;
+  status: string;
+}
+
+export async function getTracks(): Promise<TrackSummary[]> {
+  const res = await api.get('/curriculum/tracks');
+  return res.data;
+}
+
+export async function getTrack(trackId: string): Promise<TrackDetail> {
+  const res = await api.get(`/curriculum/tracks/${encodeURIComponent(trackId)}`);
+  return res.data;
+}
+
+export async function startTrackLesson(trackId: string, code: string): Promise<StartTrackLessonResult> {
+  const res = await api.post(`/curriculum/tracks/${encodeURIComponent(trackId)}/start`, { code });
+  return res.data;
+}

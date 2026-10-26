@@ -26,6 +26,10 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
 - Nói & nghe (G2): tình huống + nhân vật ở `app/services/speaking_scenarios.py` (không cần LLM cho bước 1–2); chấm theo
   từ ở `pronunciation_service.py`; giọng đọc server ở `tts_service.py` (`/audio/tts`, tự tắt khi không có khoá). Web:
   mọi nút nghe đi qua `playText()` trong `lib/speechService.ts` (server → trình duyệt), micro qua `lib/useSpeechRecorder.ts`.
+  Chấm từng âm: `pronunciation_azure.py` (bật khi có `AZURE_SPEECH_KEY`); web gửi WAV qua `scoreAttempt()`.
+- Tăng trưởng (G3): khách `is_guest` (`/auth/guest`, `/auth/claim`); thanh toán `services/payments.py` (chỉ IPN ký
+  đúng mới cộng Premium); giải đấu `services/league.py`; email phụ huynh `services/parent_digest.py` (cron nhắc học);
+  khoá mục tiêu `services/goal_tracks.py` + `GoalTrackProgress` (bài tạo qua `/lessons/generate` với `track_code`).
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

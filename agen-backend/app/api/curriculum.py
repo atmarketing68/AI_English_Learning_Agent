@@ -281,3 +281,154 @@ def start_curriculum_lesson(
         topic=lesson.topic,
         status=prog.status,
     )
+
+
+# ── G3 · Khoá theo mục tiêu (IELTS / TOEIC / phỏng vấn) ──────────────────────
+from app.models.goal_track import GoalTrackProgress
+from app.services import goal_tracks
+
+
+class TrackLessonOut(BaseModel):
+    code: str
+    title_vi: str
+    skill: str
+    topic: str
+    level: str
+    status: str = "not_started"      # not_started | in_progress | completed
+    best_score: int = 0
+    mastered: bool = False
+    locked: bool = False
+
+
+class TrackModuleOut(BaseModel):
+    code: str
+    title_vi: str
+    lessons: list[TrackLessonOut]
+    completed_count: int
+    total_count: int
+
+
+class TrackSummaryOut(BaseModel):
+    id: str
+    emoji: str
+    title_vi: str
+    title_en: str
+    description_vi: str
+    target_level: str
+    total_lessons: int
+    completed_lessons: int
+    progress_pct: float
+    recommended: bool
+    next_lesson_code: Optional[str]
+
+
+class TrackDetailOut(TrackSummaryOut):
+    modules: list[TrackModuleOut]
+
+
+class StartTrackLessonRequest(BaseModel):
+    code: str
+
+
+class StartTrackLessonResponse(BaseModel):
+    track_id: str
+    code: str
+    skill: str
+    topic: str
+    level: str
+    status: str
+
+
+def _track_progress(db: Session, learner_id: str, track_id: str) -> dict[str, GoalTrackProgress]:
+    rows = db.query(GoalTrackProgress).filter(
+        GoalTrackProgress.learner_id == learner_id, GoalTrackProgress.track_id == track_id,
+    ).all()
+    return {r.lesson_code: r for r in rows}
+
+
+def _track_view(track: dict, progress: dict[str, GoalTrackProgress], learning_goal: Optional[str]) -> TrackDetailOut:
+    modules: list[TrackModuleOut] = []
+    previous_done = True          # the first lesson is always open
+    completed = 0
+    next_code: Optional[str] = None
+    for module in track["modules"]:
+        lessons: list[TrackLessonOut] = []
+        for spec in module["lessons"]:
+            row = progress.get(spec["code"])
+            status = row.status if row else "not_started"
+            done = status == "completed"
+            locked = not previous_done and not row
+            if done:
+                completed += 1
+            elif next_code is None and not locked:
+                next_code = spec["code"]
+            lessons.append(TrackLessonOut(
+                **spec, status=status, best_score=(row.best_score if row else 0),
+                mastered=bool(row.mastered) if row else False, locked=locked,
+            ))
+            previous_done = done
+        modules.append(TrackModuleOut(
+            code=module["code"], title_vi=module["title_vi"], lessons=lessons,
+            completed_count=sum(1 for l in lessons if l.status == "completed"), total_count=len(lessons),
+        ))
+    total = sum(m.total_count for m in modules)
+    return TrackDetailOut(
+        id=track["id"], emoji=track["emoji"], title_vi=track["title_vi"], title_en=track["title_en"],
+        description_vi=track["description_vi"], target_level=track["target_level"],
+        total_lessons=total, completed_lessons=completed,
+        progress_pct=round(completed / total * 100, 1) if total else 0.0,
+        recommended=track["id"] in goal_tracks.recommended_track_ids(learning_goal),
+        next_lesson_code=next_code, modules=modules,
+    )
+
+
+@router.get("/tracks", response_model=list[TrackSummaryOut])
+def list_goal_tracks(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    learner = _get_learner(db, current_user.id)
+    out = []
+    for track in goal_tracks.list_tracks():
+        view = _track_view(track, _track_progress(db, learner.id, track["id"]), learner.learning_goal)
+        out.append(TrackSummaryOut(**view.model_dump(exclude={"modules"})))
+    out.sort(key=lambda t: (not t.recommended, t.id))
+    return out
+
+
+@router.get("/tracks/{track_id}", response_model=TrackDetailOut)
+def get_goal_track(track_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    learner = _get_learner(db, current_user.id)
+    track = goal_tracks.get_track(track_id)
+    if not track:
+        raise HTTPException(status_code=404, detail="Không tìm thấy khoá học này.")
+    return _track_view(track, _track_progress(db, learner.id, track_id), learner.learning_goal)
+
+
+@router.post("/tracks/{track_id}/start", response_model=StartTrackLessonResponse)
+def start_track_lesson(
+    track_id: str,
+    payload: StartTrackLessonRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark a track lesson as started; the client then calls /lessons/generate with track_code."""
+    learner = _get_learner(db, current_user.id)
+    found = goal_tracks.find_lesson(payload.code)
+    if not found or found[0]["id"] != track_id:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài học trong khoá này.")
+    track, _, spec = found
+    view = _track_view(track, _track_progress(db, learner.id, track_id), learner.learning_goal)
+    lesson_view = next(l for m in view.modules for l in m.lessons if l.code == payload.code)
+    if lesson_view.locked:
+        raise HTTPException(status_code=400, detail="Hãy hoàn thành bài trước đó trước.")
+
+    prog = db.query(GoalTrackProgress).filter(
+        GoalTrackProgress.learner_id == learner.id, GoalTrackProgress.lesson_code == payload.code,
+    ).first()
+    if not prog:
+        prog = GoalTrackProgress(learner_id=learner.id, track_id=track_id, lesson_code=payload.code, status="in_progress")
+        db.add(prog)
+    elif prog.status != "completed":
+        prog.status = "in_progress"
+    db.commit()
+    return StartTrackLessonResponse(
+        track_id=track_id, code=spec["code"], skill=spec["skill"], topic=spec["topic"], level=spec["level"], status=prog.status,
+    )
