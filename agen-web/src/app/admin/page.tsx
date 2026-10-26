@@ -7,7 +7,9 @@ import {
   getAdminMe, getEvaluationSummary, listEvaluations,
   listContent, setContentStatus, batchGenerateContent,
   getPilotSummary, getRevenueSummary, listOrders, markInvoiceIssued,
-  getAiUsageSummary, type AiUsageSummary,
+  getAiUsageSummary, type AiUsageSummary, refundOrder,
+  deleteGeneratedPodcast, generatePodcast, getGeneratedPodcast, listGeneratedPodcasts, setGeneratedPodcastStatus, setGeneratedPodcastVideo,
+  type GeneratedEpisode, type GeneratedEpisodeFull,
   deleteGeneratedExam, generateExam, getGeneratedExam, listGeneratedExams, setGeneratedExamStatus,
   type AdminOrder, type GeneratedExam, type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
 } from '@/lib/adminService';
@@ -130,8 +132,15 @@ function AiUsagePanel() {
     ['TB mỗi người dùng', usd(u.avg_per_user_usd), `${u.users_with_usage} người · ${u.calls} lượt gọi`],
     ['Giới hạn/ngày', u.limits.free_usd || u.limits.premium_usd ? `${u.limits.free_usd ? usd(u.limits.free_usd) : '∞'} / ${u.limits.premium_usd ? usd(u.limits.premium_usd) : '∞'}` : 'Tắt', 'miễn phí / Premium'],
   ];
+  const al = u.alerts;
   return (
     <div className="card">
+      {al && (al.total_over || al.users_over.length > 0) && (
+        <div className="alert-error" style={{ marginBottom: 16, display: 'grid', gap: 4 }}>
+          {al.total_over && <div>⚠️ Chi phí AI hôm nay {usd(al.today_usd)} đã vượt ngưỡng {usd(al.total_threshold_usd)}.</div>}
+          {al.users_over.map(x => <div key={x.user_id}>⚠️ {x.email ?? x.user_id.slice(0, 8)} dùng {usd(x.cost_usd)} hôm nay (ngưỡng {usd(al.user_threshold_usd)}/người).</div>)}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
         <div style={{ fontWeight: 600, flex: 1 }}>Chi phí AI ước tính (LLM + giọng đọc)</div>
         <div className="segmented">
@@ -152,7 +161,7 @@ function AiUsagePanel() {
           <div style={{ fontWeight: 600, marginBottom: 10 }}>Theo ngày</div>
           <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 120, marginBottom: 24 }}>
             {u.by_day.map(b => (
-              <div key={b.key} title={`${b.key}: ${usd(b.cost_usd)} · ${b.calls} lượt`} style={{ flex: 1, minWidth: 3, height: `${Math.max(3, (b.cost_usd / max) * 100)}%`, borderRadius: 4, background: 'linear-gradient(180deg, var(--skill-listening), var(--agen-primary))' }} />
+              <div key={b.key} title={`${b.key}: ${usd(b.cost_usd)} · ${b.calls} lượt`} style={{ flex: 1, minWidth: 3, maxWidth: 32, height: `${Math.max(3, (b.cost_usd / max) * 100)}%`, borderRadius: 4, background: 'linear-gradient(180deg, var(--skill-listening), var(--agen-primary))' }} />
             ))}
           </div>
         </>
@@ -182,7 +191,7 @@ function AiUsagePanel() {
           </tbody>
         </table>
       </div>
-      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 12 }}>Ước tính theo số ký tự (≈4 ký tự/token) × đơn giá trong biến môi trường AI_PRICE_*; đặt AI_DAILY_LIMIT_USD_FREE/PREMIUM để giới hạn mỗi người mỗi ngày.</p>
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 12 }}>Ước tính theo số ký tự (≈4 ký tự/token) × đơn giá trong biến môi trường AI_PRICE_*; đặt AI_DAILY_LIMIT_USD_FREE/PREMIUM để giới hạn mỗi người mỗi ngày; AI_ALERT_DAILY_USD / AI_ALERT_USER_DAILY_USD để email cảnh báo cho admin.{al && (al.total_threshold_usd > 0 || al.user_threshold_usd > 0) ? ` Ngưỡng cảnh báo: ${al.total_threshold_usd ? usd(al.total_threshold_usd) + '/ngày' : '—'} · ${al.user_threshold_usd ? usd(al.user_threshold_usd) + '/người/ngày' : '—'}.` : ''}</p>
     </div>
   );
 }
@@ -201,6 +210,25 @@ function OrdersPanel() {
     try {
       const updated = await markInvoiceIssued(o.order_id, !o.invoice_issued_at);
       setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
+    } finally { setBusy(null); }
+  };
+  const refund = async (o: AdminOrder) => {
+    const stripe = o.provider === 'stripe';
+    const ok = confirm(stripe
+      ? `Hoàn ${o.amount_foreign != null ? '$' + (o.amount_foreign / 100).toFixed(2) : vnd(o.amount_vnd)} cho ${o.email} qua Stripe? Thời hạn Premium của đơn này sẽ bị trừ lại.`
+      : `Đơn ${o.provider.toUpperCase()}: hãy hoàn tiền trên cổng ${o.provider.toUpperCase()} trước. Đã hoàn xong và muốn ghi nhận cho ${o.email}? Thời hạn Premium của đơn này sẽ bị trừ lại.`);
+    if (!ok) return;
+    const note = prompt('Ghi chú hoàn tiền (lý do, mã giao dịch hoàn…)', '') ?? '';
+    setBusy(o.order_id);
+    try {
+      const updated = await refundOrder(o.order_id, note);
+      setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không hoàn tiền được.';
+      if (stripe && confirm(`${detail}\n\nNếu bạn đã hoàn tiền trên trang Stripe, bấm OK để chỉ ghi nhận.`)) {
+        const updated = await refundOrder(o.order_id, note || 'Hoàn trên trang Stripe', true).catch(() => null);
+        if (updated) setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
+      } else if (!stripe) alert(detail);
     } finally { setBusy(null); }
   };
   const exportCsv = () => {
@@ -226,22 +254,146 @@ function OrdersPanel() {
       {!orders ? <div style={{ color: 'var(--text-muted)' }}>Đang tải…</div> : orders.length === 0 ? <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có đơn nào.</div> : (
         <div style={{ overflowX: 'auto', margin: '0 calc(-1 * var(--spacing-lg, 24px))', padding: '0 var(--spacing-lg, 24px)' }}>
           <table className="teacher-table" style={{ minWidth: 980 }}>
-            <thead><tr><th>Ngày</th><th>Khách</th><th>Gói</th><th>Số tiền</th><th>Trạng thái</th><th>Đơn vị · MST</th><th>Email HĐ</th><th>Hoá đơn</th></tr></thead>
+            <thead><tr><th>Ngày</th><th>Khách</th><th>Gói</th><th>Số tiền</th><th>Trạng thái</th><th>Đơn vị · MST</th><th>Email HĐ</th><th>Hoá đơn</th><th>Biên nhận · hoàn tiền</th></tr></thead>
             <tbody>
               {orders.map(o => (
                 <tr key={o.order_id}>
                   <td>{new Date(o.created_at).toLocaleDateString('vi-VN')}</td>
                   <td>{o.email}</td>
                   <td>{PLAN_VI[o.plan] ?? o.plan} · {o.months} th{o.plan === 'team' ? ` · ${o.seats} ghế` : ''}</td>
-                  <td>{vnd(o.amount_vnd)}</td>
-                  <td><span className={`plan-chip${o.status === 'paid' ? ' is-premium' : ''}`}>{o.status === 'paid' ? 'Đã trả' : o.status === 'pending' ? 'Chờ' : 'Lỗi'}</span></td>
+                  <td>{vnd(o.amount_vnd)}{o.currency === 'USD' && o.amount_foreign != null && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>${(o.amount_foreign / 100).toFixed(2)} · {o.provider}</div>}</td>
+                  <td><span className={`plan-chip${o.status === 'paid' ? ' is-premium' : ''}`} title={o.refund_note ?? undefined}>{o.status === 'paid' ? 'Đã trả' : o.status === 'pending' ? 'Chờ' : o.status === 'refunded' ? 'Đã hoàn tiền' : 'Lỗi'}</span></td>
                   <td style={{ whiteSpace: 'normal', minWidth: 200 }}>{o.invoice ? <>{o.invoice.company_name}<div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>MST {o.invoice.tax_code} · {o.invoice.address}</div></> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                   <td>{o.invoice?.email ?? '—'}</td>
                   <td>{o.invoice ? <button type="button" className={`btn btn-sm ${o.invoice_issued_at ? 'btn-ghost' : 'btn-primary'}`} disabled={busy === o.order_id || o.status !== 'paid'} onClick={() => toggle(o)} title={o.status !== 'paid' ? 'Chỉ xuất khi đơn đã thanh toán' : ''}>{o.invoice_issued_at ? <><Check size={13} /> Đã xuất</> : 'Đánh dấu đã xuất'}</button> : '—'}</td>
+                  <td>
+                    {(o.status === 'paid' || o.status === 'refunded') ? (
+                      <span style={{ display: 'inline-flex', gap: 6 }}>
+                        <a className="btn btn-ghost btn-sm" href={`/receipt/${o.order_id}`} target="_blank" rel="noreferrer">Biên nhận</a>
+                        {o.status === 'paid' && <button type="button" className="btn btn-outline btn-sm" disabled={busy === o.order_id} onClick={() => refund(o)}>Hoàn tiền</button>}
+                      </span>
+                    ) : '—'}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── G11 · Podcast do AI sinh ────────────────────────────────────────────────
+function PodcastsPanel() {
+  const [items, setItems] = useState<GeneratedEpisode[] | null>(null);
+  const [form, setForm] = useState({ level: 'B1', topic: '', style: 'conversation' as 'conversation' | 'talk' });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [preview, setPreview] = useState<GeneratedEpisodeFull | null>(null);
+  const [video, setVideo] = useState({ url: '', start: '', end: '' });
+  const load = () => listGeneratedPodcasts().then(setItems).catch(() => setItems([]));
+  useEffect(() => { void load(); }, []);
+  const err = (e: unknown, fallback: string) => (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback;
+
+  const generate = async () => {
+    setBusy(true); setMsg('Đang sinh tập podcast (1 lượt gọi AI, 20–40 giây)…');
+    try {
+      const r = await generatePodcast({ level: form.level, topic: form.topic || undefined, style: form.style });
+      setMsg(`Đã tạo bản nháp "${r.title}" (${r.lines} câu thoại, ${r.questions} câu hỏi). Nghe thử và duyệt bên dưới.`);
+      await load();
+    } catch (e) { setMsg(err(e, 'Không sinh được tập podcast.')); } finally { setBusy(false); }
+  };
+  const open = async (id: string) => {
+    const full = await getGeneratedPodcast(id);
+    setPreview(full);
+    setVideo({ url: full.meta.youtube_id ? `https://youtu.be/${full.meta.youtube_id}` : '', start: full.meta.video_start?.toString() ?? '', end: full.meta.video_end?.toString() ?? '' });
+  };
+  const setStatus = async (id: string, status: 'draft' | 'approved' | 'rejected') => {
+    await setGeneratedPodcastStatus(id, status); await load();
+    if (preview?.meta.id === id) setPreview(p => (p ? { ...p, meta: { ...p.meta, status } } : p));
+  };
+  const saveVideo = async () => {
+    if (!preview) return;
+    try {
+      const meta = await setGeneratedPodcastVideo(preview.meta.id, video.url.trim() || null, video.start ? Number(video.start) : null, video.end ? Number(video.end) : null);
+      setPreview(p => (p ? { ...p, meta } : p)); setMsg(meta.youtube_id ? 'Đã gắn video.' : 'Đã bỏ video.'); await load();
+    } catch (e) { setMsg(err(e, 'Không lưu được video.')); }
+  };
+  const STATUS_VI = { draft: 'Nháp', approved: 'Đã duyệt', rejected: 'Từ chối' } as const;
+
+  return (
+    <div style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
+      <div className="card" style={{ display: 'grid', gap: 10 }}>
+        <div style={{ fontWeight: 600 }}>Sinh tập podcast mới bằng AI</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+          <select className="form-input" value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} aria-label="Trình độ">{['A2', 'B1', 'B2', 'C1'].map(l => <option key={l} value={l}>{l}</option>)}</select>
+          <select className="form-input" value={form.style} onChange={e => setForm(f => ({ ...f, style: e.target.value as 'conversation' | 'talk' }))} aria-label="Dạng"><option value="conversation">Hội thoại 2–3 người</option><option value="talk">Một người dẫn</option></select>
+          <input className="form-input" placeholder="Chủ đề (tuỳ chọn)" value={form.topic} onChange={e => setForm(f => ({ ...f, topic: e.target.value }))} maxLength={120} />
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={generate} disabled={busy}>{busy ? <LoaderCircle className="animate-spin" size={14} /> : <Zap size={14} />} Sinh bản nháp</button>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{msg || 'Tập mới ở trạng thái nháp; học viên chỉ thấy tập đã duyệt (mục Podcast).'}</span>
+        </div>
+      </div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {!items ? <div style={{ padding: 16, color: 'var(--text-muted)' }}>Đang tải…</div> : items.length === 0 ? <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: '0.88rem' }}>Chưa có tập nào do AI sinh.</div> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="teacher-table">
+              <thead><tr><th>Tập</th><th>Trình độ</th><th>Câu thoại · hỏi</th><th>Video</th><th>Chất lượng AI</th><th>Trạng thái</th><th /></tr></thead>
+              <tbody>
+                {items.map(x => (
+                  <tr key={x.id}>
+                    <td style={{ whiteSpace: 'normal', minWidth: 200 }}><button type="button" className="btn btn-ghost btn-sm" style={{ padding: 0, textAlign: 'left' }} onClick={() => open(x.id)}>{x.title}</button><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{x.title_vi}</div></td>
+                    <td>{x.level}</td>
+                    <td>{x.lines} · {x.questions}</td>
+                    <td>{x.youtube_id ? '▶︎ có' : '—'}</td>
+                    <td>{x.eval_score != null ? `${x.eval_score.toFixed(0)}${x.eval_flagged ? ' ⚑' : ''}` : '—'}</td>
+                    <td><span className={`plan-chip${x.status === 'approved' ? ' is-premium' : ''}`}>{STATUS_VI[x.status]}</span></td>
+                    <td style={{ display: 'flex', gap: 6 }}>
+                      {x.status !== 'approved' && <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus(x.id, 'approved')}><Check size={13} /> Duyệt</button>}
+                      {x.status !== 'rejected' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStatus(x.id, 'rejected')}><X size={13} /> Từ chối</button>}
+                      <button type="button" className="icon-btn" aria-label="Xoá" onClick={async () => { if (confirm('Xoá tập này? Tiến độ nghe của học viên cũng bị xoá.')) { await deleteGeneratedPodcast(x.id); if (preview?.meta.id === x.id) setPreview(null); await load(); } }}><X size={14} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {preview && (
+        <div className="card" style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div><div className="eyebrow">Xem trước · {preview.meta.level} · {preview.episode.minutes} phút · có đáp án</div><h3 style={{ margin: 0 }}>{preview.episode.title} — {preview.episode.title_vi}</h3></div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPreview(null)}>Đóng</button>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>{preview.episode.description_vi}</p>
+          <ol className="media-bilingual">
+            {preview.episode.lines.map((l, i) => <li key={i}><span className="media-speaker">{l.speaker}</span><div><div>{l.text}</div><div className="media-vi">{l.vi}</div></div></li>)}
+          </ol>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{preview.episode.vocab.map(v => <span key={v.word} className="chat-chip" style={{ cursor: 'default' }}><b>{v.word}</b>&nbsp;· {v.definition}</span>)}</div>
+          {preview.episode.questions.map(q => (
+            <div key={q.id} style={{ fontSize: '0.88rem', padding: '6px 10px', borderRadius: 10, background: 'var(--bg-elevated)' }}>
+              <b>{q.id}.</b> {q.prompt}
+              <div style={{ color: 'var(--text-muted)' }}>{q.options.map((o, i) => <span key={i} style={{ marginRight: 10, fontWeight: i === q.answer ? 700 : 400, color: i === q.answer ? 'var(--agen-success)' : undefined }}>{String.fromCharCode(65 + i)}. {o}</span>)}</div>
+              <div style={{ color: 'var(--text-muted)' }}>{q.explanation_vi}</div>
+            </div>
+          ))}
+          <div style={{ display: 'grid', gap: 8, padding: 12, borderRadius: 12, background: 'var(--bg-elevated)' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>Gắn video YouTube (tuỳ chọn)</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Chỉ gắn video có lời nói khớp đúng lời thoại trên và được phép nhúng. Học viên sẽ thấy video phía trên lời thoại.</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 8 }}>
+              <input className="form-input" placeholder="https://youtu.be/…" value={video.url} onChange={e => setVideo(v => ({ ...v, url: e.target.value }))} aria-label="Link YouTube" />
+              <input className="form-input" type="number" min={0} placeholder="Bắt đầu (giây)" value={video.start} onChange={e => setVideo(v => ({ ...v, start: e.target.value }))} aria-label="Bắt đầu" />
+              <input className="form-input" type="number" min={0} placeholder="Kết thúc (giây)" value={video.end} onChange={e => setVideo(v => ({ ...v, end: e.target.value }))} aria-label="Kết thúc" />
+              <button type="button" className="btn btn-outline btn-sm" onClick={saveVideo}>Lưu</button>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {preview.meta.status !== 'approved' && <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus(preview.meta.id, 'approved')}><Check size={13} /> Duyệt và phát hành</button>}
+            {preview.meta.status !== 'rejected' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStatus(preview.meta.id, 'rejected')}><X size={13} /> Từ chối</button>}
+          </div>
         </div>
       )}
     </div>
@@ -555,7 +707,7 @@ export default function AdminDashboardPage() {
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [agent, setAgent] = useState('');
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'pilot' | 'revenue' | 'ai' | 'quality' | 'content' | 'exams'>('pilot');
+  const [tab, setTab] = useState<'pilot' | 'revenue' | 'ai' | 'quality' | 'content' | 'exams' | 'podcasts'>('pilot');
   const [pilotSummary, setPilotSummary] = useState<PilotSummary | null>(null);
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
 
@@ -635,6 +787,7 @@ export default function AdminDashboardPage() {
           <button onClick={() => setTab('quality')} aria-pressed={tab === 'quality'}>Chất lượng AI</button>
           <button onClick={() => setTab('content')} aria-pressed={tab === 'content'}>Kho nội dung</button>
           <button onClick={() => setTab('exams')} aria-pressed={tab === 'exams'}>Đề thi</button>
+          <button onClick={() => setTab('podcasts')} aria-pressed={tab === 'podcasts'}>Podcast AI</button>
         </div>
 
         {tab === 'pilot' ? (
@@ -647,6 +800,8 @@ export default function AdminDashboardPage() {
           <ContentPanel />
         ) : tab === 'exams' ? (
           <ExamsPanel />
+        ) : tab === 'podcasts' ? (
+          <PodcastsPanel />
         ) : (
           <>
             {/* Filters */}

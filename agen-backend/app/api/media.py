@@ -66,7 +66,7 @@ def list_episodes(current_user: User = Depends(get_current_user), db: Session = 
     learner = _learner(db, current_user)
     progress = {p.episode_id: p for p in db.query(MediaProgress).filter(MediaProgress.learner_id == learner.id).all()}
     out = []
-    for e in lib.list_episodes():
+    for e in lib.list_episodes(db):
         p = progress.get(e["id"])
         out.append(EpisodeSummary(id=e["id"], kind=e["kind"], level=e["level"], minutes=e["minutes"], topic=e["topic"], title=e["title"], title_vi=e["title_vi"],
                                   description_vi=e["description_vi"], has_video=bool(e.get("youtube_id")),
@@ -77,7 +77,7 @@ def list_episodes(current_user: User = Depends(get_current_user), db: Session = 
 @router.get("/{episode_id}")
 def get_episode(episode_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _learner(db, current_user)
-    ep = lib.get_episode(episode_id)
+    ep = lib.get_episode(episode_id, db)
     if not ep:
         raise HTTPException(status_code=404, detail="Không tìm thấy tập này.")
     return lib.public_episode(ep)
@@ -86,7 +86,7 @@ def get_episode(episode_id: str, current_user: User = Depends(get_current_user),
 @router.post("/{episode_id}/submit", response_model=SubmitOut)
 def submit(episode_id: str, payload: SubmitIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     learner = _learner(db, current_user)
-    ep = lib.get_episode(episode_id)
+    ep = lib.get_episode(episode_id, db)
     if not ep:
         raise HTTPException(status_code=404, detail="Không tìm thấy tập này.")
     result = lib.grade(ep, payload.answers)

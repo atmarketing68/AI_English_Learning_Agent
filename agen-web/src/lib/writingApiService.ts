@@ -63,6 +63,12 @@ export interface WritingHistoryItem {
   word_count: number;
   xp_earned: number;
   created_at: string;
+  /** G11 · exam band from the AI, and the teacher's re-grade when there is one */
+  band?: number | null;
+  teacher_score?: number | null;
+  teacher_band?: number | null;
+  teacher_comment?: string | null;
+  teacher_scored_at?: string | null;
 }
 
 export const getWritingPrompt = async (genre: string = 'opinion'): Promise<WritingPromptResponse> => {

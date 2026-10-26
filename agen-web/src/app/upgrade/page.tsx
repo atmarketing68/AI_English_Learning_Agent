@@ -13,6 +13,7 @@ import { playSound } from '@/lib/soundEffects';
 import confetti from 'canvas-confetti';
 import { ArrowLeft, Check, CircleAlert, CircleCheck, CreditCard, FileText, Gift, Globe, LoaderCircle, Minus, Users, Wallet } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import OrderHistoryCard from '@/components/billing/OrderHistoryCard';
 
 const FREE_FEATURES = [
   { label: '3 bài học AI / ngày', included: true },
@@ -414,6 +415,8 @@ export default function UpgradePage() {
             </p>
           </div>
         )}
+
+        <OrderHistoryCard />
 
         {/* Feature Comparison */}
         <motion.div

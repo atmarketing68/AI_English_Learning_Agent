@@ -4,9 +4,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Bot, CircleAlert, Copy, Crown, LoaderCircle, LogOut, Play, Send, SkipForward, Volume2 } from 'lucide-react';
+import { ArrowLeft, Bot, CalendarClock, CircleAlert, Copy, Crown, LoaderCircle, LogOut, Play, Send, SkipForward, Volume2 } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
-import { getRoom, leaveRoom, skipTurn, speakInRoom, startRoom, type ClubMessage, type RoomState } from '@/lib/clubService';
+import { formatSlot, getRoom, leaveRoom, skipTurn, speakInRoom, startRoom, utcDate, type ClubMessage, type RoomState } from '@/lib/clubService';
 import { playText, stopSpeech } from '@/lib/speechService';
 import { useSpeechRecorder } from '@/lib/useSpeechRecorder';
 import MicButton from '@/components/speaking/MicButton';
@@ -35,6 +35,13 @@ export default function ClubRoomPage() {
   const [busy, setBusy] = useState(false);
   const [typed, setTyped] = useState('');
   const [autoRead, setAutoRead] = useState(true);
+  const [now, setNow] = useState(0);        // G11 · ticks while a booked room waits for its time
+  useEffect(() => {
+    const tick = () => setNow(Date.now());
+    tick();
+    const t = setInterval(tick, 15_000);
+    return () => clearInterval(t);
+  }, []);
   const lastSeq = useRef(0);
   const spoken = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
@@ -83,6 +90,7 @@ export default function ClubRoomPage() {
   if (!room) return <main className="friends-page">{error ? <div className="alert-error"><CircleAlert size={16} /> {error} <Link href="/club">Về sảnh</Link></div> : <PageSkeleton cards={2} />}</main>;
 
   const names = new Map(room.members.map(m => [m.learner_id, m.name]));
+  const tooEarly = !!room.opens_at && now > 0 && now < utcDate(room.opens_at).getTime();
   const speakerName = room.current_speaker_id ? names.get(room.current_speaker_id) : null;
   const progress = room.total_turns ? Math.round((room.turns_taken / room.total_turns) * 100) : 0;
   const leave = async () => {
@@ -161,12 +169,19 @@ export default function ClubRoomPage() {
         {error && <div className="alert-error" style={{ margin: '10px 0' }}><CircleAlert size={16} /> {error}</div>}
 
         <section className="card club-dock">
+          {room.status === 'waiting' && room.scheduled_at && (
+            <div className="club-when" style={{ width: '100%' }}><CalendarClock size={14} /> Hẹn lúc {formatSlot(room.scheduled_at)} · bạn sẽ được nhắc trước ~15 phút</div>
+          )}
           {room.status === 'waiting' && (room.is_host ? (
-            <>
-              <p style={{ margin: 0, flex: 1, fontSize: '0.88rem' }}>Gửi mã <b>{room.code}</b> cho bạn bè. Bắt đầu khi đủ người (có thể tự luyện một mình).</p>
-              <button type="button" className="btn btn-primary" disabled={busy} onClick={() => act(() => startRoom(roomId))}><Play size={15} /> Bắt đầu ({room.members.length} người)</button>
-            </>
-          ) : <p style={{ margin: 0, fontSize: '0.88rem' }}><LoaderCircle className="animate-spin" size={14} /> Chờ chủ phòng bắt đầu…</p>)}
+            tooEarly ? (
+              <p style={{ margin: 0, flex: 1, fontSize: '0.88rem' }}>Gửi mã <b>{room.code}</b> cho bạn bè để đăng ký. Bạn mở phòng được từ {formatSlot(room.opens_at!)}.</p>
+            ) : (
+              <>
+                <p style={{ margin: 0, flex: 1, fontSize: '0.88rem' }}>Gửi mã <b>{room.code}</b> cho bạn bè. Bắt đầu khi đủ người (có thể tự luyện một mình).</p>
+                <button type="button" className="btn btn-primary" disabled={busy} onClick={() => act(() => startRoom(roomId))}><Play size={15} /> Bắt đầu ({room.members.length} người)</button>
+              </>
+            )
+          ) : <p style={{ margin: 0, fontSize: '0.88rem' }}><LoaderCircle className="animate-spin" size={14} /> {room.scheduled_at ? 'Bạn đã đăng ký. Chờ chủ phòng mở đúng giờ hẹn…' : 'Chờ chủ phòng bắt đầu…'}</p>)}
 
           {room.status === 'active' && (room.is_my_turn ? (
             <div style={{ width: '100%', display: 'grid', gap: 10, justifyItems: 'center' }}>

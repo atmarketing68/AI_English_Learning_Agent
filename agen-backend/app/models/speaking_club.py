@@ -27,6 +27,8 @@ class SpeakingRoom(Base):
     started_at = Column(DateTime, nullable=True)
     finished_at = Column(DateTime, nullable=True)
     updated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    # G11 · a session booked for later (UTC naive); members are reminded ~15 minutes before
+    scheduled_at = Column(DateTime, nullable=True, index=True)
 
 
 class RoomMember(Base):
@@ -41,6 +43,7 @@ class RoomMember(Base):
     xp_earned = Column(Integer, nullable=False, default=0)
     joined_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     left_at = Column(DateTime, nullable=True)
+    reminded_at = Column(DateTime, nullable=True)                   # G11 · "starts in 15 minutes" sent
 
 
 class RoomMessage(Base):

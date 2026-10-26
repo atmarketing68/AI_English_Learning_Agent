@@ -9,6 +9,7 @@ from app.core.database import Base
 STATUS_PENDING = "pending"
 STATUS_PAID = "paid"
 STATUS_FAILED = "failed"
+STATUS_REFUNDED = "refunded"     # G11
 
 
 class PaymentOrder(Base):
@@ -38,3 +39,8 @@ class PaymentOrder(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     paid_at = Column(DateTime, nullable=True)
+
+    # G11 · refunds (Stripe through the API; VNPay/MoMo/demo refunded on the gateway, then recorded here)
+    refunded_at = Column(DateTime, nullable=True)
+    refund_txn = Column(String(120), nullable=True)
+    refund_note = Column(String(300), nullable=True)

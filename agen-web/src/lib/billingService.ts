@@ -64,14 +64,30 @@ export interface OrderInfo {
   seats: number;
   months: number;
   amount_vnd: number;
-  status: 'pending' | 'paid' | 'failed';
+  status: 'pending' | 'paid' | 'failed' | 'refunded';
   invoice?: InvoiceInfo | null;
   invoice_issued_at?: string | null;
   created_at?: string | null;
   paid_at?: string | null;
   currency?: 'VND' | 'USD';
   amount_foreign?: number | null;
+  refunded_at?: string | null;
 }
+
+/** G11 · Biên nhận thanh toán (không phải hoá đơn GTGT). */
+export interface Receipt {
+  number: string;
+  order: OrderInfo;
+  item: string;
+  provider_label: string;
+  provider_txn: string | null;
+  buyer: { name: string | null; email: string | null };
+  invoice: InvoiceInfo | null;
+  seller: { name: string; tax_code: string | null; address: string | null; email: string | null };
+  refund_note: string | null;
+}
+
+export const getReceipt = async (orderId: string): Promise<Receipt> => (await api.get(`/billing/orders/${orderId}/receipt`)).data;
 
 export const getBillingOptions = async (): Promise<BillingOptions> => (await api.get('/billing/options')).data;
 export const startPremiumTrial = async (): Promise<SubscriptionInfo> => (await api.post('/billing/trial')).data;

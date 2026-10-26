@@ -321,6 +321,7 @@ def member_detail(db: Session, group: Group, learner: LearnerProfile) -> dict:
         "last_active_at": learner.last_active_at,
         "lessons": [{"id": l.id, "title": l.title, "skill": l.skill, "topic": l.topic, "score": round(l.score or 0), "completed_at": l.completed_at} for l in lessons],
         "writings": [{"id": w.id, "prompt_title": w.prompt_title, "genre": w.genre, "score": w.overall_score, "grade": w.grade, "band": band(w),
+                      "teacher_score": w.teacher_score, "teacher_band": w.teacher_band,
                       "word_count": w.word_count or 0, "excerpt": (w.user_text or "")[:160], "created_at": w.created_at} for w in writings],
         "exams": [{"id": e.id, "title": (mock_exams.get_exam(e.exam_id, db) or {}).get("title", e.exam_id), "exam": e.exam, "skill": e.skill,
                    "pct": e.pct, "estimate": e.estimate, "created_at": e.created_at} for e in exams],
@@ -348,3 +349,35 @@ def add_feedback(db: Session, group: Group, teacher: User, learner: LearnerProfi
     create_notification(db, learner.id, type="teacher_feedback", title=f"{who} vừa nhận xét bài của bạn{about}", body=text[:200], icon="💬")
     db.flush()
     return fb
+
+
+
+def grade_writing(db: Session, group: Group, teacher: User, learner: LearnerProfile, submission, score: float | None,
+                  band: float | None = None, comment: str | None = None):
+    """G11 · Teacher re-grade of one writing piece; score None clears it. Notifies the learner through a feedback row."""
+    from app.agents.writing_agent import EXAM_GENRES
+
+    exam = (EXAM_GENRES.get(submission.genre or "") or {}).get("exam")
+    if score is None:
+        submission.teacher_score = submission.teacher_band = submission.teacher_comment = None
+        submission.teacher_user_id = submission.teacher_scored_at = None
+        return None
+    if not 0 <= score <= 100:
+        raise GroupError("Điểm phải từ 0 đến 100.")
+    if band is not None:
+        if exam == "ielts" and not (0 <= band <= 9 and (band * 2) == int(band * 2)):
+            raise GroupError("Band IELTS từ 0 đến 9, bước 0,5.")
+        if exam == "toeic" and not 0 <= band <= 200:
+            raise GroupError("Điểm TOEIC Writing từ 0 đến 200.")
+        if not exam:
+            band = None
+    submission.teacher_score = round(float(score), 1)
+    submission.teacher_band = band
+    submission.teacher_comment = (comment or "").strip()[:2000] or None
+    submission.teacher_user_id = teacher.id
+    submission.teacher_scored_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    parts = [f"Điểm giáo viên chấm lại: {submission.teacher_score:g}/100"]
+    if band is not None:
+        parts.append(f"band {band:g}" if exam == "ielts" else f"TOEIC Writing {band:g}/200")
+    text = " · ".join(parts) + (f"\n{submission.teacher_comment}" if submission.teacher_comment else "")
+    return add_feedback(db, group, teacher, learner, text, "writing", submission.id, submission.prompt_title)

@@ -35,6 +35,7 @@ from app.models.speaking_club import SpeakingRoom, RoomMember, RoomMessage
 from app.models.teacher_feedback import TeacherFeedback
 from app.models.certificate import Certificate
 from app.models.ai_usage import AiUsage
+from app.models.generated_episode import GeneratedEpisode
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -59,4 +60,5 @@ __all__ = [
     "ExamAttempt", "TutorMessage", "DeviceToken",
     "SpeakingExamAttempt", "GeneratedExam", "AppConfig",
     "MediaProgress", "SpeakingRoom", "RoomMember", "RoomMessage", "TeacherFeedback", "Certificate", "AiUsage",
+    "GeneratedEpisode",
 ]

@@ -12,6 +12,8 @@ export interface RoomCard {
   members: number;
   host_name: string;
   created_at: string;
+  /** G11 · booked session time (UTC, no zone suffix) */
+  scheduled_at?: string | null;
 }
 
 export interface ClubLobby {
@@ -19,6 +21,7 @@ export interface ClubLobby {
   open_rooms: RoomCard[];
   my_rooms: RoomCard[];
   max_members: number;
+  upcoming_rooms?: RoomCard[];
 }
 
 export interface ClubMember {
@@ -56,10 +59,17 @@ export interface RoomState {
   turns_taken: number;
   total_turns: number;
   last_seq: number;
+  scheduled_at?: string | null;
+  opens_at?: string | null;
 }
 
 export const getClubLobby = async (): Promise<ClubLobby> => (await api.get('/club')).data;
-export const createRoom = async (topic_id: string, is_public = true): Promise<RoomState> => (await api.post('/club/rooms', { topic_id, is_public })).data;
+export const createRoom = async (topic_id: string, is_public = true, scheduled_at: string | null = null): Promise<RoomState> =>
+  (await api.post('/club/rooms', { topic_id, is_public, scheduled_at })).data;
+
+/** API times are UTC without a zone suffix. */
+export const utcDate = (s: string) => new Date(/(?:[zZ]|[+-]\d\d:\d\d)$/.test(s) ? s : `${s}Z`);
+export const formatSlot = (s: string) => utcDate(s).toLocaleString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 export const joinRoom = async (code: string): Promise<RoomState> => (await api.post('/club/rooms/join', { code })).data;
 export const getRoom = async (roomId: string, after = 0): Promise<RoomState> => (await api.get(`/club/rooms/${roomId}`, { params: { after } })).data;
 export const startRoom = async (roomId: string): Promise<RoomState> => (await api.post(`/club/rooms/${roomId}/start`)).data;

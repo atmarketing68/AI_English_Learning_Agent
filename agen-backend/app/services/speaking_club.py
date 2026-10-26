@@ -22,6 +22,13 @@ MAX_MEMBERS = 4
 TURNS_PER_MEMBER = 3
 XP_PER_TURN = 5
 WAITING_ROOM_TTL_MIN = 60          # waiting rooms older than this drop out of the lobby
+# G11 · scheduled sessions
+SCHEDULE_MIN_LEAD_MIN = 10         # book at least this far ahead
+SCHEDULE_MAX_DAYS = 14
+EARLY_START_MIN = 10               # the host may open a booked room this many minutes early
+REMIND_BEFORE_MIN = 15             # "starts soon" reminder window (scheduler runs every ~10 minutes)
+REMIND_WINDOW_MIN = 25
+SCHEDULED_EXPIRE_MIN = 120         # a booked room nobody started is closed this long after its time
 CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 TOPICS: list[dict] = [
@@ -99,14 +106,35 @@ def add_message(db: Session, room: SpeakingRoom, role: str, text: str, learner_i
     return msg
 
 
-def create_room(db: Session, host: LearnerProfile, topic_id: str, is_public: bool = True) -> SpeakingRoom:
+def local_label(moment: datetime) -> str:
+    """'19:30 · 28/10' in Vietnam time for a UTC-naive moment."""
+    from app.core.timeutil import LEARNER_TZ
+    return moment.replace(tzinfo=timezone.utc).astimezone(LEARNER_TZ).strftime("%H:%M · %d/%m")
+
+
+def normalize_schedule(scheduled_at: datetime | None) -> datetime | None:
+    """Aware or UTC-naive → UTC naive, validated against the booking window."""
+    if scheduled_at is None:
+        return None
+    when = scheduled_at.astimezone(timezone.utc).replace(tzinfo=None) if scheduled_at.tzinfo else scheduled_at
+    now = _now()
+    if when < now + timedelta(minutes=SCHEDULE_MIN_LEAD_MIN):
+        raise ClubError(f"Hãy hẹn giờ cách bây giờ ít nhất {SCHEDULE_MIN_LEAD_MIN} phút.")
+    if when > now + timedelta(days=SCHEDULE_MAX_DAYS):
+        raise ClubError(f"Chỉ hẹn trước tối đa {SCHEDULE_MAX_DAYS} ngày.")
+    return when.replace(second=0, microsecond=0)
+
+
+def create_room(db: Session, host: LearnerProfile, topic_id: str, is_public: bool = True, scheduled_at: datetime | None = None) -> SpeakingRoom:
     if not get_topic(topic_id):
         raise ClubError("Chủ đề không tồn tại.")
-    room = SpeakingRoom(code=_new_code(db), topic_id=topic_id, host_learner_id=host.id, is_public=1 if is_public else 0)
+    when = normalize_schedule(scheduled_at)
+    room = SpeakingRoom(code=_new_code(db), topic_id=topic_id, host_learner_id=host.id, is_public=1 if is_public else 0, scheduled_at=when)
     db.add(room)
     db.flush()
     db.add(RoomMember(room_id=room.id, learner_id=host.id))
-    add_message(db, room, "system", f"{host.display_name} đã tạo phòng.")
+    note = f" Hẹn bắt đầu lúc {local_label(when)}." if when else ""
+    add_message(db, room, "system", f"{host.display_name} đã tạo phòng.{note}")
     return room
 
 
@@ -159,6 +187,8 @@ def start_room(db: Session, room: SpeakingRoom, learner: LearnerProfile) -> None
         raise ClubError("Chỉ chủ phòng mới bắt đầu được.")
     if room.status != ROOM_WAITING:
         raise ClubError("Phòng đã bắt đầu.")
+    if room.scheduled_at and _now() < room.scheduled_at - timedelta(minutes=EARLY_START_MIN):
+        raise ClubError(f"Phòng hẹn lúc {local_label(room.scheduled_at)}; mở được trước {EARLY_START_MIN} phút.")
     members = active_members(db, room.id)
     if len(members) < 1:
         raise ClubError("Phòng chưa có ai.")
@@ -217,9 +247,67 @@ def leave_room(db: Session, room: SpeakingRoom, learner: LearnerProfile) -> None
 
 
 def lobby(db: Session) -> list[SpeakingRoom]:
-    since = _now() - timedelta(minutes=WAITING_ROOM_TTL_MIN)
-    return (db.query(SpeakingRoom).filter(SpeakingRoom.status == ROOM_WAITING, SpeakingRoom.is_public == 1, SpeakingRoom.created_at >= since)
-            .order_by(SpeakingRoom.created_at.desc()).limit(20).all())
+    """Public rooms waiting right now (booked rooms join once their time is near)."""
+    now = _now()
+    since = now - timedelta(minutes=WAITING_ROOM_TTL_MIN)
+    near = now + timedelta(minutes=EARLY_START_MIN)
+    rooms = (db.query(SpeakingRoom).filter(SpeakingRoom.status == ROOM_WAITING, SpeakingRoom.is_public == 1)
+             .filter(((SpeakingRoom.scheduled_at.is_(None)) & (SpeakingRoom.created_at >= since))
+                     | ((SpeakingRoom.scheduled_at <= near) & (SpeakingRoom.scheduled_at >= now - timedelta(minutes=SCHEDULED_EXPIRE_MIN))))
+             .order_by(SpeakingRoom.created_at.desc()).limit(20).all())
+    return rooms
+
+
+def upcoming(db: Session) -> list[SpeakingRoom]:
+    """G11 · Public booked sessions later than the near window, soonest first."""
+    near = _now() + timedelta(minutes=EARLY_START_MIN)
+    return (db.query(SpeakingRoom).filter(SpeakingRoom.status == ROOM_WAITING, SpeakingRoom.is_public == 1, SpeakingRoom.scheduled_at > near)
+            .order_by(SpeakingRoom.scheduled_at).limit(20).all())
+
+
+def run_reminders(db: Session, now: datetime | None = None) -> dict:
+    """G11 · Scheduler hook: remind members of booked rooms starting soon; close booked rooms nobody opened."""
+    from app.models.user import User
+    from app.services.notification_service import create_notification
+    from app.services.reminders import ReminderMessage, push_to_learner, zalo_to_user
+
+    now = now or _now()
+    stats = {"rooms": 0, "reminded": 0, "push": 0, "expired": 0}
+    soon = (db.query(SpeakingRoom).filter(SpeakingRoom.status == ROOM_WAITING, SpeakingRoom.scheduled_at.isnot(None),
+                                          SpeakingRoom.scheduled_at > now - timedelta(minutes=5),
+                                          SpeakingRoom.scheduled_at <= now + timedelta(minutes=REMIND_WINDOW_MIN)).all())
+    for room in soon:
+        topic = get_topic(room.topic_id) or TOPICS[0]
+        mins = max(0, round((room.scheduled_at - now).total_seconds() / 60))
+        message = ReminderMessage(title=f"Câu lạc bộ nói {('sau ' + str(mins) + ' phút') if mins else 'bắt đầu ngay'} 🎙️",
+                                  body=f"{topic['emoji']} {topic['title_vi']} lúc {local_label(room.scheduled_at)}. Vào phòng {room.code} để nói cùng mọi người.",
+                                  url=f"/club/{room.id}")
+        stats["rooms"] += 1
+        for m in active_members(db, room.id):
+            if m.reminded_at:
+                continue
+            learner = db.query(LearnerProfile).filter(LearnerProfile.id == m.learner_id).first()
+            if not learner:
+                continue
+            create_notification(db, learner.id, type="club_reminder", title=message.title, body=message.body, icon="🎙️")
+            try:
+                stats["push"] += push_to_learner(db, learner, message)
+                user = db.query(User).filter(User.id == learner.user_id).first()
+                if user:
+                    zalo_to_user(db, user, message)
+            except Exception:  # a broken push channel must not block the others
+                import logging
+                logging.getLogger("agen.club").warning("Club reminder push failed", exc_info=True)
+            m.reminded_at = now
+            stats["reminded"] += 1
+    stale = (db.query(SpeakingRoom).filter(SpeakingRoom.status == ROOM_WAITING, SpeakingRoom.scheduled_at.isnot(None),
+                                           SpeakingRoom.scheduled_at < now - timedelta(minutes=SCHEDULED_EXPIRE_MIN)).all())
+    for room in stale:
+        room.status = ROOM_FINISHED
+        room.finished_at = now
+        stats["expired"] += 1
+    db.commit()
+    return stats
 
 
 def fallback_reply(transcript: str) -> dict:

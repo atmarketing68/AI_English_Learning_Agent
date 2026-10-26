@@ -121,6 +121,12 @@ class Settings(BaseSettings):
     STRIPE_WEBHOOK_SECRET: str = ""
     USD_TO_VND: int = 25_000                  # revenue stats store every order in VND
 
+    # G11 · seller details printed on payment receipts (all optional)
+    SELLER_NAME: str = "AI AGENT ENGLISH"
+    SELLER_TAX_CODE: str = ""
+    SELLER_ADDRESS: str = ""
+    SELLER_EMAIL: str = ""
+
     # G10 · AI cost tracking. Prices are USD per 1M tokens (≈ 4 characters per token)
     # and per 1M TTS characters; set them to your contract prices.
     AI_PRICE_GEMINI_IN: float = 0.30
@@ -132,6 +138,9 @@ class Settings(BaseSettings):
     # answer with their usual "busy" fallback until the next day (VN time).
     AI_DAILY_LIMIT_USD_FREE: float = 0.0
     AI_DAILY_LIMIT_USD_PREMIUM: float = 0.0
+    # G11 · e-mail ADMIN_EMAILS (once per day each) when today's AI spend passes these (0 = off)
+    AI_ALERT_DAILY_USD: float = 0.0           # whole app
+    AI_ALERT_USER_DAILY_USD: float = 0.0      # any single account
 
     @field_validator("SECRET_KEY")
     @classmethod

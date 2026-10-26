@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ArrowLeft, Award, BookOpen, CircleAlert, ClipboardCheck, Flame, LoaderCircle, MessageSquarePlus, Mic, PenLine, Send, Star, Trash2, X } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import {
-  SKILL_LABELS, addMemberFeedback, deleteFeedback, getMemberDetail, getMemberWriting, issueCertificate,
+  SKILL_LABELS, addMemberFeedback, deleteFeedback, getMemberDetail, getMemberWriting, gradeMemberWriting, issueCertificate,
   type AssignmentSkill, type FeedbackTarget, type MemberDetail, type WritingDetail,
 } from '@/lib/groupsService';
 import { formatEstimate, type ExamKind } from '@/lib/examsService';
@@ -23,8 +23,16 @@ const TARGET_VI: Record<FeedbackTarget, string> = { general: 'Chung', lesson: 'B
 const day = (s: string | null) => (s ? new Date(s.endsWith('Z') ? s : `${s}Z`).toLocaleDateString('vi-VN') : '—');
 const errText = (err: unknown, fallback: string) => (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback;
 
-function WritingView({ w, onClose, onComment }: { w: WritingDetail; onClose: () => void; onComment: () => void }) {
+function WritingView({ w, onClose, onComment, onGrade }: { w: WritingDetail; onClose: () => void; onComment: () => void; onGrade: (score: number | null, band: number | null, comment: string) => Promise<void> }) {
   const ev = w.evaluation as { strengths?: string[]; improvements?: string[]; grammar_errors?: { original?: string; corrected?: string; explanation_vi?: string }[]; corrected_version?: string; exam_band?: { overall?: number } };
+  const [score, setScore] = useState(w.teacher_score != null ? String(w.teacher_score) : w.overall_score != null ? String(Math.round(w.overall_score)) : '');
+  const [band, setBand] = useState(w.teacher_band != null ? String(w.teacher_band) : ev.exam_band?.overall != null ? String(ev.exam_band.overall) : '');
+  const [comment, setComment] = useState(w.teacher_comment ?? '');
+  const [saving, setSaving] = useState(false);
+  const save = async (clear = false) => {
+    setSaving(true);
+    try { await onGrade(clear ? null : Number(score), clear || !w.exam || band === '' ? null : Number(band), clear ? '' : comment); } finally { setSaving(false); }
+  };
   return (
     <section className="card member-writing">
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
@@ -37,7 +45,8 @@ function WritingView({ w, onClose, onComment }: { w: WritingDetail; onClose: () 
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', margin: '10px 0' }}>
         {w.overall_score != null && <span className="xp-badge">Điểm AI {Math.round(w.overall_score)}{w.grade ? ` · ${w.grade}` : ''}</span>}
-        {ev.exam_band?.overall != null && <span className="xp-badge">Band {ev.exam_band.overall}</span>}
+        {ev.exam_band?.overall != null && <span className="xp-badge">Band AI {ev.exam_band.overall}</span>}
+        {w.teacher_score != null && <span className="teacher-score">Giáo viên {w.teacher_score}{w.teacher_band != null ? ` · ${w.exam === 'ielts' ? 'band' : 'TOEIC'} ${w.teacher_band}` : ''}</span>}
       </div>
       <div className="member-essay">{w.user_text}</div>
       {!!ev.grammar_errors?.length && (
@@ -49,7 +58,26 @@ function WritingView({ w, onClose, onComment }: { w: WritingDetail; onClose: () 
         </>
       )}
       {!!ev.improvements?.length && <p style={{ fontSize: '0.88rem', margin: '10px 0 0' }}><b>Cần cải thiện:</b> {ev.improvements.join('; ')}</p>}
-      <button type="button" className="btn btn-primary btn-sm" style={{ marginTop: 12 }} onClick={onComment}><MessageSquarePlus size={14} /> Nhận xét bài này</button>
+
+      <form className="writing-grade" onSubmit={e => { e.preventDefault(); void save(); }}>
+        <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>Chấm lại (thay điểm AI khi học viên xem)</div>
+        <div className="writing-grade-row">
+          <label style={{ display: 'grid', gap: 4, fontSize: '0.8rem' }}>Điểm /100
+            <input className="form-input" type="number" min={0} max={100} step={0.5} value={score} onChange={e => setScore(e.target.value)} required aria-label="Điểm giáo viên" />
+          </label>
+          {w.exam && (
+            <label style={{ display: 'grid', gap: 4, fontSize: '0.8rem' }}>{w.exam === 'ielts' ? 'Band IELTS (0–9)' : 'TOEIC Writing (0–200)'}
+              <input className="form-input" type="number" min={0} max={w.exam === 'ielts' ? 9 : 200} step={w.exam === 'ielts' ? 0.5 : 10} value={band} onChange={e => setBand(e.target.value)} aria-label="Band giáo viên" />
+            </label>
+          )}
+        </div>
+        <textarea className="form-input" rows={2} maxLength={2000} value={comment} onChange={e => setComment(e.target.value)} placeholder="Nhận xét kèm điểm (tuỳ chọn)" aria-label="Nhận xét khi chấm" />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving || score === ''}>{saving ? <LoaderCircle className="animate-spin" size={14} /> : <Star size={14} />} Lưu điểm & báo học viên</button>
+          {w.teacher_score != null && <button type="button" className="btn btn-ghost btn-sm" disabled={saving} onClick={() => save(true)}>Bỏ điểm giáo viên</button>}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onComment}><MessageSquarePlus size={14} /> Chỉ nhận xét</button>
+        </div>
+      </form>
     </section>
   );
 }
@@ -103,6 +131,16 @@ export default function MemberDetailPage() {
       await load();
     } catch (err) { setCertMsg(errText(err, 'Chưa cấp được chứng nhận.')); } finally { setBusy(false); }
   };
+  const gradeWriting = async (score: number | null, band: number | null, note: string) => {
+    if (!writing) return;
+    setError('');
+    try {
+      const updated = await gradeMemberWriting(groupId, learnerId, writing.id, { score, band, comment: note || null });
+      setWriting(updated);
+      track('writing_regraded', { cleared: score == null, exam: updated.exam ?? null });
+      await load();
+    } catch (err) { setError(errText(err, 'Chưa lưu được điểm.')); }
+  };
   const openWriting = async (id: string) => {
     try { setWriting(await getMemberWriting(groupId, learnerId, id)); } catch (err) { setError(errText(err, 'Không mở được bài viết.')); }
   };
@@ -141,7 +179,7 @@ export default function MemberDetailPage() {
         </div>
 
         {error && <div className="alert-error" style={{ margin: '12px 0' }}><CircleAlert size={16} /> {error}</div>}
-        {writing && <WritingView w={writing} onClose={() => setWriting(null)} onComment={() => comment({ type: 'writing', id: writing.id, label: writing.prompt_title })} />}
+        {writing && <WritingView key={writing.id + (writing.teacher_scored_at ?? '')} w={writing} onClose={() => setWriting(null)} onComment={() => comment({ type: 'writing', id: writing.id, label: writing.prompt_title })} onGrade={gradeWriting} />}
 
         <div className="segmented" style={{ margin: '16px 0 10px', overflowX: 'auto', maxWidth: '100%' }} role="tablist">
           {tabs.map(([k, label, n]) => <button key={k} type="button" aria-pressed={tab === k} onClick={() => setTab(k)}>{label} ({n})</button>)}
@@ -159,7 +197,7 @@ export default function MemberDetailPage() {
               <tbody>{d.writings.length === 0 ? <tr><td colSpan={6} style={{ color: 'var(--text-muted)' }}>Chưa có bài viết.</td></tr> : d.writings.map(w => (
                 <tr key={w.id}>
                   <td><button type="button" className="teacher-member-link" onClick={() => openWriting(w.id)}><PenLine size={13} /> {w.prompt_title}</button></td>
-                  <td>{w.genre}</td><td><b>{w.band != null ? `Band ${w.band}` : w.score != null ? Math.round(w.score) : '—'}</b>{w.grade ? ` · ${w.grade}` : ''}</td><td>{w.word_count}</td><td>{day(w.created_at)}</td>
+                  <td>{w.genre}</td><td><b>{w.band != null ? `Band ${w.band}` : w.score != null ? Math.round(w.score) : '—'}</b>{w.grade ? ` · ${w.grade}` : ''}{w.teacher_score != null && <> <span className="teacher-score" title="Giáo viên đã chấm lại">GV {w.teacher_band != null ? w.teacher_band : w.teacher_score}</span></>}</td><td>{w.word_count}</td><td>{day(w.created_at)}</td>
                   <td>{commentBtn({ type: 'writing', id: w.id, label: w.prompt_title })}</td>
                 </tr>
               ))}</tbody>
