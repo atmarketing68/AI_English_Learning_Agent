@@ -5,6 +5,7 @@ import {
   listNotifications, getUnreadCount, markNotificationRead, markAllNotificationsRead,
   type AppNotification,
 } from '@/lib/notificationService';
+import { Bell } from 'lucide-react';
 
 /**
  * Bell icon with an unread badge and a dropdown of recent notifications.
@@ -77,13 +78,13 @@ export default function NotificationBell() {
         onClick={toggle}
         className="btn btn-ghost btn-sm"
         aria-label="Thông báo"
-        style={{ position: 'relative', fontSize: '1.2rem', lineHeight: 1 }}
+        style={{ position: 'relative', lineHeight: 1, width: 36, height: 36, padding: 0 }}
       >
-        🔔
+        <Bell size={18} strokeWidth={1.8} />
         {unread > 0 && (
           <span
             style={{
-              position: 'absolute', top: -2, right: -2, minWidth: 16, height: 16,
+              position: 'absolute', top: 0, right: 0, minWidth: 16, height: 16,
               padding: '0 4px', borderRadius: 99, background: 'var(--agen-secondary)',
               color: '#fff', fontSize: '0.65rem', fontWeight: 700,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -99,11 +100,11 @@ export default function NotificationBell() {
           className="card animate-fade-in-up"
           style={{
             position: 'absolute', right: 0, top: 'calc(100% + 8px)', width: 320, maxHeight: 420,
-            overflowY: 'auto', zIndex: 50, padding: 0,
+            overflowY: 'auto', zIndex: 50, padding: 0, boxShadow: 'var(--shadow-lg)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderBottom: '1px solid var(--border-subtle)' }}>
-            <strong style={{ fontSize: '0.9rem' }}>🔔 Thông báo</strong>
+            <strong style={{ fontSize: '0.95rem', fontWeight: 600 }}>Thông báo</strong>
             {unread > 0 && (
               <button className="btn btn-ghost btn-sm" style={{ fontSize: '0.72rem' }} onClick={handleReadAll}>
                 Đánh dấu đã đọc
@@ -112,7 +113,7 @@ export default function NotificationBell() {
           </div>
 
           {loading ? (
-            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>⏳ Đang tải...</div>
+            <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Đang tải…</div>
           ) : items.length === 0 ? (
             <div style={{ padding: 24, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               Chưa có thông báo nào.
@@ -125,12 +126,12 @@ export default function NotificationBell() {
                 style={{
                   display: 'flex', gap: 10, width: '100%', textAlign: 'left', padding: '12px 14px',
                   border: 'none', borderBottom: '1px solid var(--border-subtle)', cursor: 'pointer',
-                  background: n.is_read ? 'transparent' : 'rgba(108,99,255,0.07)',
+                  background: n.is_read ? 'transparent' : 'var(--bg-tint)', color: 'var(--text-primary)', fontFamily: 'inherit',
                 }}
               >
-                <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{n.icon || '🔔'}</span>
+                {n.icon ? <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>{n.icon}</span> : <Bell size={16} style={{ flexShrink: 0, marginTop: 2 }} color="var(--text-muted)" />}
                 <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', fontWeight: n.is_read ? 400 : 700, fontSize: '0.85rem' }}>{n.title}</span>
+                  <span style={{ display: 'block', fontWeight: n.is_read ? 400 : 600, fontSize: '0.88rem' }}>{n.title}</span>
                   {n.body && <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{n.body}</span>}
                   <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 4 }}>
                     {new Date(n.created_at).toLocaleString('vi-VN')}

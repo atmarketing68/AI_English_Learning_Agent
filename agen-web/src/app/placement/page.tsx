@@ -7,42 +7,43 @@ import {
   startPlacement, getPlacementQuestion, submitAnswer, finishPlacement,
   PlacementQuestion, PlacementAnswerRes, PlacementResult,
 } from '@/lib/placementService';
+import Logo from '@/components/ui/Logo';
+import { ArrowRight, BookOpen, BookText, Check, CircleAlert, CircleCheck, CircleX, Gauge, Headphones, Lightbulb, ListChecks, LoaderCircle, PenLine, X, Zap, type LucideIcon } from 'lucide-react';
 
 // ──── Sub Components ────────────────────────────────────────────────────────
 
-const SKILL_LABELS: Record<string, { icon: string; label: string; color: string }> = {
-  vocabulary: { icon: '📚', label: 'Vocabulary', color: 'var(--skill-writing)' },
-  grammar:    { icon: '📝', label: 'Grammar',    color: 'var(--agen-primary-light)' },
-  reading:    { icon: '📖', label: 'Reading',    color: 'var(--skill-reading)' },
-  listening:  { icon: '🎧', label: 'Listening',  color: 'var(--skill-listening)' },
+const SKILL_LABELS: Record<string, { icon: LucideIcon; label: string; color: string }> = {
+  vocabulary: { icon: BookText,   label: 'Vocabulary', color: 'var(--skill-writing)' },
+  grammar:    { icon: PenLine,    label: 'Grammar',    color: 'var(--agen-primary-light)' },
+  reading:    { icon: BookOpen,   label: 'Reading',    color: 'var(--skill-reading)' },
+  listening:  { icon: Headphones, label: 'Listening',  color: 'var(--skill-listening)' },
 };
 
 function IntroScreen({ onStart, loading }: { onStart: () => void; loading: boolean }) {
   return (
-    <div className="card animate-fade-in-up" style={{ maxWidth: 560, width: '100%', textAlign: 'center' }}>
-      <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>🧠</div>
-      <h2 style={{ marginBottom: 12 }}>Bài Kiểm Tra Đầu Vào</h2>
-      <p style={{ marginBottom: 24, lineHeight: 1.8 }}>
-        AGEN sẽ đặt <strong style={{ color: 'var(--agen-primary-light)' }}>10 câu hỏi</strong> về Vocabulary,
-        Grammar và Reading để xác định chính xác trình độ của bạn. Kết quả sẽ được dùng để tạo{' '}
-        <strong style={{ color: 'var(--agen-accent)' }}>lộ trình học cá nhân hóa</strong>.
+    <div className="card animate-fade-in-up" style={{ maxWidth: 560, width: '100%', textAlign: 'center', padding: 'clamp(24px, 5vw, 44px)', border: 'none', boxShadow: 'var(--shadow-md)' }}>
+      <h2 style={{ marginBottom: 12 }}>Bài kiểm tra đầu vào</h2>
+      <p style={{ marginBottom: 28, lineHeight: 1.6 }}>
+        AGEN sẽ đặt <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>10 câu hỏi</strong> về Vocabulary,
+        Grammar và Reading để xác định chính xác trình độ của bạn. Kết quả được dùng để tạo{' '}
+        <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>lộ trình học cá nhân hóa</strong>.
       </p>
       
       <div style={{ display: 'flex', justifyContent: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 28 }}>
         {[
-          { icon: '🎯', text: '10 câu hỏi' },
-          { icon: '⚡', text: 'Adaptive AI' },
-          { icon: '📊', text: 'Kết quả ngay' },
+          { icon: ListChecks, text: '10 câu hỏi' },
+          { icon: Zap, text: 'Thích ứng' },
+          { icon: Gauge, text: 'Kết quả ngay' },
         ].map(item => (
-          <div key={item.text} className="card" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', fontSize: '0.9rem' }}>
-            <span>{item.icon}</span>
+          <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 14px', fontSize: '0.88rem', borderRadius: 99, background: 'var(--bg-elevated)' }}>
+            <item.icon size={15} color="var(--text-secondary)" />
             <span style={{ color: 'var(--text-secondary)' }}>{item.text}</span>
           </div>
         ))}
       </div>
 
       <button className="btn btn-primary btn-lg btn-full" onClick={onStart} disabled={loading}>
-        {loading ? '⏳ Đang chuẩn bị...' : '▶️ Bắt đầu kiểm tra'}
+        {loading ? 'Đang chuẩn bị…' : 'Bắt đầu kiểm tra'}
       </button>
       <p style={{ marginTop: 14, fontSize: '0.8rem', color: 'var(--text-muted)' }}>Thời gian hoàn thành: khoảng 5–8 phút</p>
     </div>
@@ -60,7 +61,7 @@ function QuestionCard({
   feedback: PlacementAnswerRes | null;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
-  const skill = SKILL_LABELS[question.skill] || { icon: '❓', label: question.skill, color: 'var(--text-muted)' };
+  const skill = SKILL_LABELS[question.skill] || { icon: BookOpen, label: question.skill, color: 'var(--text-muted)' };
   const progress = ((questionIndex) / totalQuestions) * 100;
 
   const handleSelect = (key: string) => {
@@ -82,7 +83,7 @@ function QuestionCard({
       borderRadius: 'var(--radius-md)',
       cursor: feedback ? 'default' : 'pointer',
       border: '1.5px solid var(--border-subtle)',
-      background: 'var(--bg-elevated)',
+      background: 'var(--bg-surface)',
       display: 'flex',
       alignItems: 'flex-start',
       gap: 12,
@@ -95,13 +96,13 @@ function QuestionCard({
     };
     if (feedback) {
       if (key === feedback.correct_answer) {
-        return { ...base, border: '1.5px solid var(--agen-success)', background: 'rgba(6,214,160,0.12)' };
+        return { ...base, border: '1.5px solid var(--agen-success)', background: 'rgba(52,199,89,0.08)' };
       }
       if (key === selected && !feedback.is_correct) {
-        return { ...base, border: '1.5px solid var(--agen-secondary)', background: 'rgba(255,107,107,0.12)' };
+        return { ...base, border: '1.5px solid var(--agen-secondary)', background: 'rgba(255,59,48,0.06)' };
       }
     } else if (selected === key) {
-      return { ...base, border: '1.5px solid var(--agen-primary)', background: 'rgba(108,99,255,0.12)' };
+      return { ...base, border: '1.5px solid var(--agen-primary)', background: 'var(--bg-tint)' };
     }
     return base;
   };
@@ -111,7 +112,7 @@ function QuestionCard({
       {/* Progress */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          <span style={{ color: skill.color, fontWeight: 600 }}>{skill.icon} {skill.label}</span>
+          <span style={{ color: skill.color, fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: 6 }}><skill.icon size={15} /> {skill.label}</span>
           <span>Câu {questionIndex + 1} / {totalQuestions}</span>
         </div>
         <div className="progress-bar">
@@ -141,8 +142,8 @@ function QuestionCard({
             <button key={key} onClick={() => handleSelect(key)} style={getOptionStyle(key)}>
               <span style={{ fontWeight: 700, minWidth: 24, color: selected === key && !feedback ? 'var(--agen-primary-light)' : 'var(--text-muted)' }}>{key}.</span>
               <span>{value}</span>
-              {feedback && key === feedback.correct_answer && <span style={{ marginLeft: 'auto', color: 'var(--agen-success)' }}>✓</span>}
-              {feedback && key === selected && !feedback.is_correct && key !== feedback.correct_answer && <span style={{ marginLeft: 'auto', color: 'var(--agen-secondary)' }}>✗</span>}
+              {feedback && key === feedback.correct_answer && <Check size={18} style={{ marginLeft: 'auto', color: 'var(--agen-success)', flexShrink: 0 }} />}
+              {feedback && key === selected && !feedback.is_correct && key !== feedback.correct_answer && <X size={18} style={{ marginLeft: 'auto', color: 'var(--agen-secondary)', flexShrink: 0 }} />}
             </button>
           ))}
         </div>
@@ -154,15 +155,14 @@ function QuestionCard({
             style={{
               padding: '12px 16px',
               borderRadius: 'var(--radius-sm)',
-              background: feedback.is_correct ? 'rgba(6,214,160,0.1)' : 'rgba(255,107,107,0.1)',
-              border: `1px solid ${feedback.is_correct ? 'rgba(6,214,160,0.3)' : 'rgba(255,107,107,0.3)'}`,
+              background: feedback.is_correct ? 'rgba(52,199,89,0.08)' : 'rgba(255,59,48,0.06)',
               marginBottom: 16,
               fontSize: '0.875rem',
               lineHeight: 1.6,
             }}
           >
-            <div style={{ fontWeight: 700, marginBottom: 4, color: feedback.is_correct ? 'var(--agen-success)' : 'var(--agen-secondary)' }}>
-              {feedback.is_correct ? '🎉 Chính xác!' : '❌ Chưa đúng!'}
+            <div style={{ fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6, color: feedback.is_correct ? 'var(--agen-success)' : 'var(--agen-secondary)' }}>
+              {feedback.is_correct ? <><CircleCheck size={16} /> Chính xác</> : <><CircleX size={16} /> Chưa đúng</>}
               {feedback.score_delta > 0 && <span style={{ marginLeft: 8, color: 'var(--agen-accent)', fontSize: '0.8rem' }}>+{feedback.score_delta} XP</span>}
             </div>
             <div style={{ color: 'var(--text-secondary)' }}>{feedback.explanation}</div>
@@ -172,11 +172,11 @@ function QuestionCard({
         {/* Action Button */}
         {!feedback ? (
           <button className="btn btn-primary btn-full" onClick={handleSubmit} disabled={!selected || submitting}>
-            {submitting ? '⏳ Đang chấm...' : '✓ Xác nhận'}
+            {submitting ? 'Đang chấm…' : 'Xác nhận'}
           </button>
         ) : (
           <button className="btn btn-ghost btn-full" onClick={() => onAnswer('__next__')}>
-            {feedback.is_finished ? '📊 Xem kết quả' : 'Câu tiếp theo →'}
+            {feedback.is_finished ? 'Xem kết quả' : <>Câu tiếp theo <ArrowRight size={16} /></>}
           </button>
         )}
       </div>
@@ -186,8 +186,8 @@ function QuestionCard({
 
 function ResultScreen({ result, onGoToDashboard }: { result: PlacementResult; onGoToDashboard: () => void }) {
   const levelColors: Record<string, string> = {
-    PRE_A1: '#94a3b8', A1: '#60a5fa', A2: '#34d399',
-    B1: '#a78bfa', B2: '#f472b6', C1: '#fb923c', C2: '#fbbf24',
+    PRE_A1: 'var(--text-muted)', A1: 'var(--skill-listening)', A2: 'var(--skill-reading)',
+    B1: 'var(--agen-primary)', B2: 'var(--skill-writing)', C1: 'var(--agen-accent)', C2: 'var(--agen-secondary)',
   };
   const color = levelColors[result.overall_level] || 'var(--agen-primary-light)';
 
@@ -195,29 +195,28 @@ function ResultScreen({ result, onGoToDashboard }: { result: PlacementResult; on
     <div className="animate-bounce-in" style={{ maxWidth: 580, width: '100%', textAlign: 'center' }}>
       {/* Level Hero */}
       <div className="card" style={{ marginBottom: 20, padding: 'var(--spacing-xl)' }}>
-        <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎓</div>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: 8 }}>Trình độ của bạn</p>
-        <div style={{ fontSize: '4rem', fontWeight: 900, color, marginBottom: 8, lineHeight: 1 }}>
+        <div style={{ fontSize: '4.5rem', fontWeight: 700, letterSpacing: '-0.04em', color, marginBottom: 8, lineHeight: 1 }}>
           {result.overall_level.replace('_', '-')}
         </div>
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{result.message}</div>
         <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 16 }}>
-          <span className="xp-badge">⭐ {result.total_correct}/{result.total_questions} đúng</span>
-          <span className="streak-badge">🎯 {result.accuracy_percent}% chính xác</span>
+          <span className="xp-badge">{result.total_correct}/{result.total_questions} câu đúng</span>
+          <span className="xp-badge">{result.accuracy_percent}% chính xác</span>
         </div>
       </div>
 
       {/* Skill breakdown */}
       {Object.keys(result.skill_scores).length > 0 && (
         <div className="card" style={{ marginBottom: 20, textAlign: 'left' }}>
-          <h3 style={{ marginBottom: 16 }}>📊 Chi tiết kỹ năng</h3>
+          <h3 style={{ marginBottom: 16 }}>Chi tiết kỹ năng</h3>
           {Object.entries(result.skill_scores).map(([skill, score]) => {
-            const meta = SKILL_LABELS[skill] || { icon: '📌', label: skill, color: 'var(--text-muted)' };
+            const meta = SKILL_LABELS[skill] || { icon: BookOpen, label: skill, color: 'var(--text-muted)' };
             return (
               <div key={skill} style={{ marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: 6 }}>
-                  <span style={{ color: meta.color, fontWeight: 600 }}>{meta.icon} {meta.label}</span>
-                  <span style={{ fontWeight: 700, color: meta.color }}>{score}%</span>
+                  <span style={{ color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: 6 }}><meta.icon size={15} color={meta.color} /> {meta.label}</span>
+                  <span style={{ fontWeight: 600 }}>{score}%</span>
                 </div>
                 <div className="progress-bar">
                   <div className="progress-fill" style={{ width: `${score}%`, background: meta.color }} />
@@ -231,7 +230,7 @@ function ResultScreen({ result, onGoToDashboard }: { result: PlacementResult; on
       {/* Recommendations */}
       {result.recommendations.length > 0 && (
         <div className="card" style={{ marginBottom: 20, textAlign: 'left' }}>
-          <h3 style={{ marginBottom: 12 }}>💡 Gợi ý của AGEN</h3>
+          <h3 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Lightbulb size={18} color="var(--agen-accent)" /> Gợi ý của AGEN</h3>
           {result.recommendations.map((rec, i) => (
             <div key={i} style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', marginBottom: 8, fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', gap: 8 }}>
               <span>•</span><span>{rec}</span>
@@ -241,7 +240,7 @@ function ResultScreen({ result, onGoToDashboard }: { result: PlacementResult; on
       )}
 
       <button className="btn btn-primary btn-lg btn-full" onClick={onGoToDashboard}>
-        🚀 Bắt đầu lộ trình học của tôi
+        Bắt đầu lộ trình học của tôi
       </button>
     </div>
   );
@@ -332,17 +331,16 @@ export default function PlacementPage() {
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
       {/* Logo bar */}
       <div style={{ position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: '1.4rem' }}>🎓</span>
-        <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>AGEN</span>
+        <Logo size={24} />
         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {assessmentType === 'followup' ? 'Progress Check' : 'Placement Test'}
         </span>
       </div>
 
       {error && (
-        <div className="animate-fade-in-up" style={{ position: 'fixed', top: 20, right: 20, padding: '12px 18px', borderRadius: 'var(--radius-md)', background: 'rgba(255,107,107,0.15)', border: '1px solid var(--agen-secondary)', color: 'var(--agen-secondary)', maxWidth: 320, zIndex: 100 }}>
-          ⚠️ {error}
-          <button onClick={() => setError('')} style={{ marginLeft: 8, background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>✕</button>
+        <div className="animate-fade-in-up" style={{ position: 'fixed', top: 20, right: 20, padding: '12px 18px', borderRadius: 'var(--radius-md)', background: 'var(--bg-surface)', boxShadow: 'var(--shadow-lg)', color: 'var(--agen-secondary)', maxWidth: 340, zIndex: 100, display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem' }}>
+          <CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}
+          <button onClick={() => setError('')} aria-label="Đóng" style={{ marginLeft: 8, background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}><X size={16} /></button>
         </div>
       )}
 
@@ -359,7 +357,7 @@ export default function PlacementPage() {
         />
       )}
       {phase === 'testing' && !currentQuestion && (
-        <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>⏳ Đang tải câu hỏi...</div>
+        <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 8 }}><LoaderCircle className="animate-spin" size={18} /> Đang tải câu hỏi…</div>
       )}
       {phase === 'result' && result && (
         <ResultScreen result={result} onGoToDashboard={() => router.push('/dashboard')} />

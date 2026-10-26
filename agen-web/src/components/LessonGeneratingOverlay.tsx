@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { LoaderCircle } from 'lucide-react';
 
 /**
  * Full-screen overlay shown while AGEN generates a lesson live (the fallback
@@ -9,11 +10,11 @@ import { useEffect, useState } from 'react';
  * wait (which can be 30-120s on the free LLM tier) never feels frozen.
  */
 const MESSAGES = [
-  '🤖 AGEN đang thiết kế bài học riêng cho bạn...',
-  '📝 Chọn từ vựng và ví dụ phù hợp trình độ...',
-  '🎯 Tạo câu hỏi luyện tập...',
-  '✨ Kiểm tra chất lượng nội dung...',
-  '🚀 Sắp xong rồi, chuẩn bị học thôi!',
+  'AGEN đang thiết kế bài học riêng cho bạn…',
+  'Chọn từ vựng và ví dụ phù hợp trình độ…',
+  'Tạo câu hỏi luyện tập…',
+  'Kiểm tra chất lượng nội dung…',
+  'Sắp xong rồi, chuẩn bị học thôi.',
 ];
 
 export default function LessonGeneratingOverlay({ skillLabel }: { skillLabel?: string }) {
@@ -40,14 +41,8 @@ export default function LessonGeneratingOverlay({ skillLabel }: { skillLabel?: s
         padding: 'var(--spacing-lg)',
       }}
     >
-      <div className="card animate-fade-in-up" style={{ maxWidth: 460, width: '100%', textAlign: 'center' }}>
-        <div className="animate-pulse-glow" style={{
-          width: 84, height: 84, borderRadius: '50%', margin: '0 auto var(--spacing-lg)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--gradient-primary)', fontSize: '2.4rem',
-        }}>
-          🤖
-        </div>
+      <div className="card animate-fade-in-up" style={{ maxWidth: 440, width: '100%', textAlign: 'center', padding: 40, border: 'none', boxShadow: 'var(--shadow-md)' }}>
+        <LoaderCircle className="animate-spin" size={36} strokeWidth={1.6} color="var(--agen-primary)" style={{ margin: '0 auto var(--spacing-lg)', display: 'block' }} />
 
         <h3 style={{ marginBottom: 8 }}>
           Đang tạo bài học{skillLabel ? ` ${skillLabel}` : ''}

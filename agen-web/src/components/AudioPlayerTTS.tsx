@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Pause, Play } from 'lucide-react';
 
 interface ScriptLine {
   speaker: string;
@@ -78,31 +79,30 @@ export default function AudioPlayerTTS({ text, scriptLines }: Props) {
   };
 
   return (
-    <div className="card" style={{ background: 'var(--bg-elevated)', marginBottom: 'var(--spacing-md)' }}>
+    <div className="card" style={{ marginBottom: 'var(--spacing-md)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <button 
           onClick={playTTS}
           className="btn btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: 8, borderRadius: 99, padding: '10px 24px' }}
         >
-          <span style={{ fontSize: '1.2rem' }}>{isPlaying ? '⏸️' : '▶️'}</span>
-          {isPlaying ? 'Dừng phát' : 'Nghe Audio'}
+          {isPlaying ? <Pause size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+          {isPlaying ? 'Dừng phát' : 'Nghe audio'}
         </button>
         <button 
           onClick={() => setShowTranscript(!showTranscript)}
           className="btn btn-ghost btn-sm"
         >
-          {showTranscript ? 'Ẩn' : 'Hiện'} Transcript
+          {showTranscript ? 'Ẩn' : 'Hiện'} transcript
         </button>
       </div>
 
       {error && <div style={{ color: 'var(--agen-secondary)', marginTop: 12, fontSize: '0.9rem' }}>{error}</div>}
 
       {showTranscript && (
-        <div className="animate-fade-in-up" style={{ marginTop: 24, padding: 16, background: 'var(--bg-base)', borderRadius: 8, border: '1px solid var(--border-subtle)', maxHeight: 300, overflowY: 'auto' }}>
+        <div className="animate-fade-in-up" style={{ marginTop: 24, padding: 16, background: 'var(--bg-elevated)', borderRadius: 12, maxHeight: 300, overflowY: 'auto' }}>
           {lines.map((l, idx) => (
             <div key={idx} style={{ marginBottom: 12 }}>
-              <strong style={{ color: 'var(--agen-primary-light)' }}>{l.speaker}:</strong>{' '}
+              <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{l.speaker}:</strong>{' '}
               <span style={{ lineHeight: 1.6 }}>{l.text}</span>
             </div>
           ))}

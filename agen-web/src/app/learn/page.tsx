@@ -8,14 +8,17 @@ import { generateLesson, getDailyRecommendations, getMyLessons, LessonQuotaError
 import { startCurriculumLesson } from '@/lib/curriculumService';
 import { PageSkeleton } from '@/components/Skeleton';
 import LessonGeneratingOverlay from '@/components/LessonGeneratingOverlay';
+import { ArrowLeft, BookOpen, BookText, ChevronRight, CircleAlert, Headphones, LayoutGrid, PenLine, type LucideIcon } from 'lucide-react';
 
-const ALL_SKILLS = [
-  { id: 'all',        label: 'Tất cả',    icon: '📌', color: 'var(--text-secondary)' },
-  { id: 'vocabulary', label: 'Vocabulary', icon: '📚', color: 'var(--agen-accent)' },
-  { id: 'grammar',    label: 'Grammar',    icon: '📝', color: 'var(--agen-primary)' },
-  { id: 'reading',    label: 'Reading',    icon: '📖', color: 'var(--skill-reading)' },
-  { id: 'listening',  label: 'Listening',  icon: '🎧', color: 'var(--skill-listening)' },
+const ALL_SKILLS: { id: string; label: string; icon: LucideIcon; color: string }[] = [
+  { id: 'all',        label: 'Tất cả',     icon: LayoutGrid, color: 'var(--text-secondary)' },
+  { id: 'vocabulary', label: 'Vocabulary', icon: BookText,   color: 'var(--agen-accent)' },
+  { id: 'grammar',    label: 'Grammar',    icon: PenLine,    color: 'var(--agen-primary)' },
+  { id: 'reading',    label: 'Reading',    icon: BookOpen,   color: 'var(--skill-reading)' },
+  { id: 'listening',  label: 'Listening',  icon: Headphones, color: 'var(--skill-listening)' },
 ];
+
+const skillIcon = (skill: string): LucideIcon => ALL_SKILLS.find(s => s.id === skill)?.icon || BookOpen;
 
 const SKILL_COLOR_MAP: Record<string, string> = {
   vocabulary: 'var(--agen-accent)',
@@ -88,10 +91,10 @@ function LearnHubContent() {
   if (curriculumStarting) {
     if (error) return (
       <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
-        <div className="card" style={{ maxWidth: 440, textAlign: 'center' }}>
-          <div style={{ fontSize: '2rem', marginBottom: 12 }}>😕</div>
-          <p style={{ color: 'var(--agen-secondary)', marginBottom: 16 }}>⚠️ {error}</p>
-          <Link href="/curriculum" className="btn btn-ghost">← Về lộ trình</Link>
+        <div className="card" style={{ maxWidth: 440, textAlign: 'center', padding: 40 }}>
+          <CircleAlert size={32} strokeWidth={1.6} color="var(--agen-secondary)" style={{ marginBottom: 12 }} />
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>{error}</p>
+          <Link href="/curriculum" className="btn btn-ghost"><ArrowLeft size={16} /> Về lộ trình</Link>
         </div>
       </main>
     );
@@ -105,30 +108,30 @@ function LearnHubContent() {
     ? recentLessons
     : recentLessons.filter(l => l.skill === skillFilter);
 
-  if (loading) return <PageSkeleton maxWidth={900} cards={3} />;
+  if (loading) return <PageSkeleton cards={3} />;
 
   return (
-    <main style={{ padding: 'var(--spacing-lg)', minHeight: '100vh' }}>
-      <div className="container" style={{ maxWidth: 900 }}>
+    <main style={{ padding: 'clamp(24px, 5vw, 48px) var(--page-gutter)', minHeight: '100vh' }}>
+      <div className="container" style={{ padding: 0 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
           <div className="animate-fade-in-up">
-            <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', marginBottom: 12 }}>
-              ← Dashboard
+            <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}>
+              <ArrowLeft size={16} /> Dashboard
             </Link>
-            <h2>📚 Trung tâm Học tập</h2>
-            <p style={{ color: 'var(--text-muted)' }}>Chọn kỹ năng và bắt đầu bài học hôm nay!</p>
+            <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.5rem)' }}>Trung tâm học tập</h1>
+            <p style={{ color: 'var(--text-muted)', marginTop: 6 }}>Chọn kỹ năng và bắt đầu bài học hôm nay.</p>
           </div>
           <div className="level-badge">{learner?.overall_level}</div>
         </div>
 
-        {error && <div style={{ padding: 12, background: 'rgba(255,107,107,0.1)', color: 'var(--agen-secondary)', marginBottom: 20, borderRadius: 8 }}>⚠️ {error}</div>}
+        {error && <div className="alert-error" style={{ marginBottom: 20 }}><CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}</div>}
 
         {/* Quick-Start: 4 Skill Buttons */}
         <div className="animate-fade-in-up delay-100" style={{ marginBottom: 'var(--spacing-xl)' }}>
-          <h3 style={{ marginBottom: 16 }}>⚡ Bắt đầu ngay</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 'var(--spacing-md)' }}>
+          <h3 style={{ marginBottom: 16 }}>Bắt đầu ngay</h3>
+          <div className="grid-4" style={{ gap: 'var(--spacing-md)' }}>
             {ALL_SKILLS.filter(s => s.id !== 'all').map(skill => (
               <button
                 key={skill.id}
@@ -136,18 +139,16 @@ function LearnHubContent() {
                 disabled={!!generating}
                 onClick={() => handleGenerate(skill.id, '')}
                 style={{
-                  cursor: 'pointer', textAlign: 'center',
-                  border: `1px solid ${skill.color}33`,
-                  background: generating === skill.id ? `${skill.color}11` : 'transparent',
+                  cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit',
                   padding: 20,
                 }}
               >
-                <div style={{ fontSize: '2.2rem', marginBottom: 8 }}>
-                  {generating === skill.id ? '⏳' : skill.icon}
-                </div>
-                <div style={{ fontWeight: 700, color: skill.color, fontSize: '0.9rem' }}>{skill.label}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                  {generating === skill.id ? 'AI đang tạo...' : 'Tạo bài mới'}
+                <span className="icon-tile" style={{ background: `color-mix(in srgb, ${skill.color} 12%, transparent)`, color: skill.color, width: 40, height: 40, marginBottom: 14 }}>
+                  <skill.icon size={20} strokeWidth={1.8} />
+                </span>
+                <div style={{ fontWeight: 600, fontSize: '0.98rem' }}>{skill.label}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  {generating === skill.id ? 'Đang tạo…' : 'Tạo bài mới'}
                 </div>
               </button>
             ))}
@@ -156,27 +157,30 @@ function LearnHubContent() {
 
         {/* AI Daily Recommendations */}
         <div className="animate-fade-in-up delay-200" style={{ marginBottom: 'var(--spacing-xl)' }}>
-          <h3 style={{ marginBottom: 16 }}>🎯 Gợi ý của AI Coach hôm nay</h3>
+          <h3 style={{ marginBottom: 16 }}>Gợi ý hôm nay</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-md)' }}>
             {recommendations.map((rec, i) => {
               const color = SKILL_COLOR_MAP[rec.skill] || 'var(--agen-primary)';
+              const RecIcon = skillIcon(rec.skill);
               return (
-                <div key={i} className="card card-hover" style={{ display: 'flex', flexDirection: 'column', border: `1px solid ${color}22` }}>
+                <div key={i} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                    <div style={{ fontSize: '2rem' }}>{rec.icon}</div>
+                    <span className="icon-tile" style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color, width: 40, height: 40 }}>
+                      <RecIcon size={20} strokeWidth={1.8} />
+                    </span>
                     <div>
-                      <div style={{ fontWeight: 700, textTransform: 'capitalize', color }}>{rec.skill}</div>
+                      <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{rec.skill}</div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{rec.topic}</div>
                     </div>
                   </div>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 16, flex: 1 }}>{rec.reason}</p>
                   <button
-                    className="btn btn-primary btn-sm btn-full"
+                    className="btn btn-ghost btn-sm btn-full"
                     disabled={!!generating}
                     onClick={() => handleGenerate(rec.skill, rec.topic)}
-                    style={{ background: color, borderColor: color }}
+                    style={{ color: 'var(--agen-primary-light)' }}
                   >
-                    {generating === rec.skill ? '⏳ Đang tạo AI...' : 'Học ngay'}
+                    {generating === rec.skill ? 'Đang tạo…' : 'Học ngay'}
                   </button>
                 </div>
               );
@@ -186,24 +190,17 @@ function LearnHubContent() {
 
         {/* Recent Lessons with Skill Filter */}
         <div className="animate-fade-in-up delay-300">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3>🕒 Lịch sử bài học</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+            <h3>Lịch sử bài học</h3>
             {/* Skill Filter Tabs */}
-            <div style={{ display: 'flex', gap: 6, background: 'var(--bg-elevated)', padding: 4, borderRadius: 99 }}>
+            <div className="segmented" style={{ overflowX: 'auto', maxWidth: '100%' }}>
               {ALL_SKILLS.map(s => (
                 <button
                   key={s.id}
                   onClick={() => setSkillFilter(s.id)}
-                  style={{
-                    padding: '5px 14px', borderRadius: 99, border: 'none', cursor: 'pointer',
-                    fontWeight: skillFilter === s.id ? 700 : 400,
-                    fontSize: '0.8rem',
-                    background: skillFilter === s.id ? s.color : 'transparent',
-                    color: skillFilter === s.id ? 'white' : 'var(--text-muted)',
-                    transition: 'all 0.15s',
-                  }}
+                  aria-pressed={skillFilter === s.id}
                 >
-                  {s.icon} {s.label}
+                  {s.label}
                 </button>
               ))}
             </div>
@@ -217,24 +214,26 @@ function LearnHubContent() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {filteredLessons.map(lesson => {
                 const color = SKILL_COLOR_MAP[lesson.skill] || 'var(--agen-primary)';
+                const LessonIcon = skillIcon(lesson.skill);
                 return (
-                  <Link key={lesson.id} href={`/learn/${lesson.id}`} className="card card-hover" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontSize: '1.4rem' }}>{ALL_SKILLS.find(s => s.id === lesson.skill)?.icon || '📌'}</span>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{lesson.title}</div>
+                  <Link key={lesson.id} href={`/learn/${lesson.id}`} className="card card-hover" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '14px 18px', opacity: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+                      <LessonIcon size={20} strokeWidth={1.8} color={color} style={{ flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{lesson.title}</div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                          <span style={{ color, fontWeight: 600, textTransform: 'uppercase', fontSize: '0.75rem' }}>{lesson.skill}</span>
+                          <span style={{ textTransform: 'capitalize' }}>{lesson.skill}</span>
                           {' · '}{lesson.topic}{' · '}{new Date(lesson.created_at).toLocaleDateString('vi-VN')}
                         </div>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                       {lesson.status === 'completed' ? (
-                        <span style={{ fontWeight: 700, fontSize: '1rem', color }}>{lesson.score}%</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{lesson.score}%</span>
                       ) : (
-                        <span className="streak-badge" style={{ fontSize: '0.75rem' }}>Đang học</span>
+                        <span className="xp-badge" style={{ fontSize: '0.75rem' }}>Đang học</span>
                       )}
+                      <ChevronRight size={16} color="var(--text-muted)" />
                     </div>
                   </Link>
                 );
@@ -250,7 +249,7 @@ function LearnHubContent() {
 // useSearchParams requires a Suspense boundary in the App Router
 export default function LearnHubPage() {
   return (
-    <Suspense fallback={<PageSkeleton maxWidth={900} cards={3} />}>
+    <Suspense fallback={<PageSkeleton cards={3} />}>
       <LearnHubContent />
     </Suspense>
   );
