@@ -9,6 +9,7 @@ import {
 import { notifyActivityCompleted } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
 import { getMyProfile } from '@/lib/services';
+import { ArrowLeft, BookText, CircleAlert, Feather, Lightbulb, LoaderCircle, Mail, MessageSquareQuote, Palette, Sparkles, Star } from 'lucide-react';
 
 export default function WritingPracticePage() {
   const { setLearner } = useAuthStore();
@@ -66,64 +67,64 @@ export default function WritingPracticePage() {
   if (!promptData) {
     return (
       <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
-        <div className="card" style={{ maxWidth: 600, width: '100%' }}>
-          <Link href="/dashboard" style={{ color: 'var(--text-muted)', display: 'block', marginBottom: 24 }}>← Về Dashboard</Link>
-          <h2 style={{ marginBottom: 16 }}>✍️ Luyện Viết (AI Coach)</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>
+        <div style={{ maxWidth: 600, width: '100%' }}>
+          <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 20 }}><ArrowLeft size={16} /> Dashboard</Link>
+          <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', marginBottom: 10 }}>Luyện viết</h1>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
             Chọn một chủ đề để bắt đầu. AI sẽ tạo đề bài phù hợp với trình độ của bạn và chấm điểm chi tiết.
           </p>
           
-          {error && <div style={{ color: 'var(--agen-secondary)', marginBottom: 16 }}>{error}</div>}
-          
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {error && <div className="alert-error" style={{ marginBottom: 16 }}><CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}</div>}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
             {[
-              { id: 'opinion', label: 'Ý kiến / Quan điểm', emoji: '🗣️' },
-              { id: 'narrative', label: 'Kể chuyện', emoji: '📖' },
-              { id: 'descriptive', label: 'Miêu tả', emoji: '🎨' },
-              { id: 'email', label: 'Viết thư / Email', emoji: '✉️' },
+              { id: 'opinion', label: 'Ý kiến / Quan điểm', icon: MessageSquareQuote },
+              { id: 'narrative', label: 'Kể chuyện', icon: Feather },
+              { id: 'descriptive', label: 'Miêu tả', icon: Palette },
+              { id: 'email', label: 'Viết thư / Email', icon: Mail },
             ].map(g => (
-              <button 
+              <button
                 key={g.id}
-                className="btn btn-outline"
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 24, gap: 12, height: 'auto' }}
+                className="card card-hover"
+                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 20, textAlign: 'left', fontFamily: 'inherit', fontSize: '1rem' }}
                 onClick={() => handleGetPrompt(g.id)}
                 disabled={loading}
               >
-                <div style={{ fontSize: '2rem' }}>{g.emoji}</div>
-                <div style={{ fontWeight: 600 }}>{g.label}</div>
+                <span className="icon-tile" style={{ background: 'color-mix(in srgb, var(--skill-writing) 12%, transparent)', color: 'var(--skill-writing)', width: 40, height: 40 }}><g.icon size={20} strokeWidth={1.8} /></span>
+                <span style={{ fontWeight: 500 }}>{g.label}</span>
               </button>
             ))}
           </div>
-          {loading && <div style={{ textAlign: 'center', marginTop: 24, fontStyle: 'italic', color: 'var(--text-muted)' }}>🤖 AI đang chuẩn bị đề bài...</div>}
+          {loading && <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 24, color: 'var(--text-muted)', fontSize: '0.9rem' }}><LoaderCircle className="animate-spin" size={16} /> Đang chuẩn bị đề bài…</div>}
         </div>
       </main>
     );
   }
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'var(--spacing-lg)' }}>
-      <div className="container" style={{ maxWidth: 1200 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 4vw, 40px) var(--spacing-lg)' }}>
+      <div className="container" style={{ maxWidth: 1200, padding: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <button className="btn btn-ghost" onClick={() => setPromptData(null)}>← Đổi đề tài</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setPromptData(null)}><ArrowLeft size={16} /> Đổi đề tài</button>
           <div className="level-badge">{promptData.level}</div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: evaluation ? '1fr 1fr' : '1fr', gap: 'var(--spacing-lg)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: evaluation ? 'repeat(auto-fit, minmax(340px, 1fr))' : '1fr', gap: 'var(--spacing-lg)' }}>
           
           {/* Left Column: Prompt & Editor */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
             
             {/* Prompt Box */}
-            <div className="card" style={{ background: 'var(--bg-elevated)' }}>
+            <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--agen-primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>{promptData.genre}</span>
+                <span className="eyebrow" style={{ textTransform: 'capitalize' }}>{promptData.genre}</span>
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Mục tiêu: {promptData.word_target}</span>
               </div>
-              <h3 style={{ marginBottom: 12, color: 'var(--agen-primary-light)' }}>{promptData.title}</h3>
+              <h3 style={{ marginBottom: 12, fontSize: '1.5rem' }}>{promptData.title}</h3>
               <p style={{ marginBottom: 20, fontSize: '1.1rem', lineHeight: 1.6 }}>{promptData.prompt}</p>
               
-              <div style={{ padding: 16, background: 'rgba(108,99,255,0.06)', borderRadius: 8, borderLeft: '3px solid var(--agen-primary)' }}>
-                <div style={{ fontWeight: 600, marginBottom: 8, fontSize: '0.9rem' }}>💡 Hướng dẫn (Scaffolding):</div>
+              <div style={{ padding: 16, background: 'var(--bg-elevated)', borderRadius: 14 }}>
+                <div style={{ fontWeight: 600, marginBottom: 8, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6 }}><Lightbulb size={15} color="var(--agen-accent)" /> Hướng dẫn</div>
                 <ul style={{ paddingLeft: 20, fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
                   {promptData.guide_steps.map((step, i) => <li key={i}>{step}</li>)}
                 </ul>
@@ -138,7 +139,7 @@ export default function WritingPracticePage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ fontWeight: 600 }}>Bài làm của bạn</div>
                 <div style={{ fontSize: '0.85rem', color: wordCount < 10 ? 'var(--agen-secondary)' : 'var(--text-muted)' }}>
-                  {wordCount} words
+                  {wordCount} từ
                 </div>
               </div>
               
@@ -146,14 +147,15 @@ export default function WritingPracticePage() {
                 value={userText}
                 onChange={(e) => setUserText(e.target.value)}
                 disabled={evalLoading || !!evaluation}
-                placeholder="Bắt đầu viết tại đây..."
+                placeholder="Bắt đầu viết tại đây…"
                 style={{
                   flex: 1,
                   width: '100%',
                   padding: 16,
-                  borderRadius: 8,
+                  borderRadius: 12,
                   border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-base)',
+                  outline: 'none',
+                  background: 'var(--bg-elevated)',
                   color: 'var(--text-primary)',
                   fontSize: '1rem',
                   lineHeight: 1.6,
@@ -170,7 +172,7 @@ export default function WritingPracticePage() {
                     onClick={handleSubmit} 
                     disabled={evalLoading || wordCount < 10}
                   >
-                    {evalLoading ? '🤖 AI đang chấm điểm...' : '✅ Nộp bài'}
+                    {evalLoading ? 'Đang chấm điểm…' : 'Nộp bài'}
                   </button>
                 </div>
               )}
@@ -182,30 +184,30 @@ export default function WritingPracticePage() {
             <div className="animate-fade-in-up" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
               
               {/* Score Card */}
-              <div className="card-gradient" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--agen-primary-light)', marginBottom: 8 }}>{evaluation.grade} Grade</div>
-                <div style={{ fontSize: '3rem', fontWeight: 900, marginBottom: 8 }}>{evaluation.overall_score}<span style={{ fontSize: '1.5rem', color: 'var(--text-muted)' }}>/100</span></div>
-                <div style={{ fontSize: '1.1rem' }}>⭐ +{evaluation.xp_earned} XP</div>
-                <div style={{ marginTop: 16, fontStyle: 'italic', fontSize: '0.95rem' }}>&quot;{evaluation.encouragement}&quot;</div>
+              <div className="card" style={{ textAlign: 'center', padding: 'var(--spacing-xl)' }}>
+                <div className="eyebrow" style={{ marginBottom: 8 }}>Xếp loại {evaluation.grade}</div>
+                <div style={{ fontSize: '4rem', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, marginBottom: 12 }}>{evaluation.overall_score}<span style={{ fontSize: '1.5rem', color: 'var(--text-muted)', fontWeight: 500 }}>/100</span></div>
+                <span className="xp-badge"><Star size={13} fill="currentColor" /> +{evaluation.xp_earned} XP</span>
+                <p style={{ marginTop: 16, fontSize: '0.95rem' }}>“{evaluation.encouragement}”</p>
               </div>
 
               {/* Sub-scores */}
               <div className="card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Grammar</div>
-                  <div style={{ fontWeight: 700, color: 'var(--agen-primary)' }}>{evaluation.scores.grammar}/100</div>
+                  <div style={{ fontWeight: 600, fontSize: '1.4rem', letterSpacing: '-0.02em' }}>{evaluation.scores.grammar}/100</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Vocabulary</div>
-                  <div style={{ fontWeight: 700, color: 'var(--agen-primary)' }}>{evaluation.scores.vocabulary}/100</div>
+                  <div style={{ fontWeight: 600, fontSize: '1.4rem', letterSpacing: '-0.02em' }}>{evaluation.scores.vocabulary}/100</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Coherence</div>
-                  <div style={{ fontWeight: 700, color: 'var(--agen-primary)' }}>{evaluation.scores.coherence}/100</div>
+                  <div style={{ fontWeight: 600, fontSize: '1.4rem', letterSpacing: '-0.02em' }}>{evaluation.scores.coherence}/100</div>
                 </div>
                 <div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Task Achievement</div>
-                  <div style={{ fontWeight: 700, color: 'var(--agen-primary)' }}>{evaluation.scores.task_achievement}/100</div>
+                  <div style={{ fontWeight: 600, fontSize: '1.4rem', letterSpacing: '-0.02em' }}>{evaluation.scores.task_achievement}/100</div>
                 </div>
               </div>
 
@@ -214,13 +216,13 @@ export default function WritingPracticePage() {
                 
                 {evaluation.grammar_errors.length > 0 && (
                   <div>
-                    <h4 style={{ marginBottom: 12, color: 'var(--agen-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}><span>⚠️</span> Lỗi Ngữ pháp & Sửa lỗi</h4>
+                    <h4 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><CircleAlert size={17} color="var(--agen-secondary)" /> Lỗi ngữ pháp & sửa lỗi</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {evaluation.grammar_errors.map((err, i) => (
-                        <div key={i} style={{ padding: 12, background: 'var(--bg-elevated)', borderRadius: 8, borderLeft: '3px solid var(--agen-secondary)' }}>
+                        <div key={i} style={{ padding: 14, background: 'var(--bg-elevated)', borderRadius: 12 }}>
                           <div style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 4 }}>{err.original}</div>
                           <div style={{ color: 'var(--agen-success)', fontWeight: 600, fontSize: '0.95rem', marginBottom: 8 }}>{err.corrected}</div>
-                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>💡 {err.explanation_vi}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{err.explanation_vi}</div>
                         </div>
                       ))}
                     </div>
@@ -228,18 +230,18 @@ export default function WritingPracticePage() {
                 )}
 
                 <div>
-                  <h4 style={{ marginBottom: 12, color: 'var(--agen-primary-light)', display: 'flex', alignItems: 'center', gap: 8 }}><span>📚</span> Từ vựng & Mạch lạc</h4>
-                  <div style={{ padding: 12, background: 'rgba(108,99,255,0.05)', borderRadius: 8, marginBottom: 12, fontSize: '0.95rem', lineHeight: 1.5 }}>
+                  <h4 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><BookText size={17} color="var(--agen-primary)" /> Từ vựng & mạch lạc</h4>
+                  <div style={{ padding: 14, background: 'var(--bg-elevated)', borderRadius: 12, marginBottom: 12, fontSize: '0.95rem', lineHeight: 1.5 }}>
                     <b>Từ vựng:</b> {evaluation.vocabulary_feedback}
                   </div>
-                  <div style={{ padding: 12, background: 'rgba(108,99,255,0.05)', borderRadius: 8, fontSize: '0.95rem', lineHeight: 1.5 }}>
+                  <div style={{ padding: 14, background: 'var(--bg-elevated)', borderRadius: 12, fontSize: '0.95rem', lineHeight: 1.5 }}>
                     <b>Mạch lạc:</b> {evaluation.coherence_feedback}
                   </div>
                 </div>
 
                 <div>
-                  <h4 style={{ marginBottom: 12, color: 'var(--agen-success)', display: 'flex', alignItems: 'center', gap: 8 }}><span>✨</span> Bản sửa hoàn chỉnh (Tham khảo)</h4>
-                  <div style={{ padding: 16, background: 'var(--bg-elevated)', borderRadius: 8, fontSize: '0.95rem', lineHeight: 1.6, fontStyle: 'italic', border: '1px solid var(--border-subtle)' }}>
+                  <h4 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Sparkles size={17} color="var(--agen-success)" /> Bản sửa hoàn chỉnh (tham khảo)</h4>
+                  <div style={{ padding: 16, background: 'var(--bg-elevated)', borderRadius: 12, fontSize: '0.95rem', lineHeight: 1.6 }}>
                     {evaluation.corrected_version}
                   </div>
                 </div>

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { House, Mic, ChartColumn, Sparkles } from 'lucide-react';
 
 export default function MobileNav() {
   const pathname = usePathname();
@@ -26,10 +27,10 @@ export default function MobileNav() {
   if (userRole === 'parent' && pathname !== '/parent') return null; // Parents don't need this bottom nav for now
 
   const NAV_ITEMS = [
-    { href: '/dashboard', label: 'Học', icon: '🏠' },
-    { href: '/practice', label: 'Luyện tập', icon: '🗣️' },
-    { href: '/progress', label: 'Tiến bộ', icon: '📊' },
-    { href: '/upgrade', label: 'Pro', icon: '⚡' },
+    { href: '/dashboard', match: '/dashboard', label: 'Học', icon: House },
+    { href: '/practice/speaking', match: '/practice', label: 'Luyện tập', icon: Mic },
+    { href: '/progress', match: '/progress', label: 'Tiến bộ', icon: ChartColumn },
+    { href: '/upgrade', match: '/upgrade', label: 'Pro', icon: Sparkles },
   ];
 
   return (
@@ -37,43 +38,45 @@ export default function MobileNav() {
       <motion.nav
         initial={{ y: 100 }}
         animate={{ y: 0 }}
+        transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
         style={{
           position: 'fixed',
           bottom: 0,
           left: 0,
           right: 0,
-          height: 64,
-          background: 'rgba(26, 24, 39, 0.85)',
-          backdropFilter: 'blur(12px)',
-          borderTop: '1px solid var(--border-medium)',
+          height: 'calc(60px + env(safe-area-inset-bottom))',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          background: 'var(--bg-nav)',
+          backdropFilter: 'saturate(180%) blur(20px)',
+          WebkitBackdropFilter: 'saturate(180%) blur(20px)',
+          borderTop: '1px solid var(--border-subtle)',
           display: 'flex',
           justifyContent: 'space-around',
           alignItems: 'center',
           zIndex: 1000,
-          paddingBottom: 'safe-area-inset-bottom', // For iOS
         }}
       >
         {NAV_ITEMS.map((item) => {
-          const isActive = pathname.startsWith(item.href);
+          const isActive = pathname.startsWith(item.match);
+          const Icon = item.icon;
           return (
-            <Link 
-              key={item.href} 
+            <Link
+              key={item.href}
               href={item.href}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
-                padding: '8px 12px',
-                color: isActive ? 'var(--agen-primary-light)' : 'var(--text-muted)',
+                gap: 3,
+                padding: '6px 12px',
+                color: isActive ? 'var(--agen-primary)' : 'var(--text-muted)',
                 transition: 'color 0.2s',
-                textDecoration: 'none'
+                textDecoration: 'none',
+                opacity: 1,
               }}
             >
-              <span style={{ fontSize: '1.2rem', filter: isActive ? 'none' : 'grayscale(100%)', opacity: isActive ? 1 : 0.6 }}>
-                {item.icon}
-              </span>
-              <span style={{ fontSize: '0.7rem', fontWeight: isActive ? 700 : 500 }}>
+              <Icon size={22} strokeWidth={isActive ? 2.2 : 1.8} />
+              <span style={{ fontSize: '0.68rem', fontWeight: 500 }}>
                 {item.label}
               </span>
             </Link>

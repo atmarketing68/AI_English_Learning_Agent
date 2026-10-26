@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { register, login, getMyProfile } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
+import { CircleAlert, GraduationCap, Users } from 'lucide-react';
 
 const GRADES = [
   { value: 'grade_1', label: 'Lớp 1' }, { value: 'grade_2', label: 'Lớp 2' },
@@ -61,94 +62,97 @@ export default function RegisterPage() {
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
-      <div className="card animate-fade-in-up" style={{ width: '100%', maxWidth: 500 }}>
-        
-        <div className="text-center" style={{ marginBottom: 'var(--spacing-xl)' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 'var(--spacing-sm)' }}>🚀</div>
-          <h2>Tạo tài khoản AGEN</h2>
-          <p style={{ marginTop: 8 }}>Bắt đầu hành trình tiếng Anh cá nhân hóa của bạn</p>
-        </div>
+      <div className="animate-fade-in-up" style={{ width: '100%', maxWidth: 480 }}>
+        <Link href="/" style={{ display: 'block', textAlign: 'center', fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: 32 }}>AGEN</Link>
+        <div className="card" style={{ padding: 'clamp(24px, 5vw, 40px)', boxShadow: 'var(--shadow-md)', border: 'none' }}>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
-          {/* Role selector */}
-          <div className="form-group">
-            <label className="form-label">Bạn là</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {([
-                { value: 'learner', emoji: '🎓', label: 'Học viên' },
-                { value: 'parent', emoji: '👨‍👩‍👧', label: 'Phụ huynh' },
-              ] as const).map((r) => (
-                <button
-                  key={r.value}
-                  type="button"
-                  onClick={() => setRole(r.value)}
-                  style={{
-                    padding: '12px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
-                    border: `2px solid ${role === r.value ? 'var(--agen-primary)' : 'var(--border-subtle)'}`,
-                    background: role === r.value ? 'rgba(108,99,255,0.1)' : 'transparent',
-                    color: 'var(--text-primary)', fontWeight: role === r.value ? 700 : 500,
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <span style={{ fontSize: '1.5rem' }}>{r.emoji}</span>
-                  <span style={{ fontSize: '0.85rem' }}>{r.label}</span>
-                </button>
-              ))}
-            </div>
+          <div className="text-center" style={{ marginBottom: 'var(--spacing-xl)' }}>
+            <h2 style={{ fontSize: '1.75rem' }}>Tạo tài khoản AGEN</h2>
+            <p style={{ marginTop: 8, fontSize: '0.95rem' }}>Bắt đầu hành trình tiếng Anh cá nhân hóa của bạn.</p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+            {/* Role selector */}
             <div className="form-group">
-              <label className="form-label">Họ và tên</label>
-              <input className="form-input" name="full_name" placeholder="Nguyễn Văn A" value={form.full_name} onChange={handleChange} required />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Tên hiển thị</label>
-              <input className="form-input" name="display_name" placeholder={role === 'parent' ? 'Bố Minh' : 'Minh'} value={form.display_name} onChange={handleChange} required />
-            </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Email</label>
-            <input className="form-input" type="email" name="email" placeholder="email@example.com" value={form.email} onChange={handleChange} required />
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Mật khẩu</label>
-            <input className="form-input" type="password" name="password" placeholder="Tối thiểu 8 ký tự" value={form.password} onChange={handleChange} required minLength={8} />
-          </div>
-
-          {role === 'learner' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--spacing-md)' }}>
-              <div className="form-group">
-                <label className="form-label">Tuổi</label>
-                <input className="form-input" type="number" name="age" placeholder="Tuổi" value={form.age} onChange={handleChange} min={5} max={80} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Lớp / Cấp học</label>
-                <select className="form-input" name="grade" value={form.grade} onChange={handleChange} style={{ cursor: 'pointer' }}>
-                  <option value="">-- Chọn cấp học --</option>
-                  {GRADES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
-                </select>
+              <label className="form-label">Bạn là</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {([
+                  { value: 'learner', icon: GraduationCap, label: 'Học viên' },
+                  { value: 'parent', icon: Users, label: 'Phụ huynh' },
+                ] as const).map((r) => (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setRole(r.value)}
+                    style={{
+                      padding: '12px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
+                      border: `1.5px solid ${role === r.value ? 'var(--agen-primary)' : 'var(--border-medium)'}`,
+                      background: role === r.value ? 'var(--bg-tint)' : 'transparent',
+                      color: role === r.value ? 'var(--agen-primary)' : 'var(--text-primary)', fontWeight: 500,
+                      fontFamily: 'inherit',
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <r.icon size={22} strokeWidth={1.8} />
+                    <span style={{ fontSize: '0.85rem' }}>{r.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
-          )}
 
-          {error && (
-            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,107,107,0.1)', color: 'var(--agen-secondary)', fontSize: '0.875rem' }}>
-              ⚠️ {error}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--spacing-md)' }}>
+              <div className="form-group">
+                <label className="form-label">Họ và tên</label>
+                <input className="form-input" name="full_name" placeholder="Nguyễn Văn A" value={form.full_name} onChange={handleChange} required />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Tên hiển thị</label>
+                <input className="form-input" name="display_name" placeholder={role === 'parent' ? 'Bố Minh' : 'Minh'} value={form.display_name} onChange={handleChange} required />
+              </div>
             </div>
-          )}
 
-          <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading} style={{ marginTop: 8 }}>
-            {loading ? '⏳ Đang tạo tài khoản...' : role === 'parent' ? '👨‍👩‍👧 Tạo tài khoản phụ huynh' : '✨ Bắt đầu học ngay'}
-          </button>
-        </form>
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input className="form-input" type="email" name="email" placeholder="email@example.com" value={form.email} onChange={handleChange} required />
+            </div>
 
-        <div className="text-center" style={{ marginTop: 'var(--spacing-lg)', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-          Đã có tài khoản?{' '}
-          <Link href="/login" style={{ color: 'var(--agen-primary-light)', fontWeight: 600 }}>Đăng nhập</Link>
+            <div className="form-group">
+              <label className="form-label">Mật khẩu</label>
+              <input className="form-input" type="password" name="password" placeholder="Tối thiểu 8 ký tự" value={form.password} onChange={handleChange} required minLength={8} />
+            </div>
+
+            {role === 'learner' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 'var(--spacing-md)' }}>
+                <div className="form-group">
+                  <label className="form-label">Tuổi</label>
+                  <input className="form-input" type="number" name="age" placeholder="Tuổi" value={form.age} onChange={handleChange} min={5} max={80} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Lớp / Cấp học</label>
+                  <select className="form-input" name="grade" value={form.grade} onChange={handleChange} style={{ cursor: 'pointer' }}>
+                    <option value="">Chọn cấp học</option>
+                    {GRADES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="alert-error">
+                <CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}
+              </div>
+            )}
+
+            <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading} style={{ marginTop: 8 }}>
+              {loading ? 'Đang tạo tài khoản…' : role === 'parent' ? 'Tạo tài khoản phụ huynh' : 'Bắt đầu học ngay'}
+            </button>
+          </form>
+
+          <div className="text-center" style={{ marginTop: 'var(--spacing-lg)', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+            Đã có tài khoản?{' '}
+            <Link href="/login" style={{ color: 'var(--agen-primary-light)', fontWeight: 500 }}>Đăng nhập</Link>
+          </div>
         </div>
       </div>
     </main>

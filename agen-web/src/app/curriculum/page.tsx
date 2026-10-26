@@ -10,10 +10,11 @@ import {
   type CurriculumLessonNode,
 } from '@/lib/curriculumService';
 import { PageSkeleton } from '@/components/Skeleton';
+import { ArrowLeft, BookOpen, BookText, CircleAlert, CircleCheck, Flag, Headphones, Lock, Mic, PenLine, Play, RotateCcw, type LucideIcon } from 'lucide-react';
 
-const SKILL_ICONS: Record<string, string> = {
-  vocabulary: '📚', grammar: '📝', reading: '📖',
-  listening: '🎧', speaking: '🗣️', writing: '✍️',
+const SKILL_ICONS: Record<string, LucideIcon> = {
+  vocabulary: BookText, grammar: PenLine, reading: BookOpen,
+  listening: Headphones, speaking: Mic, writing: PenLine,
 };
 
 const SKILL_COLORS: Record<string, string> = {
@@ -31,14 +32,15 @@ function LessonRow({ lesson }: { lesson: CurriculumLessonNode }) {
   const color = SKILL_COLORS[lesson.skill] || 'var(--agen-primary)';
 
   const statusBadge = () => {
-    if (lesson.mastered) return <span style={{ color: 'var(--agen-success)', fontSize: '0.8rem', fontWeight: 700 }}>✅ {lesson.best_score}%</span>;
-    if (lesson.status === 'completed') return <span style={{ color, fontSize: '0.8rem', fontWeight: 700 }}>{lesson.best_score}%</span>;
-    if (lesson.status === 'in_progress') return <span className="streak-badge" style={{ fontSize: '0.7rem' }}>Đang học</span>;
-    if (lesson.locked) return <span style={{ fontSize: '1rem' }}>🔒</span>;
-    return <span style={{ color: 'var(--text-muted)', fontSize: '1rem' }}>▶️</span>;
+    if (lesson.mastered) return <span style={{ color: 'var(--agen-success)', fontSize: '0.85rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><CircleCheck size={15} /> {lesson.best_score}%</span>;
+    if (lesson.status === 'completed') return <span style={{ color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 600 }}>{lesson.best_score}%</span>;
+    if (lesson.status === 'in_progress') return <span className="xp-badge" style={{ fontSize: '0.72rem' }}>Đang học</span>;
+    if (lesson.locked) return <Lock size={16} color="var(--text-muted)" />;
+    return <Play size={16} color="var(--agen-primary)" fill="currentColor" />;
   };
 
   const clickable = !lesson.locked;
+  const RowIcon = lesson.is_assessment ? Flag : lesson.is_review ? RotateCcw : (SKILL_ICONS[lesson.skill] || BookOpen);
 
   return (
     <div
@@ -46,21 +48,18 @@ function LessonRow({ lesson }: { lesson: CurriculumLessonNode }) {
       className={clickable ? 'card-hover' : ''}
       style={{
         display: 'flex', alignItems: 'center', gap: 12,
-        padding: '12px 16px', borderRadius: 10,
+        padding: '12px 16px', borderRadius: 12,
         background: 'var(--bg-elevated)',
-        border: `1px solid ${lesson.locked ? 'var(--border-subtle)' : color + '33'}`,
-        opacity: lesson.locked ? 0.55 : 1,
+        opacity: lesson.locked ? 0.5 : 1,
         cursor: clickable ? 'pointer' : 'not-allowed',
         transition: 'all 0.15s',
       }}
     >
-      <span style={{ fontSize: '1.4rem' }}>
-        {lesson.is_assessment ? '🏁' : lesson.is_review ? '🔁' : (SKILL_ICONS[lesson.skill] || '📌')}
-      </span>
+      <RowIcon size={20} strokeWidth={1.8} color={color} style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{lesson.title}</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          <span style={{ color, fontWeight: 600, textTransform: 'uppercase' }}>{lesson.skill}</span>
+        <div style={{ fontWeight: 500, fontSize: '0.95rem' }}>{lesson.title}</div>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+          <span style={{ textTransform: 'capitalize' }}>{lesson.skill}</span>
           {lesson.grammar_focus ? ` · ${lesson.grammar_focus}` : ''}
           {` · Độ khó ${lesson.difficulty}/5`}
         </div>
@@ -76,7 +75,7 @@ function UnitBlock({ unit }: { unit: CurriculumMap['units'][number] }) {
   return (
     <div className="card animate-fade-in-up" style={{ marginBottom: 'var(--spacing-lg)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-        <span style={{ fontSize: '1.8rem' }}>{unit.icon || '📦'}</span>
+        {unit.icon && <span style={{ fontSize: '1.5rem' }}>{unit.icon}</span>}
         <div style={{ flex: 1 }}>
           <h3 style={{ margin: 0 }}>{unit.title}</h3>
           {unit.theme && <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{unit.theme}</div>}
@@ -117,40 +116,32 @@ export default function CurriculumPage() {
 
   if (error || !map) return (
     <main style={{ padding: 40, textAlign: 'center' }}>
-      <p style={{ color: 'var(--agen-secondary)' }}>⚠️ {error || 'Không có dữ liệu'}</p>
-      <Link href="/dashboard" className="btn btn-outline" style={{ marginTop: 16 }}>← Về Dashboard</Link>
+      <p style={{ color: 'var(--agen-secondary)', display: 'inline-flex', alignItems: 'center', gap: 8 }}><CircleAlert size={16} /> {error || 'Không có dữ liệu'}</p>
+      <div><Link href="/dashboard" className="btn btn-outline" style={{ marginTop: 16 }}><ArrowLeft size={16} /> Về Dashboard</Link></div>
     </main>
   );
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'var(--spacing-lg)' }}>
-      <div className="container" style={{ maxWidth: 760 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg)' }}>
+      <div className="container" style={{ maxWidth: 760, padding: 0 }}>
 
         {/* Header */}
         <div className="animate-fade-in-up" style={{ marginBottom: 'var(--spacing-xl)' }}>
           <Link
             href="/dashboard"
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 20,
-              padding: '8px 16px', borderRadius: 99,
-              background: 'var(--bg-elevated)', border: '1px solid var(--border-medium)',
-              color: 'var(--text-secondary)', fontWeight: 600, fontSize: '0.9rem',
-              textDecoration: 'none', transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--agen-primary)')}
-            onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-medium)')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginBottom: 16, fontSize: '0.92rem' }}
           >
-            🏠 Về Trang chủ
+            <ArrowLeft size={16} /> Dashboard
           </Link>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <h2 style={{ margin: 0 }}>🗺️ Lộ trình học tập</h2>
+              <h1 style={{ margin: 0, fontSize: 'clamp(1.9rem, 4vw, 2.5rem)' }}>Lộ trình học tập</h1>
               <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>
                 Cấp độ <span className="level-badge">{map.level}</span> — học theo thứ tự để mở khóa bài tiếp theo
               </p>
             </div>
             <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--agen-primary-light)' }}>{map.progress_pct}%</div>
+              <div style={{ fontSize: '2rem', fontWeight: 600, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>{map.progress_pct}%</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{map.completed_lessons}/{map.total_lessons} bài</div>
             </div>
           </div>
@@ -158,11 +149,8 @@ export default function CurriculumPage() {
 
         {/* Overall progress bar */}
         <div className="animate-fade-in-up delay-100" style={{ marginBottom: 'var(--spacing-xl)' }}>
-          <div className="progress-bar" style={{ height: 12 }}>
-            <div className="progress-fill" style={{
-              width: `${map.progress_pct}%`,
-              background: 'linear-gradient(90deg, var(--agen-primary), var(--agen-accent))',
-            }} />
+          <div className="progress-bar" style={{ height: 8 }}>
+            <div className="progress-fill" style={{ width: `${map.progress_pct}%` }} />
           </div>
         </div>
 

@@ -6,12 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import { updateMyProfile } from '@/lib/services';
 import confetti from 'canvas-confetti';
+import { Briefcase, CircleCheck, Compass, GraduationCap, MessageCircle, Trophy } from 'lucide-react';
 
 const GOALS = [
-  { id: 'giao_tiep', icon: '🗣️', label: 'Giao tiếp hằng ngày', desc: 'Tự tin nói tiếng Anh khi đi du lịch, giao tiếp cơ bản.' },
-  { id: 'hoc_thuat', icon: '🎓', label: 'Học thuật / Trường lớp', desc: 'Cải thiện điểm số trên lớp, xây dựng nền tảng vững chắc.' },
-  { id: 'cong_viec', icon: '💼', label: 'Công việc / Đi làm', desc: 'Tiếng Anh cho môi trường công sở, viết email, thuyết trình.' },
-  { id: 'luyen_thi', icon: '🏆', label: 'Luyện thi (IELTS, TOEIC)', desc: 'Chuẩn bị cho các kỳ thi chứng chỉ quốc tế.' },
+  { id: 'giao_tiep', icon: MessageCircle, label: 'Giao tiếp hằng ngày', desc: 'Tự tin nói tiếng Anh khi đi du lịch, giao tiếp cơ bản.' },
+  { id: 'hoc_thuat', icon: GraduationCap, label: 'Học thuật / Trường lớp', desc: 'Cải thiện điểm số trên lớp, xây dựng nền tảng vững chắc.' },
+  { id: 'cong_viec', icon: Briefcase, label: 'Công việc / Đi làm', desc: 'Tiếng Anh cho môi trường công sở, viết email, thuyết trình.' },
+  { id: 'luyen_thi', icon: Trophy, label: 'Luyện thi (IELTS, TOEIC)', desc: 'Chuẩn bị cho các kỳ thi chứng chỉ quốc tế.' },
 ];
 
 const STUDY_MINUTES = [
@@ -33,7 +34,7 @@ export default function OnboardingPage() {
     if (step < 3) setStep(step + 1);
     if (step === 2) {
       // Trigger confetti on final step
-      confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
     }
   };
 
@@ -81,7 +82,6 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               style={{ textAlign: 'center' }}
             >
-              <div style={{ fontSize: '3rem', marginBottom: 16 }}>🎯</div>
               <h2 style={{ marginBottom: 8 }}>Mục tiêu học tập của bạn là gì?</h2>
               <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Giúp AGEN cá nhân hoá lộ trình phù hợp nhất với bạn.</p>
 
@@ -92,17 +92,19 @@ export default function OnboardingPage() {
                     whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
                     onClick={() => setGoal(g.id)}
                     style={{
-                      padding: '20px', borderRadius: 16, cursor: 'pointer',
-                      border: `2px solid ${goal === g.id ? 'var(--agen-primary)' : 'var(--border-subtle)'}`,
-                      background: goal === g.id ? 'rgba(108,99,255,0.08)' : 'var(--bg-elevated)',
-                      display: 'flex', alignItems: 'center', gap: 16, transition: 'all 0.2s',
+                      padding: '18px 20px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit',
+                      border: `1.5px solid ${goal === g.id ? 'var(--agen-primary)' : 'var(--border-subtle)'}`,
+                      background: 'var(--bg-surface)',
+                      boxShadow: goal === g.id ? '0 0 0 3px rgba(0,113,227,0.12)' : 'none',
+                      display: 'flex', alignItems: 'center', gap: 16, transition: 'border-color 0.2s, box-shadow 0.2s',
                     }}
                   >
-                    <div style={{ fontSize: '2rem' }}>{g.icon}</div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: 4 }}>{g.label}</div>
+                    <span className="icon-tile" style={{ color: goal === g.id ? 'var(--agen-primary)' : 'var(--text-secondary)' }}><g.icon size={22} strokeWidth={1.8} /></span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '1.02rem', color: 'var(--text-primary)', marginBottom: 2 }}>{g.label}</div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{g.desc}</div>
                     </div>
+                    {goal === g.id && <CircleCheck size={20} color="var(--agen-primary)" style={{ flexShrink: 0 }} />}
                   </motion.button>
                 ))}
               </div>
@@ -119,7 +121,6 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               style={{ textAlign: 'center' }}
             >
-              <div style={{ fontSize: '3rem', marginBottom: 16 }}>⏱️</div>
               <h2 style={{ marginBottom: 8 }}>Bạn có thể học bao lâu mỗi ngày?</h2>
               <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>AGEN sẽ chia nhỏ bài học vừa vặn với lịch trình của bạn.</p>
 
@@ -130,18 +131,19 @@ export default function OnboardingPage() {
                     whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
                     onClick={() => setStudyTime(s.id)}
                     style={{
-                      padding: '24px 16px', borderRadius: 16, cursor: 'pointer', textAlign: 'center', position: 'relative',
-                      border: `2px solid ${studyTime === s.id ? 'var(--agen-primary)' : 'var(--border-subtle)'}`,
-                      background: studyTime === s.id ? 'rgba(108,99,255,0.08)' : 'var(--bg-elevated)',
-                      transition: 'all 0.2s',
+                      padding: '24px 16px', borderRadius: 16, cursor: 'pointer', textAlign: 'center', position: 'relative', fontFamily: 'inherit',
+                      border: `1.5px solid ${studyTime === s.id ? 'var(--agen-primary)' : 'var(--border-subtle)'}`,
+                      background: 'var(--bg-surface)',
+                      boxShadow: studyTime === s.id ? '0 0 0 3px rgba(0,113,227,0.12)' : 'none',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
                     }}
                   >
                     {s.badge && (
-                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', padding: '4px 12px', borderRadius: 99, background: 'var(--agen-accent)', color: 'black', fontSize: '0.7rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                      <div style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', padding: '4px 12px', borderRadius: 99, background: 'var(--agen-primary)', color: '#fff', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
                         {s.badge}
                       </div>
                     )}
-                    <div style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text-primary)', marginBottom: 6 }}>{s.label}</div>
+                    <div style={{ fontWeight: 600, fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: 4 }}>{s.label}</div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{s.desc}</div>
                   </motion.button>
                 ))}
@@ -161,10 +163,7 @@ export default function OnboardingPage() {
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               style={{ textAlign: 'center' }}
             >
-              <div style={{ position: 'relative', display: 'inline-block', marginBottom: 24 }}>
-                <div style={{ position: 'absolute', inset: -20, background: 'radial-gradient(circle, rgba(108,99,255,0.4) 0%, transparent 70%)', zIndex: 0, animation: 'pulse-glow 2s infinite' }} />
-                <div style={{ fontSize: '4rem', position: 'relative', zIndex: 1 }}>🎉</div>
-              </div>
+              <CircleCheck size={56} strokeWidth={1.4} color="var(--agen-success)" style={{ marginBottom: 20 }} />
               <h2 style={{ marginBottom: 12 }}>Tuyệt vời, {learner.display_name}!</h2>
               <p style={{ color: 'var(--text-secondary)', marginBottom: 32, fontSize: '1.05rem', lineHeight: 1.6 }}>
                 Hồ sơ học tập của bạn đã được thiết lập thành công.
@@ -174,13 +173,16 @@ export default function OnboardingPage() {
                 Thời gian: <strong style={{ color: 'var(--text-primary)' }}>{studyTime} phút/ngày</strong>
               </p>
 
-              <div className="card" style={{ background: 'linear-gradient(135deg, rgba(6,214,160,0.1), rgba(108,99,255,0.1))', borderColor: 'var(--agen-success)', marginBottom: 32 }}>
-                <h3 style={{ fontSize: '1.1rem', marginBottom: 8, color: 'var(--agen-success)' }}>🧭 Bước tiếp theo: Kiểm tra trình độ</h3>
+              <div className="card" style={{ marginBottom: 32, textAlign: 'left', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <span className="icon-tile" style={{ background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><Compass size={22} strokeWidth={1.8} /></span>
+                <div>
+                <h3 style={{ fontSize: '1.05rem', marginBottom: 6 }}>Bước tiếp theo: kiểm tra trình độ</h3>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Hãy dành 5 phút làm bài test nhanh để AGEN xây dựng lộ trình học phù hợp nhất với trình độ hiện tại của bạn.</p>
+                </div>
               </div>
 
-              <button className="btn btn-primary btn-lg btn-full" onClick={handleComplete} disabled={loading} style={{ background: 'linear-gradient(135deg, var(--agen-success), var(--agen-primary))' }}>
-                {loading ? '⏳ Đang xử lý...' : 'Bắt đầu Placement Test 🚀'}
+              <button className="btn btn-primary btn-lg btn-full" onClick={handleComplete} disabled={loading}>
+                {loading ? 'Đang xử lý…' : 'Bắt đầu kiểm tra trình độ'}
               </button>
             </motion.div>
           )}

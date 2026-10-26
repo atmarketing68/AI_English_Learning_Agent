@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { playSound } from '@/lib/soundEffects';
+import { Lightbulb } from 'lucide-react';
 
 export default function FillBlank({
   sentence, blankWord, options, hint, onAnswer, disabled
@@ -27,7 +28,7 @@ export default function FillBlank({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      {hint && <div style={{ fontSize: '0.85rem', color: 'var(--agen-primary-light)', marginBottom: 12 }}>💡 Hint: {hint}</div>}
+      {hint && <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}><Lightbulb size={14} color="var(--agen-accent)" /> Gợi ý: {hint}</div>}
       
       <div style={{ fontSize: '1.2rem', lineHeight: 1.8, marginBottom: 24 }}>
         {parts.map((part, i) => {
@@ -41,7 +42,7 @@ export default function FillBlank({
                   padding: '4px 12px',
                   margin: '0 4px',
                   borderBottom: '2px solid var(--agen-primary)',
-                  background: selected ? 'rgba(108,99,255,0.1)' : 'var(--bg-base)',
+                  background: selected ? 'var(--bg-tint)' : 'var(--bg-elevated)',
                   color: selected ? 'var(--agen-primary-light)' : 'transparent',
                   fontWeight: 600,
                   textAlign: 'center',
@@ -62,16 +63,15 @@ export default function FillBlank({
             key={opt}
             disabled={disabled}
             onClick={() => { playSound('pop'); setSelected(opt); }}
-            whileHover={!disabled ? { scale: 1.02 } : {}}
             whileTap={!disabled ? { scale: 0.98 } : {}}
             style={{
               padding: '12px',
               borderRadius: 'var(--radius-md)',
-              border: selected === opt ? '2px solid var(--agen-primary)' : '1px solid var(--border-medium)',
-              background: selected === opt ? 'rgba(108,99,255,0.1)' : 'var(--bg-elevated)',
-              color: 'var(--text-primary)',
+              border: selected === opt ? '1.5px solid var(--agen-primary)' : '1.5px solid var(--border-subtle)',
+              background: selected === opt ? 'var(--bg-tint)' : 'var(--bg-surface)',
+              color: selected === opt ? 'var(--agen-primary-light)' : 'var(--text-primary)',
               cursor: disabled ? 'default' : 'pointer',
-              fontWeight: 600,
+              fontWeight: 500, fontFamily: 'inherit', fontSize: '0.95rem',
               transition: 'background 0.2s, border 0.2s'
             }}
           >
@@ -84,7 +84,6 @@ export default function FillBlank({
         className="btn btn-primary btn-full" 
         disabled={!selected || disabled}
         onClick={() => { if (selected) onAnswer(selected); }}
-        whileHover={selected && !disabled ? { scale: 1.02 } : {}}
         whileTap={selected && !disabled ? { scale: 0.98 } : {}}
       >
         Kiểm tra

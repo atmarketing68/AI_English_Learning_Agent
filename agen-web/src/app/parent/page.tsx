@@ -8,6 +8,9 @@ import {
   getChildren, linkChild, unlinkChild, getChildReport,
   type ChildSummary, type ChildReport,
 } from '@/lib/parentService';
+import { BookOpen, BookText, ChartColumn, CircleAlert, CircleCheck, Clock, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+
+const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
 const SKILL_COLORS: Record<string, string> = {
   vocabulary: 'var(--agen-accent)',
@@ -18,14 +21,14 @@ const SKILL_COLORS: Record<string, string> = {
   writing:    'var(--skill-writing)',
 };
 
-const SKILL_ICONS: Record<string, string> = {
-  vocabulary: '📚', grammar: '📝', reading: '📖',
-  listening: '🎧', speaking: '🗣️', writing: '✍️',
+const SKILL_ICONS: Record<string, LucideIcon> = {
+  vocabulary: BookText, grammar: PenLine, reading: BookOpen,
+  listening: Headphones, speaking: Mic, writing: PenLine,
 };
 
 const LEVEL_COLORS: Record<string, string> = {
-  PRE_A1: '#9ca3af', A1: '#60a5fa', A2: '#34d399',
-  B1: '#a78bfa', B2: '#f59e0b', C1: '#f97316', C2: '#ef4444',
+  PRE_A1: 'var(--text-muted)', A1: 'var(--skill-listening)', A2: 'var(--skill-reading)',
+  B1: 'var(--agen-primary)', B2: 'var(--skill-writing)', C1: 'var(--agen-accent)', C2: 'var(--agen-secondary)',
 };
 
 // ── Animated count-up ──────────────────────────────────────────────────────────
@@ -69,25 +72,22 @@ function LinkChildForm({ onLinked }: { onLinked: () => void }) {
   return (
     <div style={{ marginBottom: 'var(--spacing-lg)' }}>
       {!open ? (
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="btn btn-outline"
+        <button
+          className="btn btn-ghost"
           onClick={() => setOpen(true)}
-          style={{ borderStyle: 'dashed', display: 'flex', alignItems: 'center', gap: 8 }}
+          style={{ color: 'var(--agen-primary-light)' }}
         >
-          <span style={{ fontSize: '1.2rem' }}>+</span>
+          <Plus size={16} />
           Liên kết với con
-        </motion.button>
+        </button>
       ) : (
         <motion.form
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           onSubmit={submit}
           className="card"
-          style={{ border: '1px dashed var(--agen-primary)' }}
         >
-          <h3 style={{ marginBottom: 8 }}>🔗 Liên kết với con</h3>
+          <h3 style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}><Link2 size={18} /> Liên kết với con</h3>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
             Nhập mã liên kết mà con bạn thấy trong Hồ sơ của bé (ví dụ: AGEN-7K2P).
           </p>
@@ -102,11 +102,11 @@ function LinkChildForm({ onLinked }: { onLinked: () => void }) {
               onChange={(e) => setLabel(e.target.value)} style={{ flex: '1 1 140px' }}
             />
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? '⏳' : 'Liên kết'}
+              {loading ? 'Đang liên kết…' : 'Liên kết'}
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => setOpen(false)}>Huỷ</button>
           </div>
-          {error && <div style={{ marginTop: 12, color: 'var(--agen-secondary)', fontSize: '0.85rem' }}>⚠️ {error}</div>}
+          {error && <div className="alert-error" style={{ marginTop: 12 }}><CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}</div>}
         </motion.form>
       )}
     </div>
@@ -135,18 +135,18 @@ function ChildReportPanel({ learnerId, childName }: { learnerId: string; childNa
 
   if (loading) return (
     <div style={{ padding: '40px 0', display: 'flex', justifyContent: 'center', gap: 12, alignItems: 'center', color: 'var(--text-muted)' }}>
-      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} style={{ fontSize: '1.5rem' }}>⏳</motion.div>
-      Đang phân tích dữ liệu...
+      <LoaderCircle className="animate-spin" size={20} />
+      Đang phân tích dữ liệu…
     </div>
   );
   if (!report) return <div style={{ padding: 20, color: 'var(--agen-secondary)', textAlign: 'center' }}>Không thể tải báo cáo.</div>;
 
   const kpis = [
-    { label: 'Buổi học', value: report.sessions_this_week, suffix: '', emoji: '📚', color: 'var(--agen-primary-light)' },
-    { label: 'XP tuần', value: report.xp_this_week, suffix: '', emoji: '⭐', color: 'var(--agen-accent)' },
-    { label: 'Thời gian', value: report.study_minutes_estimate, suffix: '′', emoji: '⏱️', color: 'var(--skill-reading)' },
-    { label: 'Streak', value: report.current_streak, suffix: 'd', emoji: '🔥', color: '#f97316' },
-    { label: 'Chính xác', value: report.accuracy_pct, suffix: '%', emoji: '🎯', color: 'var(--agen-success)' },
+    { label: 'Buổi học', value: report.sessions_this_week, suffix: '', icon: BookOpen, color: 'var(--agen-primary)' },
+    { label: 'XP tuần', value: report.xp_this_week, suffix: '', icon: Star, color: 'var(--agen-accent)' },
+    { label: 'Phút học', value: report.study_minutes_estimate, suffix: '′', icon: Clock, color: 'var(--skill-listening)' },
+    { label: 'Chuỗi ngày', value: report.current_streak, suffix: '', icon: Flame, color: 'var(--agen-secondary)' },
+    { label: 'Chính xác', value: report.accuracy_pct, suffix: '%', icon: Target, color: 'var(--agen-success)' },
   ];
 
   return (
@@ -161,14 +161,12 @@ function ChildReportPanel({ learnerId, childName }: { learnerId: string; childNa
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.07 }}
             style={{
-              padding: '16px 12px', borderRadius: 14,
+              padding: 16, borderRadius: 14,
               background: 'var(--bg-elevated)',
-              border: '1px solid var(--border-subtle)',
-              textAlign: 'center',
             }}
           >
-            <div style={{ fontSize: '1.6rem', marginBottom: 4 }}>{k.emoji}</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 900, color: k.color }}>
+            <k.icon size={18} strokeWidth={1.8} color={k.color} style={{ marginBottom: 10 }} />
+            <div style={{ fontSize: '1.5rem', fontWeight: 600, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
               <AnimatedNumber value={k.value} suffix={k.suffix} />
             </div>
             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2 }}>{k.label}</div>
@@ -178,13 +176,13 @@ function ChildReportPanel({ learnerId, childName }: { learnerId: string; childNa
 
       {/* Skill Bars */}
       <div style={{ marginBottom: 28 }}>
-        <div style={{ fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>📊</span> Hồ sơ kỹ năng của {childName}
+        <div style={{ fontWeight: 600, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ChartColumn size={17} color="var(--text-secondary)" /> Hồ sơ kỹ năng của {childName}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {report.skills.map((sk, i) => {
             const color = SKILL_COLORS[sk.skill] || 'var(--agen-primary)';
-            const icon = SKILL_ICONS[sk.skill] || '📌';
+            const Icon = SKILL_ICONS[sk.skill] || BookOpen;
             return (
               <motion.div
                 key={sk.skill}
@@ -194,17 +192,17 @@ function ChildReportPanel({ learnerId, childName }: { learnerId: string; childNa
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.88rem' }}>
-                    <span>{icon}</span>
+                    <Icon size={15} color={color} />
                     <span style={{ color: 'var(--text-secondary)' }}>{sk.label}</span>
                   </div>
-                  <span style={{ color, fontWeight: 800, fontSize: '0.9rem' }}>{sk.score.toFixed(0)}%</span>
+                  <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{sk.score.toFixed(0)}%</span>
                 </div>
-                <div style={{ height: 8, borderRadius: 99, background: 'var(--bg-base)', overflow: 'hidden' }}>
+                <div className="progress-bar">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${sk.score}%` }}
                     transition={{ duration: 0.8, delay: i * 0.06, ease: 'easeOut' }}
-                    style={{ height: '100%', background: `linear-gradient(90deg, ${color}, ${color}88)`, borderRadius: 99 }}
+                    style={{ height: '100%', background: color, borderRadius: 99 }}
                   />
                 </div>
               </motion.div>
@@ -215,39 +213,39 @@ function ChildReportPanel({ learnerId, childName }: { learnerId: string; childNa
 
       {/* AI Coach Guidance — Master Plan §21 */}
       <div style={{ marginBottom: 8 }}>
-        <div style={{ fontWeight: 700, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>🤖</span> Nhận xét từ AI Coach
+        <div style={{ fontWeight: 600, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Sparkles size={17} color="var(--agen-primary)" /> Nhận xét từ AI Coach
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <motion.div
             initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-            style={{ padding: '16px 18px', borderRadius: 14, background: 'rgba(6,214,160,0.06)', borderLeft: '4px solid var(--agen-success)' }}
+            style={{ padding: '16px 18px', borderRadius: 14, background: 'var(--bg-elevated)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: '1.1rem' }}>✅</span>
-              <span style={{ fontWeight: 700, color: 'var(--agen-success)', fontSize: '0.95rem' }}>Con đã tiến bộ gì?</span>
+              <CircleCheck size={16} color="var(--agen-success)" />
+              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Con đã tiến bộ gì?</span>
             </div>
             <div style={{ fontSize: '0.9rem', lineHeight: 1.65, color: 'var(--text-secondary)' }}>{report.what_improved}</div>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}
-            style={{ padding: '16px 18px', borderRadius: 14, background: 'rgba(255,152,0,0.06)', borderLeft: '4px solid var(--agen-accent)' }}
+            style={{ padding: '16px 18px', borderRadius: 14, background: 'var(--bg-elevated)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: '1.1rem' }}>⚠️</span>
-              <span style={{ fontWeight: 700, color: 'var(--agen-accent)', fontSize: '0.95rem' }}>Con cần hỗ trợ gì?</span>
+              <TriangleAlert size={16} color="var(--agen-accent)" />
+              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Con cần hỗ trợ gì?</span>
             </div>
             <div style={{ fontSize: '0.9rem', lineHeight: 1.65, color: 'var(--text-secondary)' }}>{report.what_needs_help}</div>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 }}
-            style={{ padding: '16px 18px', borderRadius: 14, background: 'rgba(108,99,255,0.06)', borderLeft: '4px solid var(--agen-primary)' }}
+            style={{ padding: '16px 18px', borderRadius: 14, background: 'var(--bg-elevated)' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: '1.1rem' }}>💡</span>
-              <span style={{ fontWeight: 700, color: 'var(--agen-primary-light)', fontSize: '0.95rem' }}>Phụ huynh nên làm gì?</span>
+              <Lightbulb size={16} color="var(--agen-primary)" />
+              <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Phụ huynh nên làm gì?</span>
             </div>
             <div style={{ fontSize: '0.9rem', lineHeight: 1.65, color: 'var(--text-secondary)' }}>{report.what_to_do}</div>
           </motion.div>
@@ -288,19 +286,16 @@ export default function ParentDashboardPage() {
   };
 
   if (loading) return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '3rem', marginBottom: 12 }}>👨‍👩‍👧</div>
-        <p style={{ color: 'var(--text-muted)' }}>Đang tải...</p>
-      </div>
+    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-muted)' }}>
+      <LoaderCircle className="animate-spin" size={20} /> Đang tải…
     </main>
   );
 
   const selectedChild = children.find(c => c.learner_id === selected);
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'var(--spacing-lg)', background: 'var(--bg-base)' }}>
-      <div className="container" style={{ maxWidth: 820 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg)', background: 'var(--bg-base)' }}>
+      <div className="container" style={{ maxWidth: 860, padding: 0 }}>
 
         {/* Header */}
         <motion.div
@@ -309,16 +304,10 @@ export default function ParentDashboardPage() {
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--spacing-xl)' }}
         >
           <div>
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8,
-              padding: '4px 12px', borderRadius: 99,
-              background: 'rgba(108,99,255,0.12)', border: '1px solid rgba(108,99,255,0.3)',
-              fontSize: '0.78rem', fontWeight: 700, color: 'var(--agen-primary-light)',
-              marginBottom: 10,
-            }}>
-              👨‍👩‍👧 Bảng theo dõi Phụ huynh
+            <div className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <Users size={14} /> Bảng theo dõi phụ huynh
             </div>
-            <h2 style={{ margin: 0 }}>Xin chào, Phụ huynh!</h2>
+            <h1 style={{ margin: 0, fontSize: 'clamp(1.9rem, 4vw, 2.5rem)' }}>Xin chào, phụ huynh</h1>
             <p style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: '0.9rem' }}>
               Theo dõi tiến bộ học tiếng Anh của con bạn mỗi tuần.
             </p>
@@ -338,8 +327,8 @@ export default function ParentDashboardPage() {
             className="card"
             style={{ textAlign: 'center', padding: '48px 24px' }}
           >
-            <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>👶</div>
-            <div style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: 8 }}>Chưa có con nào được liên kết</div>
+            <Users size={40} strokeWidth={1.4} color="var(--text-muted)" style={{ marginBottom: 16 }} />
+            <div style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: 8 }}>Chưa có con nào được liên kết</div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
               Hãy nhập mã liên kết ở trên. Con bạn có thể tìm mã trong phần Hồ sơ trong ứng dụng.
             </p>
@@ -350,34 +339,34 @@ export default function ParentDashboardPage() {
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 'var(--spacing-lg)' }}>
               {children.map((c) => {
                 const isActive = selected === c.learner_id;
-                const levelColor = LEVEL_COLORS[c.overall_level] || '#9ca3af';
+                const levelColor = LEVEL_COLORS[c.overall_level] || 'var(--text-muted)';
                 return (
-                  <motion.button
+                  <button
                     key={c.learner_id}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
                     onClick={() => setSelected(c.learner_id)}
+                    aria-pressed={isActive}
                     style={{
-                      cursor: 'pointer', padding: '12px 18px',
+                      cursor: 'pointer', padding: '12px 18px', fontFamily: 'inherit', color: 'var(--text-primary)',
                       display: 'flex', alignItems: 'center', gap: 12,
-                      borderRadius: 14,
-                      border: `2px solid ${isActive ? 'var(--agen-primary)' : 'var(--border-subtle)'}`,
-                      background: isActive ? 'rgba(108,99,255,0.09)' : 'var(--bg-elevated)',
-                      transition: 'all 0.2s',
+                      borderRadius: 16,
+                      border: `1.5px solid ${isActive ? 'var(--agen-primary)' : 'var(--border-subtle)'}`,
+                      background: 'var(--bg-surface)',
+                      boxShadow: isActive ? '0 0 0 3px rgba(0,113,227,0.12)' : 'none',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
                     }}
                   >
-                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: `${levelColor}22`, border: `2px solid ${levelColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem' }}>
-                      🧒
+                    <div style={{ width: 40, height: 40, borderRadius: '50%', background: tint(levelColor, 14), color: levelColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
+                      {c.display_name.charAt(0).toUpperCase()}
                     </div>
                     <div style={{ textAlign: 'left' }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{c.display_name}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <span style={{ padding: '1px 7px', borderRadius: 99, background: `${levelColor}22`, color: levelColor, fontWeight: 700 }}>{c.overall_level}</span>
+                      <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.display_name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <span style={{ padding: '1px 7px', borderRadius: 99, background: tint(levelColor, 14), color: levelColor, fontWeight: 600 }}>{c.overall_level}</span>
                         {c.relationship_label && <span>{c.relationship_label}</span>}
-                        <span style={{ color: 'var(--agen-accent)' }}>⭐ {c.total_xp} XP</span>
+                        <span>{c.total_xp} XP</span>
                       </div>
                     </div>
-                  </motion.button>
+                  </button>
                 );
               })}
             </div>
@@ -391,16 +380,17 @@ export default function ParentDashboardPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   className="card"
+                  style={{ padding: 'var(--spacing-xl)' }}
                 >
                   {/* Report header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 28 }}>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '1.1rem' }}>
-                        📈 Báo cáo tuần — {selectedChild.display_name}
+                      <h3 style={{ margin: 0, fontSize: '1.25rem' }}>
+                        Báo cáo tuần — {selectedChild.display_name}
                       </h3>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 3 }}>
                         7 ngày gần nhất · {selectedChild.total_lessons_completed} bài đã hoàn thành
-                        {selectedChild.current_streak > 0 && ` · 🔥 ${selectedChild.current_streak} ngày streak`}
+                        {selectedChild.current_streak > 0 && ` · chuỗi ${selectedChild.current_streak} ngày`}
                       </div>
                     </div>
                     <button

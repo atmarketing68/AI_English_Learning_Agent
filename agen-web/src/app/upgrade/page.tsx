@@ -11,6 +11,7 @@ import {
 } from '@/lib/billingService';
 import { playSound } from '@/lib/soundEffects';
 import confetti from 'canvas-confetti';
+import { ArrowLeft, Check, CircleAlert, CircleCheck, LoaderCircle, Minus } from 'lucide-react';
 
 const FREE_FEATURES = [
   { label: '3 bài học AI / ngày', included: true },
@@ -39,7 +40,7 @@ const PREMIUM_FEATURES = [
 const PLAN_PRICES = [
   { months: 1, price: '99.000₫', label: '1 tháng', badge: null },
   { months: 3, price: '249.000₫', label: '3 tháng', badge: 'Tiết kiệm 17%' },
-  { months: 12, price: '799.000₫', label: '12 tháng', badge: '⭐ Tốt nhất' },
+  { months: 12, price: '799.000₫', label: '12 tháng', badge: 'Tốt nhất' },
 ];
 
 export default function UpgradePage() {
@@ -69,7 +70,7 @@ export default function UpgradePage() {
       setSubscription(updated);
       setSuccess(true);
       playSound('success');
-      confetti({ particleCount: 200, spread: 100, origin: { y: 0.5 } });
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
     } catch {
       setError('Nâng cấp thất bại. Vui lòng thử lại.');
     } finally {
@@ -91,36 +92,34 @@ export default function UpgradePage() {
   };
 
   if (loading) return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: '3rem', marginBottom: 16 }}>⚡</div>
-        <p style={{ color: 'var(--text-muted)' }}>Đang tải thông tin gói...</p>
-      </div>
+    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-muted)' }}>
+      <LoaderCircle className="animate-spin" size={20} /> Đang tải thông tin gói…
     </main>
   );
 
   const isPremium = subscription?.is_premium;
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'var(--spacing-lg)' }}>
-      <div className="container" style={{ maxWidth: 920 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg) 80px' }}>
+      <div className="container" style={{ maxWidth: 920, padding: 0 }}>
 
         {/* Back */}
-        <Link href="/dashboard" style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 32 }}>
-          ← Về Dashboard
+        <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 32 }}>
+          <ArrowLeft size={16} /> Dashboard
         </Link>
 
         {/* Hero */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          style={{ textAlign: 'center', marginBottom: 48 }}
+          transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+          style={{ textAlign: 'center', marginBottom: 56 }}
         >
-          <div style={{ fontSize: '3.5rem', marginBottom: 12 }}>⚡</div>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: 900, background: 'linear-gradient(135deg, var(--agen-primary), var(--agen-accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: 12 }}>
-            AGEN Premium
+          <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--agen-accent)', marginBottom: 10 }}>Premium</div>
+          <h1 style={{ fontSize: 'clamp(2.4rem, 6vw, 3.75rem)', letterSpacing: '-0.04em', marginBottom: 14 }}>
+            Học không giới hạn.
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: 500, margin: '0 auto' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.15rem', maxWidth: 520, margin: '0 auto' }}>
             Mở khóa toàn bộ tiềm năng học tiếng Anh với AI Coach cá nhân và bài học không giới hạn.
           </p>
         </motion.div>
@@ -128,18 +127,17 @@ export default function UpgradePage() {
         {/* Current Plan Banner */}
         {isPremium && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="card"
             style={{
-              padding: '20px 24px', marginBottom: 40, borderRadius: 16,
-              background: 'linear-gradient(135deg, rgba(108,99,255,0.15), rgba(255,152,0,0.1))',
-              border: '1px solid var(--agen-primary)',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              marginBottom: 40,
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, flexWrap: 'wrap',
             }}
           >
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--agen-primary-light)' }}>
-                ✅ Bạn đang dùng AGEN Premium
+              <div style={{ fontWeight: 600, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CircleCheck size={18} color="var(--agen-success)" /> Bạn đang dùng AGEN Premium
               </div>
               {subscription?.current_period_end && (
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -153,7 +151,7 @@ export default function UpgradePage() {
               onClick={handleCancel}
               disabled={canceling}
             >
-              {canceling ? '⏳' : 'Hủy gói'}
+              {canceling ? 'Đang hủy…' : 'Hủy gói'}
             </button>
           </motion.div>
         )}
@@ -161,129 +159,104 @@ export default function UpgradePage() {
         {/* Success Banner */}
         {success && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            style={{
-              padding: '20px 24px', marginBottom: 32, borderRadius: 16,
-              background: 'rgba(6,214,160,0.1)', border: '1px solid var(--agen-success)',
-              textAlign: 'center',
-            }}
+            className="card"
+            style={{ marginBottom: 32, textAlign: 'center', padding: 'var(--spacing-xl)' }}
           >
-            <div style={{ fontSize: '2rem', marginBottom: 8 }}>🎉</div>
-            <div style={{ fontWeight: 800, color: 'var(--agen-success)', fontSize: '1.1rem' }}>
-              Chào mừng đến với AGEN Premium!
+            <CircleCheck size={36} strokeWidth={1.6} color="var(--agen-success)" style={{ marginBottom: 10 }} />
+            <div style={{ fontWeight: 600, fontSize: '1.15rem' }}>
+              Chào mừng đến với AGEN Premium
             </div>
-            <p style={{ color: 'var(--text-secondary)', marginTop: 4, fontSize: '0.9rem' }}>
-              Tất cả tính năng Premium đã được mở khóa. Chúc bạn học vui!
+            <p style={{ color: 'var(--text-secondary)', marginTop: 4, fontSize: '0.92rem' }}>
+              Tất cả tính năng Premium đã được mở khóa. Chúc bạn học vui.
             </p>
           </motion.div>
         )}
 
-        {error && <div style={{ padding: 12, background: 'rgba(255,107,107,0.1)', color: 'var(--agen-secondary)', marginBottom: 24, borderRadius: 10 }}>⚠️ {error}</div>}
+        {error && <div className="alert-error" style={{ marginBottom: 24 }}><CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}</div>}
 
         {/* Pricing Cards */}
         {!isPremium && (
-          <div style={{ marginBottom: 48 }}>
-            <h3 style={{ textAlign: 'center', marginBottom: 24, color: 'var(--text-secondary)' }}>Chọn gói phù hợp với bạn</h3>
+          <div style={{ marginBottom: 72 }}>
+            <h3 style={{ textAlign: 'center', marginBottom: 24 }}>Chọn gói phù hợp với bạn</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
-              {PLAN_PRICES.map((p) => (
-                <motion.button
-                  key={p.months}
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setSelectedMonths(p.months)}
-                  style={{
-                    padding: '20px 16px', borderRadius: 16, cursor: 'pointer', textAlign: 'center',
-                    border: selectedMonths === p.months ? '2px solid var(--agen-primary)' : '1px solid var(--border-medium)',
-                    background: selectedMonths === p.months ? 'rgba(108,99,255,0.1)' : 'var(--bg-elevated)',
-                    position: 'relative', transition: 'all 0.2s',
-                  }}
-                >
-                  {p.badge && (
-                    <div style={{
-                      position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
-                      padding: '3px 12px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700,
-                      background: p.months === 12 ? 'var(--agen-accent)' : 'var(--agen-primary)',
-                      color: 'white', whiteSpace: 'nowrap',
-                    }}>
-                      {p.badge}
+              {PLAN_PRICES.map((p) => {
+                const active = selectedMonths === p.months;
+                return (
+                  <button
+                    key={p.months}
+                    onClick={() => setSelectedMonths(p.months)}
+                    aria-pressed={active}
+                    style={{
+                      padding: '28px 20px', borderRadius: 18, cursor: 'pointer', textAlign: 'center', fontFamily: 'inherit',
+                      border: active ? '1.5px solid var(--agen-primary)' : '1.5px solid var(--border-subtle)',
+                      boxShadow: active ? '0 0 0 3px rgba(0,113,227,0.12)' : 'none',
+                      background: 'var(--bg-surface)', color: 'var(--text-primary)',
+                      position: 'relative', transition: 'border-color 0.2s, box-shadow 0.2s',
+                    }}
+                  >
+                    {p.badge && (
+                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--agen-accent)', marginBottom: 6 }}>
+                        {p.badge}
+                      </div>
+                    )}
+                    <div style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: 6 }}>{p.label}</div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 600, letterSpacing: '-0.03em' }}>{p.price}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                      ~{Math.round(parseInt(p.price.replace(/\D/g, '')) / p.months / 1000)}K/tháng
                     </div>
-                  )}
-                  <div style={{ fontSize: '1rem', color: 'var(--text-muted)', marginBottom: 6 }}>{p.label}</div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--agen-primary-light)' }}>{p.price}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-                    ~{Math.round(parseInt(p.price.replace(/\D/g, '')) / p.months / 1000)}K/tháng
-                  </div>
-                </motion.button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
 
-            <motion.button
-              className="btn btn-primary btn-lg btn-full"
-              onClick={handleUpgrade}
-              disabled={upgrading}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              style={{
-                background: 'linear-gradient(135deg, var(--agen-primary), var(--agen-accent))',
-                border: 'none', fontSize: '1.1rem', fontWeight: 700, padding: '16px',
-                borderRadius: 12, maxWidth: 400, margin: '0 auto', display: 'block',
-              }}
-            >
-              {upgrading ? '⏳ Đang xử lý...' : `⚡ Nâng cấp Premium ${PLAN_PRICES.find(p => p.months === selectedMonths)?.price}`}
-            </motion.button>
+            <div style={{ textAlign: 'center' }}>
+              <button
+                className="btn btn-primary btn-lg"
+                onClick={handleUpgrade}
+                disabled={upgrading}
+                style={{ minWidth: 300 }}
+              >
+                {upgrading ? 'Đang xử lý…' : `Nâng cấp Premium · ${PLAN_PRICES.find(p => p.months === selectedMonths)?.price}`}
+              </button>
+            </div>
             <p style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 12 }}>
-              🔒 Demo: Không có thanh toán thật — Chỉ dùng cho mục đích Pilot
+              Demo: không có thanh toán thật — chỉ dùng cho mục đích Pilot.
             </p>
           </div>
         )}
 
         {/* Feature Comparison */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          transition={{ delay: 0.15, duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
         >
-          <h3 style={{ textAlign: 'center', marginBottom: 24 }}>📋 So sánh tính năng</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-            {/* Free column */}
-            <div className="card" style={{ border: '1px solid var(--border-medium)' }}>
-              <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <div style={{ fontSize: '1.8rem', marginBottom: 6 }}>🆓</div>
-                <div style={{ fontWeight: 800, fontSize: '1.2rem' }}>Miễn phí</div>
-                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>0₫ / tháng</div>
+          <h2 style={{ textAlign: 'center', marginBottom: 32 }}>So sánh tính năng</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+            {[
+              { name: 'Miễn phí', price: '0₫ / tháng', features: FREE_FEATURES, highlight: false },
+              { name: 'Premium', price: 'từ 83K₫ / tháng', features: PREMIUM_FEATURES, highlight: true },
+            ].map(plan => (
+              <div key={plan.name} className="card" style={{ padding: 'var(--spacing-xl)', border: plan.highlight ? '1.5px solid var(--agen-primary)' : undefined }}>
+                <div style={{ marginBottom: 24 }}>
+                  {plan.highlight && <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--agen-accent)', marginBottom: 4 }}>Khuyến nghị</div>}
+                  <div style={{ fontWeight: 600, fontSize: '1.5rem', letterSpacing: '-0.02em' }}>{plan.name}</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{plan.price}</div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {plan.features.map((f, i) => (
+                    <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.92rem', padding: '10px 0', borderTop: i ? '1px solid var(--border-subtle)' : 'none' }}>
+                      {f.included
+                        ? <Check size={16} strokeWidth={2.2} color="var(--agen-primary)" style={{ flexShrink: 0 }} />
+                        : <Minus size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />}
+                      <span style={{ color: f.included ? 'var(--text-primary)' : 'var(--text-muted)' }}>{f.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {FREE_FEATURES.map((f) => (
-                  <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.9rem' }}>
-                    <span style={{ color: f.included ? 'var(--agen-success)' : 'var(--border-medium)', flexShrink: 0, fontSize: '1rem' }}>
-                      {f.included ? '✓' : '✕'}
-                    </span>
-                    <span style={{ color: f.included ? 'var(--text-primary)' : 'var(--text-muted)' }}>{f.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Premium column */}
-            <div className="card" style={{ border: '2px solid var(--agen-primary)', background: 'rgba(108,99,255,0.04)', position: 'relative' }}>
-              <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', padding: '4px 16px', borderRadius: 99, background: 'linear-gradient(135deg, var(--agen-primary), var(--agen-accent))', color: 'white', fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                KHUYẾN NGHỊ
-              </div>
-              <div style={{ textAlign: 'center', marginBottom: 20 }}>
-                <div style={{ fontSize: '1.8rem', marginBottom: 6 }}>⚡</div>
-                <div style={{ fontWeight: 800, fontSize: '1.2rem', background: 'linear-gradient(135deg, var(--agen-primary), var(--agen-accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Premium</div>
-                <div style={{ color: 'var(--agen-primary-light)', fontSize: '0.85rem', fontWeight: 600 }}>từ 83K₫/tháng</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {PREMIUM_FEATURES.map((f) => (
-                  <div key={f.label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.9rem' }}>
-                    <span style={{ color: 'var(--agen-success)', flexShrink: 0, fontSize: '1rem', fontWeight: 700 }}>✓</span>
-                    <span style={{ color: 'var(--text-primary)', fontWeight: f.label === 'Bài học không giới hạn' ? 700 : 400 }}>{f.label}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            ))}
           </div>
         </motion.div>
 
