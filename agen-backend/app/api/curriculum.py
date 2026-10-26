@@ -76,6 +76,19 @@ class NextLessonOut(BaseModel):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+# The curriculum is seeded for A1/A2/B1 only. A learner's overall_level can be
+# PRE_A1 (new account default) or B2+/C-levels (placement result), so map those
+# to the nearest seeded level instead of answering 404.
+_SEEDED_LEVELS = {"A1", "A2", "B1"}
+
+
+def _resolve_level(level: str) -> str:
+    level = (level or "A1").upper()
+    if level in _SEEDED_LEVELS:
+        return level
+    return "B1" if level in {"B2", "C1", "C2"} else "A1"
+
+
 def _get_learner(db: Session, user_id: str) -> LearnerProfile:
     learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == user_id).first()
     if not learner:
@@ -115,6 +128,7 @@ def get_curriculum_map(
 ):
     """Return the full curriculum map for a level, with the learner's progress overlaid."""
     learner = _get_learner(db, current_user.id)
+    level = _resolve_level(level)
     units = (
         db.query(CurriculumUnit)
         .filter(CurriculumUnit.level == level)
@@ -176,6 +190,7 @@ def get_next_lesson(
     that is not yet mastered AND whose prerequisite is satisfied.
     """
     learner = _get_learner(db, current_user.id)
+    level = _resolve_level(level)
     units = (
         db.query(CurriculumUnit)
         .filter(CurriculumUnit.level == level)
