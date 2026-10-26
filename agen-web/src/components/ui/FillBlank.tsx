@@ -1,12 +1,23 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import { playSound } from '@/lib/soundEffects';
 import { Lightbulb } from 'lucide-react';
 
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Split a sentence around its gap: "___" when present, else the answer word itself. */
+function splitSentence(sentence: string, blankWord: string): [string, string] | null {
+  const gap = sentence.match(/_{2,}/);
+  if (gap?.index !== undefined) return [sentence.slice(0, gap.index), sentence.slice(gap.index + gap[0].length)];
+  if (!blankWord) return null;
+  const m = sentence.match(new RegExp(`\\b${escapeRegExp(blankWord)}\\b`, 'i'));
+  if (m?.index === undefined) return null;
+  return [sentence.slice(0, m.index), sentence.slice(m.index + m[0].length)];
+}
+
 export default function FillBlank({
-  sentence, blankWord, options, hint, onAnswer, disabled
+  sentence, blankWord, options, hint, onAnswer, disabled, result,
 }: {
   sentence: string;
   blankWord: string;
@@ -14,80 +25,72 @@ export default function FillBlank({
   hint?: string;
   onAnswer: (ans: string) => void;
   disabled: boolean;
+  /** After checking: whether the chosen word was right. */
+  result?: 'correct' | 'wrong';
 }) {
   const [selected, setSelected] = useState<string | null>(null);
+  const parts = splitSentence(sentence, blankWord);
+  const shown = result === 'wrong' ? blankWord : selected;
 
-  // Parse sentence into parts (split by the blank word, case insensitive)
-  const parts = sentence.split(new RegExp(`(${blankWord})`, 'i'));
+  const pick = (opt: string) => {
+    if (disabled) return;
+    playSound('pop');
+    setSelected(opt);
+  };
+
+  // Keyboard: 1–4 choose a word, Enter checks.
+  useEffect(() => {
+    if (disabled) return;
+    const onKey = (e: KeyboardEvent) => {
+      const idx = Number(e.key) - 1;
+      if (options[idx]) { playSound('pop'); setSelected(options[idx]); }
+      else if (e.key === 'Enter' && selected) { e.preventDefault(); onAnswer(selected); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [disabled, options, selected, onAnswer]);
 
   return (
-    <motion.div 
-      className="card" 
-      style={{ width: '100%' }}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      {hint && <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}><Lightbulb size={14} color="var(--agen-accent)" /> Gợi ý: {hint}</div>}
-      
-      <div style={{ fontSize: '1.2rem', lineHeight: 1.8, marginBottom: 24 }}>
-        {parts.map((part, i) => {
-          if (part.toLowerCase() === blankWord.toLowerCase()) {
-            return (
-              <span 
-                key={i} 
-                style={{
-                  display: 'inline-block',
-                  minWidth: 80,
-                  padding: '4px 12px',
-                  margin: '0 4px',
-                  borderBottom: '2px solid var(--agen-primary)',
-                  background: selected ? 'var(--bg-tint)' : 'var(--bg-elevated)',
-                  color: selected ? 'var(--agen-primary-light)' : 'transparent',
-                  fontWeight: 600,
-                  textAlign: 'center',
-                  borderRadius: '4px 4px 0 0'
-                }}
-              >
-                {selected || '___'}
-              </span>
-            );
-          }
-          return <span key={i}>{part}</span>;
+    <div>
+      {hint && (
+        <div className="fill-hint"><Lightbulb size={14} color="var(--agen-accent)" /> Gợi ý: {hint}</div>
+      )}
+
+      <p className="fill-sentence">
+        {parts ? (
+          <>
+            {parts[0]}
+            <span className="fill-gap" data-state={result === 'wrong' ? 'revealed' : result} data-filled={!!shown}>{shown || ' '}</span>
+            {parts[1]}
+          </>
+        ) : sentence}
+      </p>
+
+      <div className="choice-grid is-2col">
+        {options.map((opt, i) => {
+          const state = result
+            ? opt.toLowerCase() === blankWord.toLowerCase() ? 'correct' : opt === selected ? 'wrong' : 'muted'
+            : opt === selected ? 'selected' : undefined;
+          return (
+            <button key={opt} type="button" className="choice" data-state={state} disabled={disabled} onClick={() => pick(opt)}>
+              <span className="choice-key">{i + 1}</span>
+              <span>{opt}</span>
+            </button>
+          );
         })}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
-        {options.map(opt => (
-          <motion.button
-            key={opt}
-            disabled={disabled}
-            onClick={() => { playSound('pop'); setSelected(opt); }}
-            whileTap={!disabled ? { scale: 0.98 } : {}}
-            style={{
-              padding: '12px',
-              borderRadius: 'var(--radius-md)',
-              border: selected === opt ? '1.5px solid var(--agen-primary)' : '1.5px solid var(--border-subtle)',
-              background: selected === opt ? 'var(--bg-tint)' : 'var(--bg-surface)',
-              color: selected === opt ? 'var(--agen-primary-light)' : 'var(--text-primary)',
-              cursor: disabled ? 'default' : 'pointer',
-              fontWeight: 500, fontFamily: 'inherit', fontSize: '0.95rem',
-              transition: 'background 0.2s, border 0.2s'
-            }}
-          >
-            {opt}
-          </motion.button>
-        ))}
-      </div>
-
-      <motion.button 
-        className="btn btn-primary btn-full" 
-        disabled={!selected || disabled}
-        onClick={() => { if (selected) onAnswer(selected); }}
-        whileTap={selected && !disabled ? { scale: 0.98 } : {}}
-      >
-        Kiểm tra
-      </motion.button>
-    </motion.div>
+      {!result && (
+        <button
+          type="button"
+          className="btn btn-primary btn-full btn-lg"
+          style={{ marginTop: 20 }}
+          disabled={!selected || disabled}
+          onClick={() => { if (selected) onAnswer(selected); }}
+        >
+          Kiểm tra
+        </button>
+      )}
+    </div>
   );
 }

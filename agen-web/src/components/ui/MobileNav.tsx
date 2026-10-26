@@ -23,7 +23,9 @@ export default function MobileNav() {
 
   // Hide nav on certain routes (like login, register, onboarding) or if not logged in
   const hideNavRoutes = ['/login', '/register', '/onboarding', '/placement', '/review'];
-  if (!isAuthenticated || hideNavRoutes.includes(pathname) || !isMobile) return null;
+  // The lesson player is full-screen with its own answer sheet at the bottom.
+  const inLesson = pathname.startsWith('/learn/');
+  if (!isAuthenticated || hideNavRoutes.includes(pathname) || inLesson || !isMobile) return null;
   if (userRole === 'parent' && pathname !== '/parent') return null; // Parents don't need this bottom nav for now
 
   const NAV_ITEMS = [

@@ -32,6 +32,8 @@ export interface LessonDetail {
       example: string;
       image_hint?: string;
     }[];
+    // Grammar lessons: the rule taught before the exercises
+    explanation?: GrammarExplanation;
   };
   status: string;
   score: number;
@@ -41,6 +43,14 @@ export interface LessonDetail {
   exercises: Exercise[];
   created_at: string;
   completed_at?: string;
+}
+
+export interface GrammarExplanation {
+  rule?: string;
+  rule_vi?: string;
+  structure?: string;
+  examples?: { en: string; vi: string }[];
+  common_mistakes?: string[];
 }
 
 export interface LessonSummary {
@@ -185,4 +195,10 @@ export async function submitExerciseAnswer(
 export async function finishLesson(lessonId: string): Promise<FinishLessonResult> {
   const res = await api.post(`/lessons/${lessonId}/finish`);
   return res.data;
+}
+
+/** AI "Vì sao sai?" — a short Vietnamese explanation of a wrong answer. */
+export async function explainMistake(lessonId: string, exerciseId: string): Promise<{ explanation: string; source: 'ai' | 'cached' | 'fallback' }> {
+  const { data } = await api.post(`/lessons/${lessonId}/exercises/${exerciseId}/explain`);
+  return data;
 }

@@ -29,7 +29,9 @@ export type AnalyticsEvent =
   | 'upgrade_completed'
   | 'review_started'
   | 'review_completed'
-  | 'notebook_opened';
+  | 'notebook_opened'
+  | 'mistake_explained'
+  | 'lesson_retry_completed';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;
