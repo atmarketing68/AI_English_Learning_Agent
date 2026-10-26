@@ -49,6 +49,19 @@ class Settings(BaseSettings):
     # 0 = unlimited (e.g. for an internal test group).
     FREE_DAILY_LESSON_LIMIT: int = 3
 
+    # Learning reminders — every part is optional and stays off until configured.
+    # Public web app URL used in reminder links (defaults to the first ALLOWED_ORIGINS).
+    APP_URL: str = ""
+    # Web push (VAPID). Generate a pair with: python scripts/generate_vapid_keys.py
+    VAPID_PUBLIC_KEY: str = ""
+    VAPID_PRIVATE_KEY: str = ""
+    VAPID_SUBJECT: str = "mailto:admin@example.com"
+    # Email via Resend (https://resend.com); EMAIL_FROM must use a verified domain.
+    RESEND_API_KEY: str = ""
+    EMAIL_FROM: str = ""
+    # Shared secret for the scheduler that calls POST /reminders/cron/run.
+    REMINDER_CRON_SECRET: str = ""
+
     @field_validator("SECRET_KEY")
     @classmethod
     def warn_default_secret(cls, v: str) -> str:
@@ -70,6 +83,19 @@ class Settings(BaseSettings):
     def admin_emails_list(self) -> List[str]:
         """Parse ADMIN_EMAILS into a normalized (lowercased) list."""
         return [e.strip().lower() for e in self.ADMIN_EMAILS.split(",") if e.strip()]
+
+    @property
+    def app_url(self) -> str:
+        url = self.APP_URL or (self.allowed_origins_list[0] if self.allowed_origins_list else "")
+        return url.rstrip("/")
+
+    @property
+    def push_enabled(self) -> bool:
+        return bool(self.VAPID_PUBLIC_KEY and self.VAPID_PRIVATE_KEY)
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.RESEND_API_KEY and self.EMAIL_FROM)
 
     @property
     def is_production(self) -> bool:

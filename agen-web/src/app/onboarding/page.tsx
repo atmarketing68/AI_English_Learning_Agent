@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import { updateMyProfile } from '@/lib/services';
 import confetti from 'canvas-confetti';
-import { Briefcase, CircleCheck, Compass, GraduationCap, MessageCircle, Trophy } from 'lucide-react';
+import { BellRing, Briefcase, CircleCheck, Compass, GraduationCap, MessageCircle, Trophy } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import ReminderSettingsForm from '@/components/engagement/ReminderSettingsForm';
 
 const GOALS = [
   { id: 'giao_tiep', icon: MessageCircle, label: 'Giao tiếp hằng ngày', desc: 'Tự tin nói tiếng Anh khi đi du lịch, giao tiếp cơ bản.' },
@@ -23,6 +24,8 @@ const STUDY_MINUTES = [
   { id: 30, label: '30 phút/ngày', desc: 'Thử thách, cường độ cao', badge: null },
 ];
 
+const TOTAL_STEPS = 4;
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { learner, setLearner } = useAuthStore();
@@ -32,8 +35,8 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
 
   const handleNext = () => {
-    if (step < 3) setStep(step + 1);
-    if (step === 2) {
+    if (step < TOTAL_STEPS) setStep(step + 1);
+    if (step === TOTAL_STEPS - 1) {
       // Trigger confetti on final step
       confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
     }
@@ -68,11 +71,11 @@ export default function OnboardingPage() {
         {/* Progress Bar */}
         <div style={{ marginBottom: 40 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-            <span>Bước {step}/3</span>
-            <span>{step === 1 ? 'Mục tiêu' : step === 2 ? 'Thời gian' : 'Sẵn sàng'}</span>
+            <span>Bước {step}/{TOTAL_STEPS}</span>
+            <span>{step === 1 ? 'Mục tiêu' : step === 2 ? 'Thời gian' : step === 3 ? 'Nhắc học' : 'Sẵn sàng'}</span>
           </div>
           <div className="progress-bar" style={{ height: 6 }}>
-            <div className="progress-fill" style={{ width: `${(step / 3) * 100}%` }} />
+            <div className="progress-fill" style={{ width: `${(step / TOTAL_STEPS) * 100}%` }} />
           </div>
         </div>
 
@@ -158,10 +161,35 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* STEP 3: Ready */}
+          {/* STEP 3: Reminder */}
           {step === 3 && (
             <motion.div
               key="step3"
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+            >
+              <div style={{ textAlign: 'center' }}>
+                <span className="icon-tile" style={{ width: 52, height: 52, background: 'var(--bg-tint)', color: 'var(--agen-primary)', marginBottom: 16 }}>
+                  <BellRing size={26} strokeWidth={1.8} />
+                </span>
+                <h2 style={{ marginBottom: 8 }}>Nhắc bạn học lúc mấy giờ?</h2>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
+                  Người học đều đặn nhất thường học cùng một giờ mỗi ngày. Chỉ nhắc khi hôm đó bạn chưa học.
+                </p>
+              </div>
+              <div className="card" style={{ marginBottom: 28 }}>
+                <ReminderSettingsForm />
+              </div>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button className="btn btn-ghost btn-lg" onClick={() => setStep(2)}>Quay lại</button>
+                <button className="btn btn-primary btn-lg" style={{ flex: 1 }} onClick={handleNext}>Tiếp tục</button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* STEP 4: Ready */}
+          {step === 4 && (
+            <motion.div
+              key="step4"
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
               style={{ textAlign: 'center' }}
             >

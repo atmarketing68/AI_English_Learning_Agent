@@ -34,7 +34,9 @@ export type AnalyticsEvent =
   | 'lesson_retry_completed'
   | 'quest_claimed'
   | 'weekly_goal_claimed'
-  | 'weekly_goal_set';
+  | 'weekly_goal_set'
+  | 'reminder_set'
+  | 'reminder_push_enabled';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

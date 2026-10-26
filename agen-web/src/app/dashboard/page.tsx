@@ -10,6 +10,7 @@ import { getReviewSummary, type ReviewSummary } from '@/lib/reviewService';
 import { getEngagement, type Engagement } from '@/lib/engagementService';
 import DailyQuests from '@/components/engagement/DailyQuests';
 import StreakWeekCard from '@/components/engagement/StreakWeekCard';
+import ReminderCard from '@/components/engagement/ReminderCard';
 import NotificationBell from '@/components/NotificationBell';
 import { PageSkeleton } from '@/components/Skeleton';
 import type { LearnerProfile } from '@/types';
@@ -234,6 +235,10 @@ export default function DashboardPage() {
             {reviewSummary && <ReviewCard summary={reviewSummary} />}
           </motion.div>
         )}
+
+        <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)' }}>
+          <ReminderCard />
+        </motion.div>
 
         {/* Stats Row */}
         <motion.div variants={itemVariants} className="grid-4" style={{ gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>

@@ -156,6 +156,27 @@ Trong `agen-backend/.env`:
 > 🔐 **An ninh:** đừng commit khóa API vào git. Nếu khóa từng lộ (ví dụ trong file mẫu),
 > hãy **thu hồi và tạo khóa mới** ngay.
 
+### 5.1. Bật nhắc học hằng ngày (thông báo đẩy + email)
+
+Học viên chọn giờ nhắc ở bước onboarding hoặc thẻ **Nhắc học** trên trang chủ. Hệ thống
+chỉ nhắc khi hôm đó học viên **chưa học**, mỗi ngày tối đa 1 lần. Kênh nào chưa cấu hình
+thì tự tắt; lời nhắc vẫn hiện trong chuông thông báo của ứng dụng.
+
+| Biến (Render) | Vai trò |
+|---------------|---------|
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` | Khóa thông báo đẩy. Tạo bằng `python scripts/generate_vapid_keys.py`. Giữ bí mật khóa private; đổi cặp khóa thì học viên phải bật lại thông báo |
+| `VAPID_SUBJECT` | Email liên hệ dạng `mailto:ban@tenmien.vn` |
+| `RESEND_API_KEY`, `EMAIL_FROM` | Gửi email qua [Resend](https://resend.com). `EMAIL_FROM` phải dùng tên miền đã xác minh, ví dụ `AI AGENT ENGLISH <nhachoc@tenmien.vn>` |
+| `APP_URL` | Địa chỉ web (Vercel) dùng trong liên kết email. Mặc định lấy từ `ALLOWED_ORIGINS` |
+| `REMINDER_CRON_SECRET` | Chuỗi bí mật ngẫu nhiên cho bộ hẹn giờ |
+
+**Bộ hẹn giờ:** workflow `.github/workflows/reminders.yml` chạy mỗi giờ. Thêm 2 secret trong
+GitHub → *Settings → Secrets and variables → Actions*:
+`REMINDER_API_URL` (URL backend, ví dụ `https://agen-api.onrender.com`) và `REMINDER_CRON_SECRET`
+(trùng giá trị trên Render). Thiếu secret thì workflow tự bỏ qua.
+
+> 📱 **iPhone/iPad:** Safari chỉ nhận thông báo đẩy khi học viên đã *Thêm vào Màn hình chính*.
+
 ---
 
 ## 6. Quản lý người dùng & dữ liệu
