@@ -250,12 +250,20 @@ EXAMS: list[dict] = [
 _BY_ID = {e["id"]: e for e in EXAMS}
 
 
-def list_exams() -> list[dict]:
-    return EXAMS
+def list_exams(db=None) -> list[dict]:
+    """Hand-written papers, then (with a session) the AI-generated ones admin approved (G9)."""
+    if db is None:
+        return EXAMS
+    from app.services.exam_generator import approved_papers
+    return EXAMS + approved_papers(db)
 
 
-def get_exam(exam_id: str) -> dict | None:
-    return _BY_ID.get(exam_id)
+def get_exam(exam_id: str, db=None) -> dict | None:
+    exam = _BY_ID.get(exam_id)
+    if exam or db is None:
+        return exam
+    from app.services.exam_generator import paper_by_public_id
+    return paper_by_public_id(db, exam_id)
 
 
 def question_count(exam: dict) -> int:

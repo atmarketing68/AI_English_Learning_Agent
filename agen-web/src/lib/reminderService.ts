@@ -9,6 +9,15 @@ export interface ReminderSettings {
   push_public_key: string | null;
   email_available: boolean;      // server can send email
   email_address: string;
+  // G9 · Zalo OA
+  zalo_available?: boolean;
+  zalo_oa_link?: string | null;
+  zalo_linked?: boolean;
+  zalo_link_code?: string | null;
+}
+
+export async function unlinkZalo(): Promise<void> {
+  await api.post('/zalo/unlink');
 }
 
 export type PushState = 'unsupported' | 'denied' | 'on' | 'off';

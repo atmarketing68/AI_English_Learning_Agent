@@ -70,6 +70,16 @@ export interface ParentSettings {
   push_available: boolean;
   push_public_key: string | null;
   push_devices: number;
+  // G9 · Zalo OA
+  zalo_available?: boolean;
+  zalo_oa_link?: string | null;
+  zalo_linked?: boolean;
+  zalo_link_code?: string | null;
+}
+
+export async function unlinkParentZalo(): Promise<ParentSettings> {
+  await api.post('/zalo/unlink');
+  return getParentSettings();
 }
 
 export async function getParentSettings(): Promise<ParentSettings> {

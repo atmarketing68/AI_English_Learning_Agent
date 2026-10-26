@@ -188,8 +188,18 @@ def remind(db: Session, learner: LearnerProfile, user: User, now_local: datetime
     message = compose_message(db, learner, now_local)
     pushed = push_to_learner(db, learner, message)
     emailed = bool(learner.reminder_email and user.email and send_email(user.email, message, user.id))
+    zaloed = zalo_to_user(db, user, message)
     create_notification(db, learner.id, type="reminder", title=message.title, body=message.body, icon="⏰")
-    return {"push": pushed, "email": int(emailed)}
+    return {"push": pushed, "email": int(emailed), "zalo": zaloed}
+
+
+def zalo_to_user(db: Session, user: User, message: ReminderMessage) -> int:
+    """G9 · Zalo OA text to a linked account (learner or parent); 0 when not linked / not configured."""
+    from app.services import zalo
+
+    if not user.zalo_user_id or not zalo.enabled():
+        return 0
+    return zalo.send_to_user(db, user, f"{message.title}\n{message.body}\n{settings.app_url}{message.url}")
 
 
 def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
@@ -208,7 +218,7 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
         )
         .all()
     )
-    stats = {"checked": len(candidates), "reminded": 0, "skipped_studied": 0, "push": 0, "email": 0}
+    stats = {"checked": len(candidates), "reminded": 0, "skipped_studied": 0, "push": 0, "email": 0, "zalo": 0}
     for learner, user in candidates:
         if streak_state(learner, today).studied_today:
             stats["skipped_studied"] += 1
@@ -218,5 +228,6 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
         stats["reminded"] += 1
         stats["push"] += sent["push"]
         stats["email"] += sent["email"]
+        stats["zalo"] += sent.get("zalo", 0)
         db.commit()
     return stats

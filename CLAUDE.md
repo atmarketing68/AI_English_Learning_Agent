@@ -55,6 +55,12 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
   (không shell), chat Bo dùng class `chat-*`, báo cáo nhóm in `app/teacher/[groupId]/report`. Hero 3D landing:
   `components/landing/HeroScene3D.tsx` + CSS `.h3d-*` — vị trí chiều sâu phải dùng `transform`/`--z` trong keyframes, **không** dùng
   thuộc tính `translate` 3 giá trị (trình nén CSS của Next bỏ mất).
+- G9: thi thử Speaking `services/speaking_exams.py` + `SpeakingExamAttempt` (start → answer từng task → finish gọi agent
+  `speaking_exam_evaluation`, fallback `heuristic_estimate`); đề AI sinh `agents/exam_agent.py` → `exam_generator.normalize_paper`
+  → `GeneratedExam` (chỉ `approved` mới vào `mock_exams.list_exams(db)`, id `gen-<uuid>`); kế hoạch ôn thi `services/study_plan.py`
+  (`LearnerProfile.exam_target/exam_target_score/exam_date`, không LLM); Zalo OA `services/zalo.py` (token trong `AppConfig`,
+  webhook `/zalo/webhook` liên kết bằng `User.zalo_link_code`, kênh gửi trong `reminders.zalo_to_user` + `parent_digest._alert`).
+  Web: `/exams/speaking/<id>` dùng `SpeechRecognizer` trực tiếp (gộp transcript, tự nối lại), `/plan`, tab "Đề thi" ở admin.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

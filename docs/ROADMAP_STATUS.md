@@ -4,7 +4,7 @@
 > Kế hoạch gốc (đã được chủ dự án duyệt): Claude Doc "Kế hoạch nâng cấp AGEN — Audit & Lộ trình"
 > https://claude.ai/artifact/7PHjES4CK5zB9i8rBxrCuT
 
-Cập nhật lần cuối: 2026-10-26 (G8).
+Cập nhật lần cuối: 2026-10-26 (G9).
 
 ## Cách làm việc với chủ dự án
 
@@ -68,7 +68,12 @@ Cập nhật lần cuối: 2026-10-26 (G8).
 | G8 | **Hero 3D trang landing** (`components/landing/HeroScene3D.tsx`, CSS 3D thuần): lõi tri thức + 3 vành quỹ đạo, 6 thẻ từ vựng bay quanh luôn hướng về người xem, bậc thang A1→C1 có điểm sáng leo lên, sàn lưới trôi, chữ cái lơ lửng, +XP, chip thành tích; nghiêng theo chuột; thu nhỏ trên điện thoại; tắt khi "giảm chuyển động". Đổi từ/thẻ: mảng `WORDS` trong file | — |
 | G8 | **Kênh push gốc FCM cho app Capacitor** (`services/fcm.py`, `DeviceToken`, `POST/DELETE /notifications/device-tokens`, `GET /notifications/native-push`): FCM HTTP v1 với service account (token OAuth tự ký bằng python-jose, cache 55 phút), tự xoá token hết hiệu lực; nhắc học và cảnh báo phụ huynh gửi song song web push + FCM; tắt êm khi chưa có `FIREBASE_SERVICE_ACCOUNT_JSON` | — |
 
-**G2 → G8 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
+| G9 | **Thi thử Speaking có giám khảo AI** (`services/speaking_exams.py`, `/speaking-exams`, trang `/exams/speaking/<id>`): IELTS Speaking Part 1–3 (cue card 1 phút chuẩn bị, nói 2 phút) và TOEIC Speaking (Q1–2 đọc to chấm phát âm, Q5–7 trả lời, Q11 nêu ý kiến); giám khảo AI đọc câu hỏi, đếm giờ chuẩn bị/trả lời, ghi âm qua micro (tự nối lại khi trình duyệt ngắt vì im lặng); nộp bài → agent `speaking_exam_evaluation` cho band IELTS 4 tiêu chí / điểm TOEIC 0–200, nhận xét từng phần, câu sửa nghe được; LLM lỗi → ước tính theo độ dài; +6 XP/phần (trần 40), +8 đá quý khi ≥ 6.0 / ≥ 130; miễn phí 1 lần/ngày | — |
+| G9 | **Ngân hàng đề thi thử sinh bằng AI, admin duyệt** (`agents/exam_agent.py`, `services/exam_generator.py`, `GeneratedExam`, `/admin/exams*`, tab "Đề thi" ở `/admin`): sinh IELTS/TOEIC Listening hoặc Reading đúng định dạng (`normalize_paper` kiểm tra đáp án, số câu, lời thoại), xem trước có đáp án, duyệt/từ chối/xoá; đề đã duyệt xuất hiện trong `/exams` với id `gen-…` và chấm như đề viết tay | — |
+| G9 | **Kế hoạch ôn thi theo ngày thi + mục tiêu** (`services/study_plan.py`, `/study-plan`, trang `/plan`, thẻ trên trang chủ): điểm hiện tại từng kỹ năng từ thi thử/band viết, khoảng cách tới mục tiêu, dự kiến ngày thi, lộ trình theo tuần (kỹ năng yếu trước, chỉ tiêu bài/đề/viết/nói theo phút học mỗi ngày), trạng thái đúng/chậm/vượt tiến độ tính từ `LearningEvent` tuần này, lời khuyên tiếng Việt | — |
+| G9 | **Nhắc học qua Zalo OA** (`services/zalo.py`, `/zalo/*`, khối Zalo trong Nhắc học và bảng Phụ huynh): học viên/phụ huynh quan tâm OA rồi gửi mã `ZL-XXXXX` (hoặc mã AGEN của học viên) → webhook liên kết; nhắc học hằng ngày, báo cáo tuần, cảnh báo nghỉ học, chuỗi sắp mất gửi thêm qua Zalo; gửi "TAT" để tắt; token OA tự làm mới và lưu trong `app_config`; tắt êm khi chưa có khoá | — |
+
+**G2 → G9 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
 
 **G1 hoàn tất.** Chưa làm trong G1: "sửa chuỗi trong 24 giờ" (streak repair) và mua bảo vệ chuỗi bằng XP —
 hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi người tặng sẵn 1, tối đa 2).
@@ -192,9 +197,20 @@ Chưa làm trong G7: kênh FCM/APNs cho push trên app gốc; giáo viên xem ch
 
 Chưa làm trong G8: ngân hàng đề lớn hơn (hiện 4 mini test, có thể thêm bằng tay hoặc sinh bằng Content Factory sau); Bo chưa đọc được ảnh/bài viết dài.
 
-## G9 — gợi ý tiếp theo
+## G9 — Thi thử Speaking, đề AI sinh, kế hoạch ôn thi, Zalo OA: hoàn tất trên code
 
-Sinh thêm đề thi thử bằng AI có duyệt tay (Content Factory cho `mock_exams`) · Speaking mock test (IELTS Part 1–3 / TOEIC Speaking) chấm bằng Azure · Lớp học trực tiếp: giáo viên xem bài làm chi tiết từng học viên · Zalo OA nhắc học · Thẻ quốc tế qua Stripe.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Thi thử Speaking | Cần khoá LLM (đã có). Mỗi lần nộp = 1 lượt gọi AI. Trình duyệt cần Chrome/Edge/Safari có nhận diện giọng nói; đọc to chấm phát âm theo từ (Azure chưa nối vào đề thi, có thể thêm sau). Migration `y2b3c4d5e6f7` tự chạy. Thêm đề: `EXAMS` trong `services/speaking_exams.py`. |
+| Đề thi AI sinh | Admin vào `/admin` → tab **Đề thi** → chọn kỳ thi/kỹ năng → "Sinh bản nháp" (30–60 giây, 1 lượt AI) → xem trước → **Duyệt**. Chỉ đề đã duyệt mới hiện với học viên. Nên đọc kỹ đáp án trước khi duyệt. |
+| Kế hoạch ôn thi | Không cần gì. Học viên vào `/plan` (hoặc thẻ "Kế hoạch ôn thi" trên trang chủ) đặt kỳ thi, mục tiêu, ngày thi. |
+| Zalo OA | 1) Tạo Zalo Official Account (loại Doanh nghiệp đã xác thực để gửi tin), 2) tạo ứng dụng tại developers.zalo.me, bật API OA, lấy **App ID**, **App Secret**; 3) cấp quyền OA cho app → lấy **refresh token** (công cụ OA → API → Lấy access token); 4) dán `ZALO_APP_ID`, `ZALO_APP_SECRET`, `ZALO_OA_ID`, `ZALO_OA_REFRESH_TOKEN`, `ZALO_OA_SECRET_KEY` (OA secret key, để xác thực webhook) lên Render; 5) khai báo webhook `https://<api>/api/v1/zalo/webhook` với các sự kiện `user_send_text`, `follow`, `unfollow`. Tin nhắn CS miễn phí trong cửa sổ 7 ngày sau khi người dùng nhắn OA; nhắc học hằng ngày giữ cửa sổ này mở. Chưa có khoá thì mục Zalo tự ẩn. |
+
+Chưa làm trong G9: chấm phát âm Speaking bằng Azure (hiện theo từ); đề Speaking/Writing do AI sinh; gửi ZNS (tin theo mẫu, tính phí) khi hết cửa sổ 7 ngày.
+
+## G10 — gợi ý tiếp theo
+
+Học qua video/podcast ngắn có transcript bấm từ · Câu lạc bộ nói nhóm 2–4 người với AI dẫn · Giáo viên xem chi tiết bài làm từng học viên + nhận xét · Stripe cho thẻ quốc tế + chứng nhận hoàn thành (PDF) cho doanh nghiệp · Theo dõi chi phí AI theo người dùng.
 
 ## Câu hỏi còn mở với chủ dự án
 

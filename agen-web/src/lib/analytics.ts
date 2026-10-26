@@ -76,7 +76,13 @@ export type AnalyticsEvent =
   | 'exam_completed'
   | 'tutor_asked'
   | 'group_report_exported'
-  | 'invoice_requested';
+  | 'invoice_requested'
+  // G9
+  | 'speaking_exam_started'
+  | 'speaking_exam_completed'
+  | 'study_plan_set'
+  | 'zalo_unlinked'
+  | 'exam_generated';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

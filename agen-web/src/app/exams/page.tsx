@@ -4,9 +4,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, CircleAlert, ClipboardCheck, Clock, Headphones, BookOpen, Lock, Sparkles, Trophy } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CircleAlert, ClipboardCheck, Clock, Headphones, BookOpen, Lock, Mic, Sparkles, Trophy } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
-import { EXAM_LABEL, SKILL_LABEL, formatEstimate, getExamCatalogue, getExamHistory, type ExamAttempt, type ExamCatalogue, type ExamKind } from '@/lib/examsService';
+import { EXAM_LABEL, formatEstimate, getExamCatalogue, getExamHistory, type ExamAttempt, type ExamCatalogue, type ExamKind } from '@/lib/examsService';
+import { formatSpeakingEstimate, getSpeakingCatalogue, type SpeakingCatalogue } from '@/lib/speakingExamsService';
 import { PageSkeleton } from '@/components/Skeleton';
 import Mascot from '@/components/ui/Mascot';
 import { track } from '@/lib/analytics';
@@ -17,6 +18,7 @@ export default function ExamsPage() {
   const { isAuthenticated } = useAuthStore();
   const [data, setData] = useState<ExamCatalogue | null>(null);
   const [history, setHistory] = useState<ExamAttempt[]>([]);
+  const [speaking, setSpeaking] = useState<SpeakingCatalogue | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -25,6 +27,7 @@ export default function ExamsPage() {
     Promise.all([getExamCatalogue(), getExamHistory(10)])
       .then(([c, h]) => { setData(c); setHistory(h); })
       .catch(() => setError('Không tải được thư viện đề thi.'));
+    getSpeakingCatalogue().then(setSpeaking).catch(() => null);
   }, [hydrated, isAuthenticated, router]);
 
   if (!data) return <main className="friends-page">{error ? <div className="alert-error"><CircleAlert size={16} /> {error}</div> : <PageSkeleton cards={3} />}</main>;
@@ -69,7 +72,7 @@ export default function ExamsPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span className="icon-tile" style={{ background: 'var(--bg-tint)', color: e.skill === 'listening' ? 'var(--skill-listening)' : 'var(--skill-reading, var(--agen-success))' }}><Icon size={18} /></span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600 }}>{SKILL_LABEL[e.skill]} · Mini Test</div>
+                        <div style={{ fontWeight: 600 }}>{e.title.replace(/^(IELTS|TOEIC)\s*/, '')}</div>
                         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', gap: 10 }}><span><Clock size={12} /> {e.minutes} phút</span><span>{e.questions} câu</span></div>
                       </div>
                       {e.best_estimate != null && <span className="xp-badge" title={`Tốt nhất: ${e.best_pct}%`}><Trophy size={13} /> {formatEstimate(e.exam, e.best_estimate)}</span>}
@@ -87,6 +90,33 @@ export default function ExamsPage() {
             </div>
           </section>
         ))}
+
+        {speaking && (
+          <section style={{ marginTop: 20 }}>
+            <div className="section-head"><h3>Speaking · giám khảo AI</h3></div>
+            <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
+              {speaking.exams.map(e => (
+                <div key={e.id} className="card exam-card">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span className="icon-tile" style={{ background: 'var(--bg-tint)', color: 'var(--skill-speaking, #D6336C)' }}><Mic size={18} /></span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{EXAM_LABEL[e.exam]} Speaking · Mini Test</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', gap: 10 }}><span><Clock size={12} /> {e.minutes} phút</span><span>{e.tasks} phần</span></div>
+                    </div>
+                    {e.best_estimate != null && <span className="xp-badge"><Trophy size={13} /> {formatSpeakingEstimate(e.exam, e.best_estimate)}</span>}
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '10px 0 12px' }}>{e.description}</p>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{e.attempts ? `${e.attempts} lần thi` : 'Cần micro'}</span>
+                    {speaking.can_start
+                      ? <Link href={`/exams/speaking/${e.id}`} className="btn btn-primary btn-sm" onClick={() => track('speaking_exam_started', { exam: e.exam })}>{e.attempts ? 'Thi lại' : 'Bắt đầu'} <ArrowRight size={14} /></Link>
+                      : <button type="button" className="btn btn-outline btn-sm" disabled><Lock size={13} /> Hết lượt hôm nay</button>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {history.length > 0 && (
           <section className="card" style={{ marginTop: 24, padding: 0, overflow: 'hidden' }}>

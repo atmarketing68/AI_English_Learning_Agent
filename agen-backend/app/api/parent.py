@@ -212,6 +212,11 @@ class ParentSettingsOut(BaseModel):
     push_available: bool = False
     push_public_key: str | None = None
     push_devices: int = 0
+    # G9 · Zalo OA
+    zalo_available: bool = False
+    zalo_oa_link: str | None = None
+    zalo_linked: bool = False
+    zalo_link_code: str | None = None
 
 
 class ParentSettingsIn(BaseModel):
@@ -235,6 +240,7 @@ class ParentPushOutIn(BaseModel):
 
 def _parent_settings_out(db: Session, parent: ParentProfile, user: User) -> ParentSettingsOut:
     from app.core.config import settings
+    from app.services import zalo
     from app.models.push_subscription import PushSubscription
     return ParentSettingsOut(
         weekly_report_email=bool(parent.weekly_report_email),
@@ -245,6 +251,10 @@ def _parent_settings_out(db: Session, parent: ParentProfile, user: User) -> Pare
         push_available=settings.push_enabled,
         push_public_key=settings.VAPID_PUBLIC_KEY or None,
         push_devices=db.query(PushSubscription).filter(PushSubscription.user_id == user.id).count(),
+        zalo_available=zalo.enabled(),
+        zalo_oa_link=zalo.oa_link(),
+        zalo_linked=bool(user.zalo_user_id),
+        zalo_link_code=zalo.link_code_for(db, user) if zalo.enabled() else None,
     )
 
 

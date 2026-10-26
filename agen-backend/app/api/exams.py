@@ -114,7 +114,7 @@ def catalogue(current_user: User = Depends(get_current_user), db: Session = Depe
     for a in attempts:
         by_exam.setdefault(a.exam_id, []).append(a)
     out = []
-    for e in bank.list_exams():
+    for e in bank.list_exams(db):
         rows = by_exam.get(e["id"], [])
         out.append(ExamSummary(
             id=e["id"], exam=e["exam"], skill=e["skill"], title=e["title"], description=e["description"], minutes=e["minutes"],
@@ -133,7 +133,7 @@ def catalogue(current_user: User = Depends(get_current_user), db: Session = Depe
 def history(limit: int = 20, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     learner = _learner(db, current_user)
     rows = db.query(ExamAttempt).filter(ExamAttempt.learner_id == learner.id).order_by(ExamAttempt.created_at.desc()).limit(min(limit, 100)).all()
-    return [AttemptOut(id=r.id, exam_id=r.exam_id, title=(bank.get_exam(r.exam_id) or {}).get("title", r.exam_id), exam=r.exam, skill=r.skill,
+    return [AttemptOut(id=r.id, exam_id=r.exam_id, title=(bank.get_exam(r.exam_id, db) or {}).get("title", r.exam_id), exam=r.exam, skill=r.skill,
                        correct=r.correct, total=r.total, pct=r.pct, estimate=r.estimate, seconds=r.seconds, created_at=r.created_at) for r in rows]
 
 
@@ -141,7 +141,7 @@ def history(limit: int = 20, current_user: User = Depends(get_current_user), db:
 def get_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """The test without answers. Free accounts: one test a day."""
     learner = _learner(db, current_user)
-    exam = bank.get_exam(exam_id)
+    exam = bank.get_exam(exam_id, db)
     if not exam:
         raise HTTPException(status_code=404, detail="Không tìm thấy đề thi.")
     if not is_premium(db, current_user.id) and _attempts_today(db, learner.id) >= bank.FREE_DAILY_ATTEMPTS:
@@ -152,7 +152,7 @@ def get_exam(exam_id: str, current_user: User = Depends(get_current_user), db: S
 @router.post("/{exam_id}/submit", response_model=SubmitOut)
 def submit(exam_id: str, payload: SubmitIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     learner = _learner(db, current_user)
-    exam = bank.get_exam(exam_id)
+    exam = bank.get_exam(exam_id, db)
     if not exam:
         raise HTTPException(status_code=404, detail="Không tìm thấy đề thi.")
     if not is_premium(db, current_user.id) and _attempts_today(db, learner.id) >= bank.FREE_DAILY_ATTEMPTS:

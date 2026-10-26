@@ -111,7 +111,7 @@ def test_run_reminds_due_learners_once(client, db_session, channels):
     db_session.commit()
 
     stats = reminders.run_due_reminders(db_session, NOW)
-    assert stats == {"checked": 2, "reminded": 1, "skipped_studied": 1, "push": 1, "email": 1}
+    assert stats == {"checked": 2, "reminded": 1, "skipped_studied": 1, "push": 1, "email": 1, "zalo": 0}
     assert channels["push"][0][0] == SUB["endpoint"]
     mail = channels["email"][0]
     assert mail["to"] == [a]

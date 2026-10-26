@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -28,7 +29,15 @@ def get_or_create_subscription(db: Session, user_id: str) -> Subscription:
     if sub is None:
         sub = Subscription(user_id=user_id, plan=PLAN_FREE, status="active")
         db.add(sub)
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # Two first requests of a new user raced to create the row; use the one that won.
+            db.rollback()
+            sub = db.query(Subscription).filter(Subscription.user_id == user_id).first()
+            if sub is None:
+                raise
+            return sub
         db.refresh(sub)
     return sub
 
