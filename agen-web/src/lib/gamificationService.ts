@@ -39,3 +39,37 @@ export const triggerAchievementCheck = async (): Promise<Achievement[]> => {
   const res = await api.post('/gamification/check-achievements');
   return res.data; // newly earned achievements
 };
+
+// ── G4 · Cửa hàng & đá quý ───────────────────────────────────────────────────
+export type ShopItemKind = 'avatar' | 'color' | 'frame';
+
+export interface ShopItem {
+  id: string;
+  kind: ShopItemKind;
+  name_vi: string;
+  value: string;
+  price: number;
+  owned: boolean;
+  equipped: boolean;
+}
+
+export interface Shop {
+  gems: number;
+  avatar: import('@/types').AvatarData;
+  items: ShopItem[];
+}
+
+export const getShop = async (): Promise<Shop> => {
+  const res = await api.get('/gamification/shop');
+  return res.data;
+};
+
+export const buyShopItem = async (itemId: string): Promise<Shop> => {
+  const res = await api.post('/gamification/shop/buy', { item_id: itemId });
+  return res.data;
+};
+
+export const equipShopItem = async (itemId: string): Promise<Shop> => {
+  const res = await api.post('/gamification/shop/equip', { item_id: itemId });
+  return res.data;
+};

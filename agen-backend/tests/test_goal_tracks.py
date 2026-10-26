@@ -97,3 +97,40 @@ def test_start_generate_finish_updates_track(client, db_session, fake_lesson):
     assert detail["next_lesson_code"] == "IELTS-M1-L2"
     summary = next(t for t in client.get(f"{API}/curriculum/tracks", headers=headers).json() if t["id"] == "ielts")
     assert summary["completed_lessons"] == 1 and summary["progress_pct"] > 0
+
+
+# ── G4 · Content Factory for tracks ──────────────────────────────────────────
+def test_track_lesson_can_be_pre_generated_and_served_from_cache(client, db_session, fake_lesson):
+    from app.services.curriculum_content_service import content_coverage, generate_and_cache
+
+    fake_lesson(VOCAB_LESSON)
+    row = generate_and_cache(db_session, "IELTS-M1-L1", auto_approve=True)
+    db_session.commit()
+    assert row.level == "B1" and row.skill == "vocabulary" and row.status == "approved"
+    tracks_row = next(c for c in content_coverage(db_session) if c["level"] == "TRACKS")
+    assert tracks_row["total"] == 33 and tracks_row["approved"] == 1 and tracks_row["missing"] == 32
+
+    # Now the agent is gone: the lesson must still open (served from the cache).
+    import dataclasses
+    from app.agents import orchestrator
+    broken = dataclasses.replace(orchestrator.AGENT_SPECS["lesson"], handler=lambda **kw: (_ for _ in ()).throw(RuntimeError("no LLM")))
+    orchestrator.AGENT_SPECS = {**orchestrator.AGENT_SPECS, "lesson": broken}
+
+    headers = _auth(client, "tr3@example.com")
+    client.post(f"{API}/curriculum/tracks/ielts/start", json={"code": "IELTS-M1-L1"}, headers=headers)
+    gen = client.post(f"{API}/lessons/generate", json={"skill": "vocabulary", "topic": "x", "track_code": "IELTS-M1-L1"}, headers=headers)
+    assert gen.status_code == 200, gen.text
+    assert gen.json()["title"] == "IELTS: education" and gen.json()["level"] == "B1"
+    prog = db_session.query(GoalTrackProgress).filter(GoalTrackProgress.lesson_code == "IELTS-M1-L1").one()
+    assert prog.generated_lesson_id == gen.json()["id"]
+
+
+def test_missing_content_run_reaches_track_lessons(db_session, fake_lesson, monkeypatch):
+    from app.services import curriculum_content_service as ccs
+
+    fake_lesson(VOCAB_LESSON)
+    monkeypatch.setattr(ccs, "FACTORY_LEVELS", ())      # no roadmap levels → only tracks are missing
+    summary = ccs.generate_missing_content(db_session, levels=(), limit=2)
+    assert summary["generated"] == 2 and summary["remaining"] == 31
+    cached = {c for (c,) in db_session.query(ccs.CurriculumLessonContent.curriculum_code).all()}
+    assert cached == {"IELTS-M1-L1", "IELTS-M1-L2"}

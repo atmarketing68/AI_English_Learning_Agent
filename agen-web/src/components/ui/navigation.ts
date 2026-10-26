@@ -1,6 +1,6 @@
 /** Shared navigation for the learner app shell (desktop sidebar + mobile tab bar). */
 import {
-  BookMarked, BookOpen, Brain, ChartColumn, House, Map as MapIcon, Mic, PenLine, Sparkles, Target, Trophy, UserRound, type LucideIcon,
+  BookMarked, BookOpen, Brain, ChartColumn, House, Map as MapIcon, Mic, PenLine, ShoppingBag, Sparkles, Target, Trophy, UserRound, Zap, type LucideIcon,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -17,6 +17,7 @@ export const SIDEBAR_ITEMS: NavItem[][] = [
     { href: '/curriculum', label: 'Lộ trình', icon: MapIcon, match: ['/curriculum'] },
     { href: '/learn', label: 'Bài học', icon: BookOpen, match: ['/learn'] },
     { href: '/review', label: 'Ôn tập', icon: Brain, match: ['/review'] },
+    { href: '/blitz', label: 'Blitz 60s', icon: Zap, match: ['/blitz'] },
     { href: '/vocabulary', label: 'Sổ từ vựng', icon: BookMarked, match: ['/vocabulary'] },
   ],
   [
@@ -27,6 +28,7 @@ export const SIDEBAR_ITEMS: NavItem[][] = [
     { href: '/progress', label: 'Tiến bộ', icon: ChartColumn, match: ['/progress'] },
   ],
   [
+    { href: '/shop', label: 'Cửa hàng', icon: ShoppingBag, match: ['/shop'] },
     { href: '/profile', label: 'Hồ sơ', icon: UserRound, match: ['/profile'] },
     { href: '/upgrade', label: 'Premium', icon: Sparkles, match: ['/upgrade'] },
   ],
@@ -34,13 +36,13 @@ export const SIDEBAR_ITEMS: NavItem[][] = [
 
 export const TAB_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Học', icon: House, match: ['/dashboard', '/learn', '/curriculum'] },
-  { href: '/review', label: 'Ôn tập', icon: Brain, match: ['/review', '/vocabulary'] },
+  { href: '/review', label: 'Ôn tập', icon: Brain, match: ['/review', '/vocabulary', '/blitz'] },
   { href: '/practice/speaking', label: 'Luyện tập', icon: Mic, match: ['/practice'] },
   { href: '/progress', label: 'Tiến bộ', icon: ChartColumn, match: ['/progress', '/league', '/tracks'] },
-  { href: '/profile', label: 'Hồ sơ', icon: UserRound, match: ['/profile', '/upgrade'] },
+  { href: '/profile', label: 'Hồ sơ', icon: UserRound, match: ['/profile', '/upgrade', '/shop'] },
 ];
 
-const SHELL_PREFIXES = ['/dashboard', '/curriculum', '/learn', '/vocabulary', '/practice', '/progress', '/profile', '/upgrade', '/league', '/tracks'];
+const SHELL_PREFIXES = ['/dashboard', '/curriculum', '/learn', '/vocabulary', '/practice', '/progress', '/profile', '/upgrade', '/league', '/tracks', '/shop', '/blitz'];
 
 /**
  * Pages that show the app navigation. Focus modes keep the whole screen:

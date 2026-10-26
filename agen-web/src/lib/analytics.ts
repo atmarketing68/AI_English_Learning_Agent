@@ -53,7 +53,14 @@ export type AnalyticsEvent =
   | 'league_opened'
   | 'league_reward_claimed'
   | 'track_started'
-  | 'track_lesson_started';
+  | 'track_lesson_started'
+  // G4 · fun layer
+  | 'shop_opened'
+  | 'shop_item_bought'
+  | 'shop_item_equipped'
+  | 'blitz_started'
+  | 'blitz_completed'
+  | 'ui_skin_changed';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

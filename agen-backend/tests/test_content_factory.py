@@ -56,7 +56,7 @@ def test_generates_next_missing_nodes_in_roadmap_order(db_session, monkeypatch):
     assert statuses[a1[0].code] == STATUS_APPROVED and statuses[a1[1].code] == STATUS_DRAFT
 
     total = sum(len(_lesson_nodes(db_session, lvl)) for lvl in factory.FACTORY_LEVELS)
-    assert summary["remaining"] == total - 3
+    assert summary["remaining"] == total - 3 + factory.track_lesson_total()    # roadmap + goal tracks
     # The next run continues where this one stopped.
     factory.generate_missing_content(db_session, limit=2)
     assert calls[3]["topic"] == a1[3].topic
@@ -87,7 +87,7 @@ def test_cron_endpoint_requires_secret(client, db_session, monkeypatch):
     assert res.status_code == 200
     body = res.json()
     assert body["generated"] == 2 and len(calls) == 2
-    assert [c["level"] for c in body["coverage"]] == ["A1", "A2", "B1"]
+    assert [c["level"] for c in body["coverage"]] == ["A1", "A2", "B1", "TRACKS"]
 
 
 def _register(client, email):

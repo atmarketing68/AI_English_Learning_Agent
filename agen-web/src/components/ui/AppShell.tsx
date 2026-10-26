@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Flame, Star } from 'lucide-react';
+import { Flame, Gem, Star } from 'lucide-react';
+import Avatar from '@/components/ui/Avatar';
 import Logo from '@/components/ui/Logo';
 import MobileNav from '@/components/ui/MobileNav';
 import GuestBanner from '@/components/GuestBanner';
@@ -40,11 +41,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
           {learner && (
             <Link href="/profile" className="app-sidebar-me">
-              <span className="avatar">{(learner.display_name || '?').slice(0, 1).toUpperCase()}</span>
+              <Avatar avatar={learner.avatar} name={learner.display_name} size={38} />
               <span style={{ minWidth: 0 }}>
                 <span className="app-sidebar-name">{learner.display_name}</span>
                 <span className="app-sidebar-stats">
-                  <Flame size={12} /> {learner.current_streak} · <Star size={12} /> {learner.total_xp} XP
+                  <Flame size={12} /> {learner.current_streak} · <Star size={12} /> {learner.total_xp} · <Gem size={12} /> {learner.gems ?? 0}
                 </span>
               </span>
             </Link>

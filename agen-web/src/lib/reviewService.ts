@@ -111,3 +111,35 @@ export async function addNotebookWord(payload: {
   const { data } = await api.post('/review/items', payload);
   return data;
 }
+
+// ── G4 · Blitz 60 giây ───────────────────────────────────────────────────────
+export interface BlitzQuestion {
+  prompt: string;        // English word
+  options: string[];     // 4 Vietnamese meanings
+  answer: number;        // index of the right option
+  phonetic: string | null;
+}
+
+export interface BlitzRound {
+  questions: BlitzQuestion[];
+  seconds: number;
+  from_notebook: number;
+}
+
+export interface BlitzResult {
+  xp_earned: number;
+  gems_earned: number;
+  total_xp: number;
+  gems: number;
+  daily_xp_left: number;
+}
+
+export async function getBlitzRound(): Promise<BlitzRound> {
+  const { data } = await api.get('/review/blitz');
+  return data;
+}
+
+export async function submitBlitzResult(payload: { correct: number; answered: number; seconds: number }): Promise<BlitzResult> {
+  const { data } = await api.post('/review/blitz/result', payload);
+  return data;
+}

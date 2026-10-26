@@ -27,6 +27,18 @@ export interface LearnerProfile {
   interests: string[];
   daily_study_minutes: number;
   invite_code: string | null;
+  // G4 · fun layer
+  gems: number;
+  avatar: AvatarData;
+  ui_skin: UiSkin | null;
+}
+
+export type UiSkin = 'vivid' | 'classic';
+
+export interface AvatarData {
+  emoji: string;
+  color: string;   // sky | mint | peach | lilac | lemon | galaxy
+  frame: string;   // none | leaf | star | gold | rainbow
 }
 
 export interface AuthToken {
