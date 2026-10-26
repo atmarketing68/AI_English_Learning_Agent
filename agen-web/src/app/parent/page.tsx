@@ -8,7 +8,9 @@ import {
   getChildren, linkChild, unlinkChild, getChildReport, getParentSettings, updateParentSettings,
   type ChildSummary, type ChildReport, type ParentSettings,
 } from '@/lib/parentService';
-import { BookOpen, BookText, ChartColumn, CircleAlert, CircleCheck, Clock, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import Link from 'next/link';
+import { getSubscription, type SubscriptionInfo } from '@/lib/billingService';
+import { BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/apiError';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
@@ -75,6 +77,28 @@ function ParentEmailCard() {
         {busy ? <LoaderCircle className="animate-spin" size={14} /> : prefs.weekly_report_email ? 'Đang bật · Tắt' : 'Bật'}
       </button>
     </div>
+  );
+}
+
+// ── G5 · Gói gia đình ────────────────────────────────────────────────────────
+function FamilyPlanCard({ childCount }: { childCount: number }) {
+  const [sub, setSub] = useState<SubscriptionInfo | null>(null);
+  useEffect(() => { getSubscription().then(setSub).catch(() => null); }, []);
+  if (!sub) return null;
+  const active = sub.plan === 'family' && sub.is_premium;
+  return (
+    <Link href="/upgrade" className="card card-hover" style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', opacity: 1, borderColor: active ? 'color-mix(in srgb, var(--agen-success) 40%, var(--border-subtle))' : undefined }}>
+      <span className="icon-tile" style={{ flexShrink: 0, background: 'color-mix(in srgb, var(--agen-accent) 14%, transparent)', color: 'var(--agen-accent)' }}><Crown size={20} strokeWidth={1.8} /></span>
+      <div style={{ flex: 1, minWidth: 220 }}>
+        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{active ? 'Gói gia đình đang hoạt động' : 'Gói gia đình · cả nhà cùng Premium'}</div>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          {active
+            ? `${childCount} con đã liên kết đều được học không giới hạn${sub.current_period_end ? ` · hết hạn ${new Date(sub.current_period_end).toLocaleDateString('vi-VN')}` : ''}.`
+            : 'Một lần thanh toán, tối đa 4 con được bài học không giới hạn, báo cáo tuần và lộ trình riêng. Từ 179K/tháng.'}
+        </div>
+      </div>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, color: 'var(--agen-primary-light)', fontSize: '0.9rem', fontWeight: 600 }}>{active ? 'Quản lý' : 'Xem gói'} <ChevronRight size={16} /></span>
+    </Link>
   );
 }
 
@@ -349,6 +373,7 @@ export default function ParentDashboardPage() {
 
         {/* Link form */}
         <LinkChildForm onLinked={load} />
+        <FamilyPlanCard childCount={children.length} />
         <ParentEmailCard />
 
         {children.length === 0 ? (
@@ -395,6 +420,7 @@ export default function ParentDashboardPage() {
                         <span style={{ padding: '1px 7px', borderRadius: 99, background: tint(levelColor, 14), color: levelColor, fontWeight: 600 }}>{c.overall_level}</span>
                         {c.relationship_label && <span>{c.relationship_label}</span>}
                         <span>{c.total_xp} XP</span>
+                        {c.premium_source && <span style={{ color: 'var(--agen-accent)', fontWeight: 600 }}>Premium</span>}
                       </div>
                     </div>
                   </button>

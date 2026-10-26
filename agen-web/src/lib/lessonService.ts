@@ -85,6 +85,7 @@ export interface FinishLessonResult {
   adaptive_reason?: string | null;
   recommended_difficulty?: number | null;
   words_saved?: number;
+  gems_earned?: number;
 }
 
 export interface SubmitExerciseResult {

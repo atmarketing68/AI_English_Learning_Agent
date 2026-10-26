@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import AppShell from "@/components/ui/AppShell";
+import SkinProvider from "@/components/ui/SkinProvider";
+
+/** Apply the cached look before React hydrates, so there is no flash between skins. */
+const SKIN_BOOT = `try{var s=localStorage.getItem("agen-skin");if(s==="vivid"||s==="classic"){document.documentElement.dataset.skin=s}}catch(e){}`;
 
 export const metadata: Metadata = {
   title: "AI AGENT ENGLISH — Học tiếng Anh cùng AI Coach cá nhân",
@@ -25,12 +29,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="vi">
+    <html lang="vi" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: SKIN_BOOT }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body>
+        <SkinProvider />
         <AppShell>{children}</AppShell>
       </body>
     </html>

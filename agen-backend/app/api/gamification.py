@@ -190,3 +190,55 @@ def get_streak(
         longest_streak=learner.longest_streak or 0,
         last_active_at=learner.last_active_at,
     )
+
+
+# ── G4 · Cửa hàng (gems → avatar, colours, frames) ───────────────────────────
+from app.services import shop as shop_service
+
+
+class ShopItem(BaseModel):
+    id: str
+    kind: str
+    name_vi: str
+    value: str
+    price: int
+    owned: bool
+    equipped: bool
+
+
+class ShopOut(BaseModel):
+    gems: int
+    avatar: dict
+    items: list[ShopItem]
+
+
+class ShopAction(BaseModel):
+    item_id: str
+
+
+@router.get("/shop", response_model=ShopOut)
+def get_shop(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    learner = _get_learner(db, current_user.id)
+    return ShopOut(gems=learner.gems or 0, avatar=shop_service.avatar_of(learner), items=[ShopItem(**i) for i in shop_service.catalogue_for(learner)])
+
+
+@router.post("/shop/buy", response_model=ShopOut)
+def buy_item(payload: ShopAction, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    learner = _get_learner(db, current_user.id)
+    try:
+        shop_service.buy(db, learner, payload.item_id)
+    except shop_service.ShopError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return get_shop(current_user, db)
+
+
+@router.post("/shop/equip", response_model=ShopOut)
+def equip_item(payload: ShopAction, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    learner = _get_learner(db, current_user.id)
+    try:
+        shop_service.equip(db, learner, payload.item_id)
+    except shop_service.ShopError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return get_shop(current_user, db)

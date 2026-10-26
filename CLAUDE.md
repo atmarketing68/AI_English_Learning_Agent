@@ -30,6 +30,16 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
 - Tăng trưởng (G3): khách `is_guest` (`/auth/guest`, `/auth/claim`); thanh toán `services/payments.py` (chỉ IPN ký
   đúng mới cộng Premium); giải đấu `services/league.py`; email phụ huynh `services/parent_digest.py` (cron nhắc học);
   khoá mục tiêu `services/goal_tracks.py` + `GoalTrackProgress` (bài tạo qua `/lessons/generate` với `track_code`).
+- Lớp "vui" (G4): đá quý/cửa hàng `services/shop.py` (`award_gems` ở bài học, nhiệm vụ, mục tiêu tuần, giải đấu, Blitz);
+  Blitz `GET/POST /review/blitz*`; giải đấu nhóm 30 + 4 hạng `services/league.py` (`LeagueMembership`, 1 dòng/người/tuần).
+  Web: 2 skin qua `<html data-skin="vivid|classic">` (`store/skinStore.ts`, `components/ui/SkinProvider.tsx`; token CSS
+  trong `globals.css` dưới `:root[data-skin="vivid"]`); mascot `components/ui/Mascot.tsx` **tự ẩn ở skin classic** —
+  người lớn/phụ huynh phải luôn thấy giao diện chuyên nghiệp; avatar `components/ui/Avatar.tsx`.
+- G5: gói gia đình = `Subscription.plan == "family"` trên tài khoản phụ huynh, con được Premium qua
+  `subscription_service.premium_source()` (luôn dùng `is_premium()`/`premium_source()`, đừng đọc `sub.plan` trực tiếp);
+  doanh thu `GET /admin/revenue/summary`; band thi: `writing_agent.EXAM_GENRES` + `exam_band` chỉ với genre thi.
+  Web: lớp "pro" cho skin classic ở cuối `globals.css` (`.pro-hero`, `.stat-card`, `.quick-tile`, `SkillRing`, `CountUp`) —
+  mọi rule chỉ-classic dùng tiền tố `:root:not([data-skin="vivid"])`.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

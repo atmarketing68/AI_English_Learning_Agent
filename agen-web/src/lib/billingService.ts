@@ -5,12 +5,16 @@
 import api from './api';
 
 export interface SubscriptionInfo {
-  plan: 'free' | 'premium';
+  plan: 'free' | 'premium' | 'family';
   status: 'active' | 'canceled' | 'expired';
   is_premium: boolean;
   current_period_end: string | null;
   provider?: string | null;
+  /** G5 · 'own' (paid/trial on this account), 'family' (via a parent's family plan) or null. */
+  premium_source?: 'own' | 'family' | null;
 }
+
+export type PlanKind = 'premium' | 'family';
 
 // G3 · real checkout + trial
 export type PaymentProvider = 'vnpay' | 'momo';
@@ -21,6 +25,10 @@ export interface BillingOptions {
   demo_enabled: boolean;
   trial_available: boolean;
   trial_days: number;
+  // G5 · gói gia đình
+  family_prices: { months: number; amount_vnd: number }[];
+  family_max_children: number;
+  can_buy_family: boolean;
 }
 
 export interface CheckoutResult {
@@ -32,6 +40,7 @@ export interface CheckoutResult {
 export interface OrderInfo {
   order_id: string;
   provider: PaymentProvider;
+  plan: PlanKind;
   months: number;
   amount_vnd: number;
   status: 'pending' | 'paid' | 'failed';
@@ -39,8 +48,8 @@ export interface OrderInfo {
 
 export const getBillingOptions = async (): Promise<BillingOptions> => (await api.get('/billing/options')).data;
 export const startPremiumTrial = async (): Promise<SubscriptionInfo> => (await api.post('/billing/trial')).data;
-export const checkout = async (months: number, provider: PaymentProvider): Promise<CheckoutResult> =>
-  (await api.post('/billing/checkout', { months, provider })).data;
+export const checkout = async (months: number, provider: PaymentProvider, plan: PlanKind = 'premium'): Promise<CheckoutResult> =>
+  (await api.post('/billing/checkout', { months, provider, plan })).data;
 export const getOrder = async (orderId: string): Promise<OrderInfo> => (await api.get(`/billing/orders/${orderId}`)).data;
 
 export interface QuotaInfo {
@@ -62,8 +71,8 @@ export const getQuota = async (): Promise<QuotaInfo> => {
   return res.data;
 };
 
-export const upgradeToPremium = async (months: number = 1): Promise<SubscriptionInfo> => {
-  const res = await api.post('/billing/upgrade', { months });
+export const upgradeToPremium = async (months: number = 1, plan: PlanKind = 'premium'): Promise<SubscriptionInfo> => {
+  const res = await api.post('/billing/upgrade', { months, plan });
   return res.data;
 };
 

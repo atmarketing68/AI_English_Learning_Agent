@@ -180,6 +180,8 @@ def claim_quest(db: Session, learner: LearnerProfile, quest_id: str) -> int:
         raise ClaimError("Nhiệm vụ chưa hoàn thành.")
     quest.claimed_at = _now_naive()
     learner.total_xp = (learner.total_xp or 0) + quest.xp_reward
+    from app.services.shop import GEMS_QUEST, award_gems
+    award_gems(learner, GEMS_QUEST)
     return quest.xp_reward
 
 
@@ -229,6 +231,8 @@ def claim_weekly_reward(db: Session, learner: LearnerProfile) -> dict:
         raise ClaimError("Chưa đạt mục tiêu tuần.")
     learner.weekly_goal_claimed_week = week_key(today)
     learner.total_xp = (learner.total_xp or 0) + WEEKLY_REWARD_XP
+    from app.services.shop import GEMS_WEEKLY_GOAL, award_gems
+    award_gems(learner, GEMS_WEEKLY_GOAL)
     gained_freeze = (learner.streak_freezes or 0) < MAX_STREAK_FREEZES
     if gained_freeze:
         learner.streak_freezes = (learner.streak_freezes or 0) + 1

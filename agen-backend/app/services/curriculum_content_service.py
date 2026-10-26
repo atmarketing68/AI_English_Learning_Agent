@@ -43,6 +43,19 @@ def _curriculum_node(db: Session, code: str) -> CurriculumLesson:
     return node
 
 
+def _spec_for(db: Session, code: str) -> tuple[str, str, str]:
+    """(skill, level, topic) for a curriculum node code or a goal-track lesson code."""
+    node = db.query(CurriculumLesson).filter(CurriculumLesson.code == code).first()
+    if node:
+        return node.skill, (node.cefr_reference or node.code.split("-")[0]), node.topic
+    from app.services.goal_tracks import find_lesson
+    found = find_lesson(code)
+    if found:
+        spec = found[2]
+        return spec["skill"], spec["level"], spec["topic"]
+    raise ContentGenerationError(f"Curriculum node '{code}' not found.")
+
+
 def generate_and_cache(
     db: Session,
     code: str,
@@ -50,32 +63,28 @@ def generate_and_cache(
     force: bool = False,
     auto_approve: bool = False,
 ) -> CurriculumLessonContent:
-    """Generate + cache content for a curriculum node (one LLM call).
+    """Generate + cache content for a curriculum node or a goal-track lesson (one LLM call).
 
     - Skips generation if cached content already exists (unless force=True).
     - Runs through the orchestrator so the AI Evaluation quality gate applies.
     - Stores as draft (or approved when auto_approve=True).
     Caller commits.
     """
-    node = _curriculum_node(db, code)
+    skill, level, topic = _spec_for(db, code)
     existing = get_cached_content(db, code)
     if existing and not force:
         return existing
 
     # Speaking/writing curriculum nodes aren't "lesson" content; only the four
     # lesson-generatable skills are pre-generated here.
-    if node.skill not in ("vocabulary", "grammar", "reading", "listening"):
+    if skill not in ("vocabulary", "grammar", "reading", "listening"):
         raise ContentGenerationError(
-            f"Skill '{node.skill}' is not pre-generatable as lesson content."
+            f"Skill '{skill}' is not pre-generatable as lesson content."
         )
 
     result = execute(AgentRequest(
         agent="lesson",
-        payload={
-            "skill": node.skill,
-            "level": node.cefr_reference or node.code.split("-")[0],
-            "topic": node.topic,
-        },
+        payload={"skill": skill, "level": level, "topic": topic},
     ))
     if result.status != "succeeded" or not result.data:
         raise ContentGenerationError(result.error or "Lesson generation failed.")
@@ -84,9 +93,9 @@ def generate_and_cache(
     exercises = payload.get("exercises", [])
 
     row = existing or CurriculumLessonContent(curriculum_code=code)
-    row.level = node.cefr_reference or node.code.split("-")[0]
-    row.skill = node.skill
-    row.topic = node.topic
+    row.level = level
+    row.skill = skill
+    row.topic = topic
     row.content = payload
     row.total_exercises = len(exercises)
     row.eval_score = getattr(result, "eval_score", None)
@@ -234,10 +243,14 @@ def generate_missing_content(db: Session, levels: tuple[str, ...] = FACTORY_LEVE
         .all()
     )
     order = {lvl: i for i, lvl in enumerate(levels)}
-    missing = sorted((n for n in nodes if n.code not in cached_codes), key=lambda n: (order[n.cefr_reference], n.code))
-    for node in missing[:limit]:
+    missing_codes = [n.code for n in sorted((n for n in nodes if n.code not in cached_codes), key=lambda n: (order[n.cefr_reference], n.code))]
+    # G4 · goal-track lessons (IELTS/TOEIC/interview) come after the roadmap.
+    from app.services.goal_tracks import TRACKS, track_lesson_codes
+    missing_codes += [c for t in TRACKS for c in track_lesson_codes(t) if c not in cached_codes]
+    missing = missing_codes
+    for code in missing[:limit]:
         try:
-            row = generate_and_cache(db, node.code)
+            row = generate_and_cache(db, code)
             if not row.eval_flagged:
                 row.status = STATUS_APPROVED
                 row.approved_at = datetime.now(timezone.utc)
@@ -249,12 +262,17 @@ def generate_missing_content(db: Session, levels: tuple[str, ...] = FACTORY_LEVE
         except Exception as exc:  # noqa: BLE001 — keep going; report per node
             db.rollback()
             summary["failed"] += 1
-            summary["errors"].append({"code": node.code, "error": str(exc)[:300]})
+            summary["errors"].append({"code": code, "error": str(exc)[:300]})
             # A quota error will fail every following node too.
             if "quota" in str(exc).lower() or "giới hạn" in str(exc).lower():
                 break
     summary["remaining"] = max(0, len(missing) - summary["generated"])
     return summary
+
+
+def track_lesson_total() -> int:
+    from app.services.goal_tracks import TRACKS, track_lesson_codes
+    return sum(len(track_lesson_codes(t)) for t in TRACKS)
 
 
 def content_coverage(db: Session, levels: tuple[str, ...] = FACTORY_LEVELS) -> list[dict]:
@@ -273,6 +291,18 @@ def content_coverage(db: Session, levels: tuple[str, ...] = FACTORY_LEVELS) -> l
             "approved": sum(1 for (s,) in rows if s == STATUS_APPROVED),
             "draft": sum(1 for (s,) in rows if s == STATUS_DRAFT),
         })
+    # G4 · goal-track lessons as one extra row (after the roadmap levels).
+    from app.services.goal_tracks import TRACKS, track_lesson_codes
+    track_codes = [c for t in TRACKS for c in track_lesson_codes(t)]
+    track_rows = db.query(CurriculumLessonContent.status).filter(CurriculumLessonContent.curriculum_code.in_(track_codes)).all()
+    out.append({
+        "level": "TRACKS",
+        "total": len(track_codes),
+        "approved": sum(1 for (st,) in track_rows if st == STATUS_APPROVED),
+        "draft": sum(1 for (st,) in track_rows if st == STATUS_DRAFT),
+        "rejected": sum(1 for (st,) in track_rows if st == STATUS_REJECTED),
+        "missing": len(track_codes) - len(track_rows),
+    })
     return out
 
 

@@ -115,6 +115,14 @@ class WritingPromptOutput(BaseModel):
     topic: str | None = None
 
 
+class ExamBandOutput(BaseModel):
+    """G5 · exam-style band for IELTS (0–9) or TOEIC Writing (0–200)."""
+    exam: Literal["ielts", "toeic"]
+    overall: float = Field(ge=0, le=200)
+    criteria: dict[str, float] = Field(default_factory=dict)
+    next_band_tips: list[str] = Field(default_factory=list, max_length=5)
+
+
 class WritingEvaluationOutput(BaseModel):
     overall_score: float = Field(ge=0, le=100)
     grade: Literal["S", "A", "B", "C", "D"]
@@ -127,6 +135,7 @@ class WritingEvaluationOutput(BaseModel):
     improvements: list[str] = Field(min_length=1)
     corrected_version: str = Field(min_length=1)
     encouragement: str = Field(min_length=1)
+    exam_band: ExamBandOutput | None = None
 
 
 class WordLookupOutput(BaseModel):

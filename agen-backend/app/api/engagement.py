@@ -174,15 +174,16 @@ def set_weekly_goal(
     return _state(db, learner)
 
 
-# ── G3 · Giải đấu tuần ────────────────────────────────────────────────────────
+# ── G3/G4 · Giải đấu tuần (bảng 30 người, thăng/hạng hạng) ──────────────────
 class LeagueEntry(BaseModel):
     rank: int
     learner_id: str
     display_name: str
     level: str
+    avatar: dict = {}
     xp: int
     is_me: bool
-    tier: Optional[str]
+    zone: str                 # promote | stay | relegate
 
 
 class LeagueMe(BaseModel):
@@ -197,7 +198,9 @@ class LastWeekOut(BaseModel):
     xp: int
     participants: int
     reward_xp: int
-    tier: Optional[str]
+    reward_gems: int
+    tier_name: Optional[str]
+    movement: str
     claimed: bool
     claimable: bool
 
@@ -206,7 +209,13 @@ class LeagueOut(BaseModel):
     week: str
     starts_on: str
     ends_on: str
-    board_size: int
+    tier: int
+    tier_name: str
+    tiers: list[str]
+    group_no: int
+    group_size: int
+    promote_top: int
+    relegate_bottom: int
     rewards: list[dict]
     entries: list[LeagueEntry]
     me: LeagueMe
@@ -215,7 +224,9 @@ class LeagueOut(BaseModel):
 
 class LeagueClaimOut(BaseModel):
     xp_awarded: int
+    gems_awarded: int
     total_xp: int
+    gems: int
 
 
 @router.get("/league", response_model=LeagueOut)
@@ -223,9 +234,11 @@ def get_league(current_user: User = Depends(get_current_user), db: Session = Dep
     learner = _get_learner(db, current_user.id)
     b = league_service.board(db, learner)
     lw = league_service.last_week(db, learner)
+    db.commit()           # membership may have been created
     return LeagueOut(
         week=b.week, starts_on=b.starts_on.isoformat(), ends_on=b.ends_on.isoformat(),
-        board_size=league_service.BOARD_SIZE,
+        tier=b.tier, tier_name=b.tier_name, tiers=league_service.TIERS, group_no=b.group_no,
+        group_size=league_service.GROUP_SIZE, promote_top=b.promote_top, relegate_bottom=b.relegate_bottom,
         rewards=[{"up_to_rank": upto, "xp": xp} for upto, xp in league_service.REWARDS],
         entries=[LeagueEntry(**e) for e in b.entries],
         me=LeagueMe(rank=b.me.rank, xp=b.me.xp, participants=b.me.participants),
@@ -237,8 +250,8 @@ def get_league(current_user: User = Depends(get_current_user), db: Session = Dep
 def claim_league(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     learner = _get_learner(db, current_user.id)
     try:
-        xp = league_service.claim_last_week(db, learner)
+        got = league_service.claim_last_week(db, learner)
     except league_service.LeagueClaimError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
-    return LeagueClaimOut(xp_awarded=xp, total_xp=learner.total_xp or 0)
+    return LeagueClaimOut(xp_awarded=got["xp"], gems_awarded=got["gems"], total_xp=learner.total_xp or 0, gems=learner.gems or 0)

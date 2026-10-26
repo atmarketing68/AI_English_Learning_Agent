@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 
 from app.core import get_db
@@ -51,6 +51,10 @@ class LearnerProfileOut(BaseModel):
     interests: List[str]
     daily_study_minutes: int        # now exposed so UI can display/edit it
     invite_code: Optional[str]      # code parents use to link to this learner
+    # G4
+    gems: int = 0
+    avatar: dict = {}
+    ui_skin: Optional[str] = None
 
     @classmethod
     def from_orm_safe(cls, p: LearnerProfile) -> "LearnerProfileOut":
@@ -76,6 +80,9 @@ class LearnerProfileOut(BaseModel):
             interests=p.interests or [],
             daily_study_minutes=p.daily_study_minutes or 15,
             invite_code=p.invite_code,
+            gems=p.gems or 0,
+            avatar=__import__("app.services.shop", fromlist=["avatar_of"]).avatar_of(p),
+            ui_skin=p.ui_skin,
         )
 
     model_config = {"from_attributes": True}
@@ -88,6 +95,14 @@ class LearnerProfileUpdate(BaseModel):
     learning_goal: Optional[str] = None
     daily_study_minutes: Optional[int] = None
     interests: Optional[List[str]] = None
+    ui_skin: Optional[str] = None       # "vivid" | "classic"
+
+    @field_validator("ui_skin")
+    @classmethod
+    def valid_skin(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and v not in ("vivid", "classic"):
+            raise ValueError("ui_skin must be vivid or classic")
+        return v
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
