@@ -2,6 +2,8 @@
 
 App học tiếng Anh bằng AI cho người Việt. **Đọc `docs/ROADMAP_STATUS.md` trước** — nó ghi việc đã xong,
 việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhật file đó khi xong mỗi hạng mục.
+Mọi cấu hình / việc chủ dự án phải tự làm (khoá, biến môi trường, webhook, vận hành) ghi vào checklist
+`docs/VIEC_CAN_LAM.md` (theo mức ưu tiên, có bước + cách kiểm tra) — bổ sung file này ở mỗi giai đoạn có biến mới.
 
 ## Làm việc với chủ dự án
 - Trả lời bằng tiếng Việt, gọn. Chủ dự án bận: tự làm trọn gói, chỉ hỏi khi thật sự cần quyết định.

@@ -80,6 +80,8 @@ hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi n
 
 ## Việc chủ dự án còn phải làm (chưa xong, tính đến 2026-10-26)
 
+> **Danh sách đầy đủ, theo thứ tự ưu tiên, có hướng dẫn từng bước: `docs/VIEC_CAN_LAM.md`** (cập nhật mỗi giai đoạn).
+
 Khoá đã được tạo và gửi cho chủ dự án trong chat (KHÔNG có trong repo). Cần dán:
 
 1. **Render → agen-api → Environment:** `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
