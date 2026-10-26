@@ -52,7 +52,9 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
   Bo hỏi đáp `agents/tutor_agent.py` qua orchestrator `tutor_answer` + `TutorMessage` (fallback không trừ lượt miễn phí); CSV nhóm
   `groups.report_csv`; hoá đơn VAT `PaymentOrder.invoice_info`/`invoice_issued_at`; FCM `services/fcm.py` (gọi trong
   `reminders.push_to_learner/push_to_user`, tắt khi không có `FIREBASE_SERVICE_ACCOUNT_JSON`). Web: `/exams/<id>` là chế độ tập trung
-  (không shell), chat Bo dùng class `chat-*`, báo cáo nhóm in `app/teacher/[groupId]/report`.
+  (không shell), chat Bo dùng class `chat-*`, báo cáo nhóm in `app/teacher/[groupId]/report`. Hero 3D landing:
+  `components/landing/HeroScene3D.tsx` + CSS `.h3d-*` — vị trí chiều sâu phải dùng `transform`/`--z` trong keyframes, **không** dùng
+  thuộc tính `translate` 3 giá trị (trình nén CSS của Next bỏ mất).
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy
