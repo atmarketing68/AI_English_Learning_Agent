@@ -9,7 +9,7 @@ import { usePathname } from 'next/navigation';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import { skinForLearner, useSkinStore } from '@/store/skinStore';
 
-const ALWAYS_CLASSIC = ['/parent', '/admin', '/teacher', '/login', '/register', '/unsubscribe'];
+const ALWAYS_CLASSIC = ['/parent', '/admin', '/teacher', '/login', '/register', '/unsubscribe', '/certificate'];
 
 export default function SkinProvider() {
   const pathname = usePathname();

@@ -82,7 +82,16 @@ export type AnalyticsEvent =
   | 'speaking_exam_completed'
   | 'study_plan_set'
   | 'zalo_unlinked'
-  | 'exam_generated';
+  | 'exam_generated'
+  // G10
+  | 'media_opened'
+  | 'media_submitted'
+  | 'club_room_created'
+  | 'club_room_joined'
+  | 'club_turn_spoken'
+  | 'teacher_feedback_sent'
+  | 'certificate_issued'
+  | 'certificate_claimed';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

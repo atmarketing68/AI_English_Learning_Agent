@@ -116,6 +116,23 @@ class Settings(BaseSettings):
     ZALO_OA_ACCESS_TOKEN: str = ""            # optional first access token
     ZALO_OA_SECRET_KEY: str = ""              # OA secret key, verifies webhook signatures
 
+    # G10 · Stripe (international cards). Off until both keys are set.
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    USD_TO_VND: int = 25_000                  # revenue stats store every order in VND
+
+    # G10 · AI cost tracking. Prices are USD per 1M tokens (≈ 4 characters per token)
+    # and per 1M TTS characters; set them to your contract prices.
+    AI_PRICE_GEMINI_IN: float = 0.30
+    AI_PRICE_GEMINI_OUT: float = 2.50
+    AI_PRICE_OPENAI_IN: float = 0.15
+    AI_PRICE_OPENAI_OUT: float = 0.60
+    TTS_PRICE_PER_MCHAR: float = 15.0
+    # Per-user daily AI budget in USD (0 = no limit). Over the limit the AI features
+    # answer with their usual "busy" fallback until the next day (VN time).
+    AI_DAILY_LIMIT_USD_FREE: float = 0.0
+    AI_DAILY_LIMIT_USD_PREMIUM: float = 0.0
+
     @field_validator("SECRET_KEY")
     @classmethod
     def warn_default_secret(cls, v: str) -> str:
@@ -158,6 +175,10 @@ class Settings(BaseSettings):
     @property
     def fcm_enabled(self) -> bool:
         return bool(self.FIREBASE_SERVICE_ACCOUNT_JSON.strip())
+
+    @property
+    def stripe_enabled(self) -> bool:
+        return bool(self.STRIPE_SECRET_KEY and self.STRIPE_WEBHOOK_SECRET)
 
     @property
     def zalo_enabled(self) -> bool:

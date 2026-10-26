@@ -119,7 +119,7 @@ export default function TeacherGroupPage() {
               <tbody>
                 {members.map(m => (
                   <tr key={m.learner_id}>
-                    <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><Avatar avatar={m.avatar} name={m.display_name} size={28} /> {m.display_name}</span></td>
+                    <td><Link href={`/teacher/${groupId}/member/${m.learner_id}`} className="teacher-member-link" title="Xem bài làm & nhận xét"><Avatar avatar={m.avatar} name={m.display_name} size={28} /> {m.display_name}</Link></td>
                     <td><span className="level-badge">{m.level}</span></td>
                     <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}><Star size={13} color="var(--agen-accent)" fill="var(--agen-accent)" /> {m.weekly_xp}</span></td>
                     <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Flame size={13} color="var(--agen-secondary)" /> {m.streak}</span></td>

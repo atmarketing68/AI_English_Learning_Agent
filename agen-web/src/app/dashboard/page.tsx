@@ -28,7 +28,7 @@ import type { LearnerProfile } from '@/types';
 import Link from 'next/link';
 import {
   ArrowRight, BookMarked, BookOpen, BookText, Brain, ChevronRight, CircleCheck, ClipboardCheck, Copy, Flame, Gem, GraduationCap, Headphones, MessageCircleQuestion,
-  Mic, PenLine, Sparkles, Star, Target, Users, type LucideIcon,
+  MessagesSquare, Mic, PenLine, Radio, Sparkles, Star, Target, Users, type LucideIcon,
 } from 'lucide-react';
 
 const SKILL_ICONS: Record<string, LucideIcon> = {
@@ -279,6 +279,8 @@ export default function DashboardPage() {
               { icon: PenLine,    label: 'Writing',   sub: 'Chấm AI · band IELTS', a: '#A78BFA', b: '#7C3AED', href: '/practice/writing' },
               { icon: ClipboardCheck, label: 'Thi thử', sub: 'IELTS · TOEIC mini test', a: '#FBBF24', b: '#D97706', href: '/exams' },
               { icon: MessageCircleQuestion, label: 'Hỏi Bo', sub: 'Giải đáp ngữ pháp', a: '#2DD4BF', b: '#0D9488', href: '/tutor' },
+              { icon: Radio, label: 'Podcast', sub: 'Nghe chuyện thật, bấm từ', a: '#60A5FA', b: '#4F46E5', href: '/listen' },
+              { icon: MessagesSquare, label: 'CLB nói', sub: 'Nói nhóm, AI dẫn', a: '#FB7185', b: '#DB2777', href: '/club' },
             ].map(({ icon: Icon, label, sub, a, b, href }) => (
               <Link key={label} href={href} className="card card-hover quick-tile" style={{ '--qt-a': a, '--qt-b': b } as React.CSSProperties}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>

@@ -4,7 +4,7 @@
 > Kế hoạch gốc (đã được chủ dự án duyệt): Claude Doc "Kế hoạch nâng cấp AGEN — Audit & Lộ trình"
 > https://claude.ai/artifact/7PHjES4CK5zB9i8rBxrCuT
 
-Cập nhật lần cuối: 2026-10-26 (G9).
+Cập nhật lần cuối: 2026-10-26 (G10).
 
 ## Cách làm việc với chủ dự án
 
@@ -208,9 +208,24 @@ Chưa làm trong G8: ngân hàng đề lớn hơn (hiện 4 mini test, có thể
 
 Chưa làm trong G9: chấm phát âm Speaking bằng Azure (hiện theo từ); đề Speaking/Writing do AI sinh; gửi ZNS (tin theo mẫu, tính phí) khi hết cửa sổ 7 ngày.
 
-## G10 — gợi ý tiếp theo
+## G10 — Podcast, câu lạc bộ nói, giáo viên xem bài, Stripe + chứng nhận, chi phí AI: hoàn tất trên code
 
-Học qua video/podcast ngắn có transcript bấm từ · Câu lạc bộ nói nhóm 2–4 người với AI dẫn · Giáo viên xem chi tiết bài làm từng học viên + nhận xét · Stripe cho thẻ quốc tế + chứng nhận hoàn thành (PDF) cho doanh nghiệp · Theo dõi chi phí AI theo người dùng.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Podcast / video (`/listen`) | Không cần gì. 6 tập tĩnh A2–B2 trong `services/media_library.py` (lời thoại song ngữ, từ khoá, câu hỏi). Âm thanh là giọng đọc server theo từng nhân vật, chạm từ để tra + lưu sổ từ. Muốn kèm video: điền `youtube_id` (+ `start`/`end` giây) cho tập có lời thoại khớp video. XP chỉ lần đầu và khi cải thiện điểm; 100% được đá quý. |
+| Câu lạc bộ nói (`/club`) | Cần khoá LLM (đã có); AI lỗi thì vẫn chạy bằng câu hỏi soạn sẵn. Phòng 2–4 người (tự luyện 1 người cũng được), 8 chủ đề trong `services/speaking_club.py`, mỗi người 3 lượt. Trình duyệt hỏi đáp bằng polling 2,5 giây, không cần dịch vụ realtime. Phòng riêng chỉ vào bằng mã. |
+| Giáo viên xem bài + nhận xét | Không cần gì. Trong `/teacher/<nhóm>` bấm tên học viên → bài học, bài viết (đọc toàn văn + lỗi AI chỉ ra), thi thử, thi nói, bài tập; gửi nhận xét chung hoặc theo từng bài → học viên nhận thông báo và xem ở `/classes`. Giáo viên cũng cấp chứng nhận từ trang này. |
+| Stripe (thẻ quốc tế, USD) | 1) Tạo tài khoản Stripe, lấy **Secret key** (`sk_live_…`); 2) Developers → Webhooks → Add endpoint `https://<api>/api/v1/billing/stripe/webhook`, chọn sự kiện `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` → lấy **Signing secret** (`whsec_…`); 3) dán `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` lên Render (tuỳ chọn `USD_TO_VND`, mặc định 25.000 để thống kê doanh thu). Giá USD trong `services/payments.py` (Premium $4.99/tháng · $11.99/3 tháng · $39/năm; gia đình $8.99 · $74; theo ghế $3.99 · $34 mỗi ghế). Chỉ webhook có chữ ký đúng + đúng số tiền mới cộng Premium. Chưa có khoá thì nút thẻ quốc tế tự ẩn. |
+| Chứng nhận hoàn thành | Không cần gì. Học viên xong 1 lộ trình mục tiêu → nhận ở **Hồ sơ**; giáo viên/doanh nghiệp cấp cho thành viên. Trang công khai `/certificate/<mã>` để nhà tuyển dụng kiểm tra, nút **In / Lưu PDF** (khổ A4 ngang). |
+| Chi phí AI theo người dùng | Mặc định đã ghi (bảng `ai_usage`): mỗi lượt gọi LLM và mỗi lần tạo giọng đọc mới, ước tính theo ký tự. Xem ở `/admin` → tab **Chi phí AI**. Tuỳ chọn trên Render: đơn giá `AI_PRICE_GEMINI_IN/OUT`, `AI_PRICE_OPENAI_IN/OUT` (USD/1 triệu token), `TTS_PRICE_PER_MCHAR`; giới hạn mỗi người mỗi ngày `AI_DAILY_LIMIT_USD_FREE`, `AI_DAILY_LIMIT_USD_PREMIUM` (0 = không giới hạn; vượt thì tính năng AI trả lời bằng phương án dự phòng tới hôm sau). |
+
+Migration `z3c4d5e6f7a8` tự chạy khi deploy.
+
+Chưa làm trong G10: thêm video thật có bản quyền/khớp lời thoại; câu lạc bộ nói bằng giọng thật (WebRTC) thay cho nhận diện giọng nói + đọc to; hoàn tiền Stripe tự động; chứng nhận xuất file PDF phía server.
+
+## G11 — gợi ý tiếp theo
+
+Thư viện video có bản quyền + tự sinh tập podcast mới bằng AI (duyệt như đề thi) · Câu lạc bộ nói theo lịch (đặt giờ, nhắc trước 15 phút) · Giáo viên chấm lại bài viết và ghi đè điểm AI · Hoá đơn + hoàn tiền Stripe trong trang admin · Cảnh báo khi chi phí AI một ngày vượt ngưỡng.
 
 ## Câu hỏi còn mở với chủ dự án
 

@@ -7,6 +7,7 @@ import {
   getAdminMe, getEvaluationSummary, listEvaluations,
   listContent, setContentStatus, batchGenerateContent,
   getPilotSummary, getRevenueSummary, listOrders, markInvoiceIssued,
+  getAiUsageSummary, type AiUsageSummary,
   deleteGeneratedExam, generateExam, getGeneratedExam, listGeneratedExams, setGeneratedExamStatus,
   type AdminOrder, type GeneratedExam, type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
 } from '@/lib/adminService';
@@ -102,6 +103,86 @@ function RevenuePanel({ r }: { r: RevenueSummary }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── G10 · Chi phí AI ────────────────────────────────────────────────────────
+const FEATURE_VI: Record<string, string> = {
+  lesson: 'Tạo bài học', tutor_answer: 'Hỏi Bo', writing_evaluation: 'Chấm bài viết', speaking_turn: 'Hội thoại nói', club_moderator: 'Câu lạc bộ nói',
+  speaking_exam_evaluation: 'Chấm thi nói', tts: 'Giọng đọc (TTS)', review: 'Ôn tập / tra từ', placement_question: 'Kiểm tra đầu vào', coach_advice: 'Lời khuyên',
+};
+
+function AiUsagePanel() {
+  const [days, setDays] = useState(30);
+  const [u, setU] = useState<AiUsageSummary | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { getAiUsageSummary(days).then(r => { setU(r); setFailed(false); }).catch(() => setFailed(true)); }, [days]);
+  if (failed) return <div className="card">Không tải được chi phí AI.</div>;
+  if (!u) return <div className="card"><LoaderCircle className="animate-spin" size={18} /></div>;
+  const usd = (n: number) => `$${n < 1 ? n.toFixed(4) : n.toFixed(2)}`;
+  const vndOf = (n: number) => vnd(Math.round(n * u.usd_to_vnd));
+  const max = Math.max(1e-9, ...u.by_day.map(b => b.cost_usd));
+  const kpis: [string, string, string][] = [
+    ['Hôm nay', usd(u.today_usd), vndOf(u.today_usd)],
+    ['7 ngày', usd(u.week_usd), vndOf(u.week_usd)],
+    [`${u.days} ngày`, usd(u.period_usd), vnd(u.period_vnd)],
+    ['TB mỗi người dùng', usd(u.avg_per_user_usd), `${u.users_with_usage} người · ${u.calls} lượt gọi`],
+    ['Giới hạn/ngày', u.limits.free_usd || u.limits.premium_usd ? `${u.limits.free_usd ? usd(u.limits.free_usd) : '∞'} / ${u.limits.premium_usd ? usd(u.limits.premium_usd) : '∞'}` : 'Tắt', 'miễn phí / Premium'],
+  ];
+  return (
+    <div className="card">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+        <div style={{ fontWeight: 600, flex: 1 }}>Chi phí AI ước tính (LLM + giọng đọc)</div>
+        <div className="segmented">
+          {[7, 30, 90].map(d => <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)}>{d} ngày</button>)}
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 24 }}>
+        {kpis.map(([label, value, sub]) => (
+          <div key={label} style={{ padding: 14, background: 'var(--bg-elevated)', borderRadius: 14 }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{label}</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.02em' }}>{value}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+      {u.by_day.length > 0 && (
+        <>
+          <div style={{ fontWeight: 600, marginBottom: 10 }}>Theo ngày</div>
+          <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 120, marginBottom: 24 }}>
+            {u.by_day.map(b => (
+              <div key={b.key} title={`${b.key}: ${usd(b.cost_usd)} · ${b.calls} lượt`} style={{ flex: 1, minWidth: 3, height: `${Math.max(3, (b.cost_usd / max) * 100)}%`, borderRadius: 4, background: 'linear-gradient(180deg, var(--skill-listening), var(--agen-primary))' }} />
+            ))}
+          </div>
+        </>
+      )}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginBottom: 24 }}>
+        {([['Theo tính năng', u.by_feature], ['Theo nhà cung cấp', u.by_provider]] as const).map(([title, rows]) => (
+          <div key={title}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>{title}</div>
+            {rows.length === 0 && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có lượt gọi AI nào.</div>}
+            {rows.map(b => (
+              <div key={b.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--border-subtle)', fontSize: '0.88rem' }}>
+                <span>{FEATURE_VI[b.key] ?? b.key} <span style={{ color: 'var(--text-muted)' }}>· {b.calls} lượt</span></span><strong>{usd(b.cost_usd)}</strong>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>Người dùng tốn nhiều nhất</div>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="teacher-table">
+          <thead><tr><th>Email</th><th>Vai trò</th><th>Gói</th><th>Lượt</th><th>USD</th><th>VND</th></tr></thead>
+          <tbody>
+            {u.top_users.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-muted)' }}>Chưa có dữ liệu.</td></tr>}
+            {u.top_users.map(t => (
+              <tr key={t.user_id}><td>{t.email ?? t.user_id.slice(0, 8)}</td><td>{t.role ?? '—'}</td><td>{t.premium ? 'Premium' : 'Miễn phí'}</td><td>{t.calls}</td><td>{usd(t.cost_usd)}</td><td>{vnd(t.cost_vnd)}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 12 }}>Ước tính theo số ký tự (≈4 ký tự/token) × đơn giá trong biến môi trường AI_PRICE_*; đặt AI_DAILY_LIMIT_USD_FREE/PREMIUM để giới hạn mỗi người mỗi ngày.</p>
     </div>
   );
 }
@@ -474,7 +555,7 @@ export default function AdminDashboardPage() {
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [agent, setAgent] = useState('');
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'pilot' | 'revenue' | 'quality' | 'content' | 'exams'>('pilot');
+  const [tab, setTab] = useState<'pilot' | 'revenue' | 'ai' | 'quality' | 'content' | 'exams'>('pilot');
   const [pilotSummary, setPilotSummary] = useState<PilotSummary | null>(null);
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
 
@@ -550,6 +631,7 @@ export default function AdminDashboardPage() {
         <div className="segmented" style={{ marginBottom: 'var(--spacing-lg)' }}>
           <button onClick={() => setTab('pilot')} aria-pressed={tab === 'pilot'}>Pilot KPI</button>
           <button onClick={() => setTab('revenue')} aria-pressed={tab === 'revenue'}>Doanh thu</button>
+          <button onClick={() => setTab('ai')} aria-pressed={tab === 'ai'}>Chi phí AI</button>
           <button onClick={() => setTab('quality')} aria-pressed={tab === 'quality'}>Chất lượng AI</button>
           <button onClick={() => setTab('content')} aria-pressed={tab === 'content'}>Kho nội dung</button>
           <button onClick={() => setTab('exams')} aria-pressed={tab === 'exams'}>Đề thi</button>
@@ -559,6 +641,8 @@ export default function AdminDashboardPage() {
           pilotSummary ? <div className="card"><PilotPanel summary={pilotSummary} /></div> : <div className="card">Chưa có dữ liệu pilot.</div>
         ) : tab === 'revenue' ? (
           <>{revenue ? <RevenuePanel r={revenue} /> : <div className="card">Chưa có dữ liệu doanh thu.</div>}<OrdersPanel /></>
+        ) : tab === 'ai' ? (
+          <AiUsagePanel />
         ) : tab === 'content' ? (
           <ContentPanel />
         ) : tab === 'exams' ? (

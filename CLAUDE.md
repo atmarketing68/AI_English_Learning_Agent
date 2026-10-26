@@ -61,6 +61,14 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
   (`LearnerProfile.exam_target/exam_target_score/exam_date`, không LLM); Zalo OA `services/zalo.py` (token trong `AppConfig`,
   webhook `/zalo/webhook` liên kết bằng `User.zalo_link_code`, kênh gửi trong `reminders.zalo_to_user` + `parent_digest._alert`).
   Web: `/exams/speaking/<id>` dùng `SpeechRecognizer` trực tiếp (gộp transcript, tự nối lại), `/plan`, tab "Đề thi" ở admin.
+- G10: podcast tĩnh `services/media_library.py` (`MediaProgress`, `/media`, web `/listen` dùng `AudioPlayerTTS`); câu lạc bộ nói
+  `services/speaking_club.py` + agent `club_moderator` (`SpeakingRoom`/`RoomMember`/`RoomMessage`, web `/club/<id>` polling `after=seq`);
+  giáo viên xem bài `groups.member_detail` + `TeacherFeedback` (web `app/teacher/[groupId]/member/[learnerId]`); chứng nhận
+  `services/certificates.py` (trang công khai `/certificate/<mã>`, trong ALWAYS_CLASSIC, CSS `.cert-*`, `@page cert` khổ ngang);
+  Stripe trong `services/payments.py` (`PaymentOrder.currency/amount_foreign`, chỉ webhook ký đúng + đúng số tiền mới cộng).
+  Chi phí AI: `core/usage_context.py` (middleware ASGI đặt user + feature, orchestrator đặt feature = tên agent) →
+  `services/ai_usage.py` ghi `AiUsage` trong `llm_client.get_llm_response` và `tts_service.synthesize`; test đổi
+  `ai_usage._session_factory` sang engine test. Giới hạn ngày ném `LLMError(is_quota=True)` → các luồng dùng fallback sẵn có.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

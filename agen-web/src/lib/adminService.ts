@@ -219,3 +219,28 @@ export async function setGeneratedExamStatus(id: string, status: 'draft' | 'appr
 export async function deleteGeneratedExam(id: string): Promise<void> {
   await api.delete(`/admin/exams/${id}`);
 }
+
+// ── G10 · Chi phí AI theo người dùng ──────────────────────────────────────────
+export interface AiUsageBucket { key: string; calls: number; cost_usd: number }
+
+export interface AiUsageSummary {
+  days: number;
+  usd_to_vnd: number;
+  today_usd: number;
+  week_usd: number;
+  period_usd: number;
+  period_vnd: number;
+  calls: number;
+  users_with_usage: number;
+  avg_per_user_usd: number;
+  limits: { free_usd: number; premium_usd: number };
+  by_day: AiUsageBucket[];
+  by_feature: AiUsageBucket[];
+  by_provider: AiUsageBucket[];
+  top_users: { user_id: string; email: string | null; role: string | null; premium: boolean; calls: number; cost_usd: number; cost_vnd: number }[];
+}
+
+export async function getAiUsageSummary(days = 30): Promise<AiUsageSummary> {
+  const res = await api.get(`/admin/ai-usage/summary?days=${days}`);
+  return res.data;
+}

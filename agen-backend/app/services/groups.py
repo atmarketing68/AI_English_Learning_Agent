@@ -276,3 +276,75 @@ def report_csv(db: Session, group: Group) -> str:
             "Có" if m.active_today else "Không", "Premium" if m.premium_source else "Miễn phí", m.joined_at.date().isoformat(),
         ] + ["x" if a.id in done else "" for a in assignments])
     return buf.getvalue()
+
+
+# ── G10 · Chi tiết bài làm của một thành viên + nhận xét ──────────────────────
+def member_of(db: Session, group: Group, learner_id: str) -> LearnerProfile:
+    if not db.query(GroupMember).filter(GroupMember.group_id == group.id, GroupMember.learner_id == learner_id).first():
+        raise GroupError("Học viên không ở trong nhóm này.")
+    learner = db.query(LearnerProfile).filter(LearnerProfile.id == learner_id).first()
+    if not learner:
+        raise GroupError("Không tìm thấy học viên.")
+    return learner
+
+
+def member_detail(db: Session, group: Group, learner: LearnerProfile) -> dict:
+    """Recent work across lessons, writing, mock tests and speaking tests, plus assignment status and feedback."""
+    from app.models.exam_attempt import ExamAttempt
+    from app.models.lesson import Lesson
+    from app.models.speaking_exam import STATUS_FINISHED, SpeakingExamAttempt
+    from app.models.teacher_feedback import TeacherFeedback
+    from app.models.writing import WritingSubmission
+    from app.services import mock_exams, speaking_exams
+    from app.services.shop import avatar_of
+
+    lessons = (db.query(Lesson).filter(Lesson.learner_id == learner.id, Lesson.status == "completed")
+               .order_by(Lesson.completed_at.desc()).limit(15).all())
+    writings = db.query(WritingSubmission).filter(WritingSubmission.learner_id == learner.id).order_by(WritingSubmission.created_at.desc()).limit(10).all()
+    exams = db.query(ExamAttempt).filter(ExamAttempt.learner_id == learner.id).order_by(ExamAttempt.created_at.desc()).limit(10).all()
+    speaking = (db.query(SpeakingExamAttempt).filter(SpeakingExamAttempt.learner_id == learner.id, SpeakingExamAttempt.status == STATUS_FINISHED)
+                .order_by(SpeakingExamAttempt.created_at.desc()).limit(10).all())
+    feedback = (db.query(TeacherFeedback).filter(TeacherFeedback.group_id == group.id, TeacherFeedback.learner_id == learner.id)
+                .order_by(TeacherFeedback.created_at.desc()).limit(50).all())
+    today = local_today()
+    monday, sunday = week_bounds(today)
+
+    def band(w):
+        b = (w.evaluation or {}).get("exam_band") if isinstance(w.evaluation, dict) else None
+        return float(b["overall"]) if b and b.get("overall") is not None else None
+
+    return {
+        "learner_id": learner.id, "display_name": learner.display_name or "Học viên", "level": learner.overall_level or "A1", "avatar": avatar_of(learner),
+        "streak": effective_streak(learner), "total_xp": learner.total_xp or 0, "weekly_xp": weekly_xp(db, monday, sunday, [learner.id]).get(learner.id, 0),
+        "lessons_completed": learner.total_lessons_completed or 0,
+        "skills": {k: round(getattr(learner, f"{k}_score", 0) or 0) for k in ("listening", "speaking", "reading", "writing", "vocabulary", "grammar")},
+        "last_active_at": learner.last_active_at,
+        "lessons": [{"id": l.id, "title": l.title, "skill": l.skill, "topic": l.topic, "score": round(l.score or 0), "completed_at": l.completed_at} for l in lessons],
+        "writings": [{"id": w.id, "prompt_title": w.prompt_title, "genre": w.genre, "score": w.overall_score, "grade": w.grade, "band": band(w),
+                      "word_count": w.word_count or 0, "excerpt": (w.user_text or "")[:160], "created_at": w.created_at} for w in writings],
+        "exams": [{"id": e.id, "title": (mock_exams.get_exam(e.exam_id, db) or {}).get("title", e.exam_id), "exam": e.exam, "skill": e.skill,
+                   "pct": e.pct, "estimate": e.estimate, "created_at": e.created_at} for e in exams],
+        "speaking_exams": [{"id": s.id, "title": (speaking_exams.get_exam(s.exam_id) or {}).get("title", s.exam_id), "exam": s.exam,
+                            "estimate": s.estimate, "created_at": s.created_at} for s in speaking],
+        "assignments": [a.__dict__ for a in group_assignments(db, group.id, learner.id)],
+        "feedback": [{"id": f.id, "target_type": f.target_type, "target_id": f.target_id, "target_label": f.target_label, "text": f.text,
+                      "created_at": f.created_at, "read_at": f.read_at} for f in feedback],
+    }
+
+
+def add_feedback(db: Session, group: Group, teacher: User, learner: LearnerProfile, text: str,
+                 target_type: str = "general", target_id: str | None = None, target_label: str | None = None):
+    from app.models.teacher_feedback import TeacherFeedback
+    from app.services.notification_service import create_notification
+
+    text = (text or "").strip()
+    if not text:
+        raise GroupError("Nhận xét không được để trống.")
+    fb = TeacherFeedback(group_id=group.id, teacher_user_id=teacher.id, learner_id=learner.id, target_type=target_type,
+                         target_id=target_id, target_label=(target_label or None) and target_label[:200], text=text[:2000])
+    db.add(fb)
+    who = teacher.full_name or "Giáo viên"
+    about = f" về \"{target_label}\"" if target_label else ""
+    create_notification(db, learner.id, type="teacher_feedback", title=f"{who} vừa nhận xét bài của bạn{about}", body=text[:200], icon="💬")
+    db.flush()
+    return fb

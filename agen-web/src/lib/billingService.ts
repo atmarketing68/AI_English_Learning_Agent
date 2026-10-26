@@ -19,7 +19,7 @@ export interface SubscriptionInfo {
 export type PlanKind = 'premium' | 'family' | 'team';
 
 // G3 · real checkout + trial
-export type PaymentProvider = 'vnpay' | 'momo';
+export type PaymentProvider = 'vnpay' | 'momo' | 'stripe';
 
 export interface BillingOptions {
   prices: { months: number; amount_vnd: number }[];
@@ -37,6 +37,10 @@ export interface BillingOptions {
   team_max_seats: number;
   can_buy_team: boolean;
   seats: number;
+  // G10 · Stripe (thẻ quốc tế), giá USD cents; field name kept as amount_vnd by the API
+  prices_usd?: { months: number; amount_vnd: number }[];
+  family_prices_usd?: { months: number; amount_vnd: number }[];
+  team_prices_usd?: { months: number; amount_vnd: number }[];
 }
 
 export interface CheckoutResult {
@@ -65,6 +69,8 @@ export interface OrderInfo {
   invoice_issued_at?: string | null;
   created_at?: string | null;
   paid_at?: string | null;
+  currency?: 'VND' | 'USD';
+  amount_foreign?: number | null;
 }
 
 export const getBillingOptions = async (): Promise<BillingOptions> => (await api.get('/billing/options')).data;
@@ -103,3 +109,6 @@ export const cancelSubscription = async (): Promise<SubscriptionInfo> => {
   const res = await api.post('/billing/cancel');
   return res.data;
 };
+
+/** G10 · "$4.99" from USD cents. */
+export const formatUsd = (cents: number) => `$${(cents / 100).toFixed(2)}`;

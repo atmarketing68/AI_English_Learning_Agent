@@ -276,6 +276,8 @@ def synthesize(text: str, voice: str = "female", lang: str = "en") -> Optional[T
             if not data:
                 raise RuntimeError("empty audio")
             _cache_put(_cache_key(provider, _model_for(provider), voice, text, lang), data, mime)
+            from app.services import ai_usage
+            ai_usage.record_tts(provider, _model_for(provider), text)
             return TTSResult(data, mime, provider, cached=False)
         except Exception as exc:  # provider down / model renamed / quota — try the next one
             logger.warning("TTS provider %s failed: %s", provider, exc)

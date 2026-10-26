@@ -17,11 +17,14 @@ class PaymentOrder(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
 
-    provider = Column(String(20), nullable=False)            # vnpay | momo
+    provider = Column(String(20), nullable=False)            # vnpay | momo | stripe | demo
     plan = Column(String(20), nullable=False, default="premium", server_default="premium")   # premium | family (G5)
     months = Column(Integer, nullable=False)
     seats = Column(Integer, nullable=False, default=1, server_default="1")      # G7 · team plan seats
-    amount_vnd = Column(Integer, nullable=False)
+    amount_vnd = Column(Integer, nullable=False)              # always VND (Stripe orders: converted at USD_TO_VND) for revenue stats
+    # G10 · Stripe: the amount actually charged, in the currency's minor unit (USD cents)
+    currency = Column(String(3), nullable=False, default="VND", server_default="VND")
+    amount_foreign = Column(Integer, nullable=True)
     status = Column(String(20), nullable=False, default=STATUS_PENDING)
 
     # Provider-side identifiers (transaction no, pay URL) and the raw callback.

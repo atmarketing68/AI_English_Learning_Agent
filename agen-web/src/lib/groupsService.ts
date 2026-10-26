@@ -95,3 +95,73 @@ export const downloadGroupReport = async (groupId: string, groupName: string): P
 };
 
 export const SKILL_LABELS: Record<AssignmentSkill, string> = { vocabulary: 'Từ vựng', grammar: 'Ngữ pháp', reading: 'Đọc', listening: 'Nghe' };
+
+// ── G10 · Giáo viên xem chi tiết bài làm + nhận xét ──────────────────────────
+export type FeedbackTarget = 'general' | 'lesson' | 'writing' | 'exam' | 'speaking_exam';
+
+export interface TeacherFeedback {
+  id: string;
+  target_type: FeedbackTarget;
+  target_id: string | null;
+  target_label: string | null;
+  text: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface MemberDetail {
+  learner_id: string;
+  display_name: string;
+  level: string;
+  avatar: Partial<AvatarData>;
+  streak: number;
+  total_xp: number;
+  weekly_xp: number;
+  lessons_completed: number;
+  skills: Record<string, number>;
+  last_active_at: string | null;
+  lessons: { id: string; title: string; skill: string; topic: string; score: number; completed_at: string | null }[];
+  writings: { id: string; prompt_title: string; genre: string; score: number | null; grade: string | null; band: number | null; word_count: number; excerpt: string; created_at: string }[];
+  exams: { id: string; title: string; exam: string; skill: string; pct: number; estimate: number | null; created_at: string }[];
+  speaking_exams: { id: string; title: string; exam: string; estimate: number | null; created_at: string }[];
+  assignments: AssignmentInfo[];
+  feedback: TeacherFeedback[];
+  group: GroupInfo;
+  certificates: { code: string; title: string; issued_at: string }[];
+}
+
+export interface WritingDetail {
+  id: string;
+  prompt_title: string;
+  prompt_text: string;
+  genre: string;
+  level: string;
+  user_text: string;
+  word_count: number;
+  overall_score: number | null;
+  grade: string | null;
+  evaluation: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface LearnerFeedback {
+  id: string;
+  group_name: string;
+  teacher_name: string;
+  target_type: FeedbackTarget;
+  target_label: string | null;
+  text: string;
+  created_at: string;
+  read_at: string | null;
+}
+
+export const getMemberDetail = async (groupId: string, learnerId: string): Promise<MemberDetail> => (await api.get(`/groups/${groupId}/members/${learnerId}`)).data;
+export const getMemberWriting = async (groupId: string, learnerId: string, submissionId: string): Promise<WritingDetail> =>
+  (await api.get(`/groups/${groupId}/members/${learnerId}/writing/${submissionId}`)).data;
+export const addMemberFeedback = async (groupId: string, learnerId: string, payload: { text: string; target_type: FeedbackTarget; target_id?: string | null; target_label?: string | null }): Promise<TeacherFeedback> =>
+  (await api.post(`/groups/${groupId}/members/${learnerId}/feedback`, payload)).data;
+export const deleteFeedback = async (groupId: string, feedbackId: string): Promise<void> => { await api.delete(`/groups/${groupId}/feedback/${feedbackId}`); };
+export const issueCertificate = async (groupId: string, learnerId: string, title: string, note?: string): Promise<{ code: string; title: string }> =>
+  (await api.post(`/groups/${groupId}/members/${learnerId}/certificate`, { title, note: note || null })).data;
+export const getMyFeedback = async (): Promise<LearnerFeedback[]> => (await api.get('/groups/learner/feedback')).data;
+export const markFeedbackRead = async (): Promise<void> => { await api.post('/groups/learner/feedback/read'); };

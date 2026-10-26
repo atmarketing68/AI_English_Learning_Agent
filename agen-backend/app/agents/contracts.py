@@ -214,3 +214,10 @@ class GeneratedExamOutput(BaseModel):
     description: str = Field(min_length=1)
     minutes: int = Field(ge=5, le=30)
     sections: list[ExamSectionOutput] = Field(min_length=1, max_length=5)
+
+
+# ── G10 · Speaking club host ──────────────────────────────────────────────────
+class ClubModeratorOutput(BaseModel):
+    feedback_vi: str = Field(min_length=1, max_length=400)
+    corrected: str = Field(default="", max_length=600)
+    reply: str = Field(min_length=1, max_length=600)
