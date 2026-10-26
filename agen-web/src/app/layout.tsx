@@ -3,7 +3,7 @@ import "./globals.css";
 import MobileNav from "@/components/ui/MobileNav";
 
 export const metadata: Metadata = {
-  title: "AGEN — AI English Learning Agent",
+  title: "AI AGENT ENGLISH — Học tiếng Anh cùng AI Coach cá nhân",
   description: "AI Personal English Learning Agent — người thầy, người bạn và huấn luyện viên tiếng Anh đồng hành lâu dài.",
 };
 

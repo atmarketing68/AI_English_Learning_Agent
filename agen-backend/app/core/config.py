@@ -1,13 +1,13 @@
 from pydantic_settings import BaseSettings
 from pydantic import field_validator, model_validator
 from functools import lru_cache
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
     # App
     APP_ENV: str = "development"
-    APP_NAME: str = "AGEN API"
+    APP_NAME: str = "AI AGENT ENGLISH API"
     APP_VERSION: str = "1.0.0"
 
     # Security — MUST be changed in production
@@ -34,9 +34,20 @@ class Settings(BaseSettings):
     # views. Empty means no admin (endpoints return 403 for everyone).
     ADMIN_EMAILS: str = ""
 
-    # Free-tier daily lesson allowance. Set high (or 0 = unlimited) for the pilot
-    # so testers are never blocked; lower it when monetization goes live.
-    FREE_DAILY_LESSON_LIMIT: int = 1000
+    # Mock "upgrade to Premium" without payment. Unset = allowed outside
+    # production only; set ALLOW_DEMO_UPGRADE=true to keep it for a pilot.
+    ALLOW_DEMO_UPGRADE: Optional[bool] = None
+
+    # Read the client IP from X-Forwarded-For (set by the hosting proxy).
+    TRUST_PROXY_HEADERS: bool = True
+
+    # Time zone that defines a learner's "day" for streaks, daily challenges
+    # and the daily lesson quota.
+    LEARNER_TIMEZONE: str = "Asia/Ho_Chi_Minh"
+
+    # Free-tier daily lesson allowance, as advertised on the landing page.
+    # 0 = unlimited (e.g. for an internal test group).
+    FREE_DAILY_LESSON_LIMIT: int = 3
 
     @field_validator("SECRET_KEY")
     @classmethod
@@ -63,6 +74,12 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.APP_ENV.lower() == "production"
+
+    @property
+    def demo_upgrade_enabled(self) -> bool:
+        if self.ALLOW_DEMO_UPGRADE is not None:
+            return self.ALLOW_DEMO_UPGRADE
+        return not self.is_production
 
     @model_validator(mode="after")
     def validate_production_configuration(self) -> "Settings":

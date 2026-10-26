@@ -1,4 +1,5 @@
 import api from '@/lib/api';
+import { track } from '@/lib/analytics';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export interface Exercise {
@@ -103,25 +104,31 @@ export interface LessonGenerationJob {
 export class LessonQuotaError extends Error {}
 
 export async function generateLesson(skill: string, topic?: string, curriculumCode?: string): Promise<LessonDetail> {
+  const startedAt = Date.now();
+  const waited = (cached: boolean) =>
+    track('lesson_generation_waited', { skill, cached, ms: Date.now() - startedAt, from_curriculum: !!curriculumCode });
   let res;
   try {
     res = await api.post<LessonDetail | LessonGenerationAccepted>('/lessons/generate', {
       skill,
       topic: topic || null,
       curriculum_code: curriculumCode || null,
-      // Cached curriculum content returns synchronously (200); only fall back to
-      // async background generation when there is no cache.
-      background: !curriculumCode,
+      // Cached curriculum content still returns synchronously (200). Anything the
+      // AI has to write runs as a background job we poll, so a 30–120s generation
+      // never holds an HTTP request (and a server worker) open.
+      background: true,
     });
   } catch (err: unknown) {
     const response = (err as { response?: { status?: number; data?: { detail?: string } } })?.response;
     if (response?.status === 402) {
+      track('daily_limit_reached', { skill });
       throw new LessonQuotaError(response.data?.detail || 'Bạn đã hết lượt học miễn phí hôm nay.');
     }
     throw err;
   }
 
   if (res.status !== 202 || !('job_id' in res.data)) {
+    waited(true);
     return res.data as LessonDetail;
   }
 
@@ -129,6 +136,7 @@ export async function generateLesson(skill: string, topic?: string, curriculumCo
   while (Date.now() < deadline) {
     const job = await getLessonGenerationJob(res.data.job_id);
     if (job.status === 'succeeded' && job.result?.lesson_id) {
+      waited(false);
       return getLessonDetail(job.result.lesson_id);
     }
     if (job.status === 'failed') {

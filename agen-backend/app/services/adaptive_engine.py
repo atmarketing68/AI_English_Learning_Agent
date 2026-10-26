@@ -82,7 +82,7 @@ def decide(inp: AdaptiveInput) -> AdaptiveResult:
         return AdaptiveResult(
             decision=AdaptiveDecision.RETEACH,
             recommended_difficulty=_clamp_difficulty(diff - 1),
-            reason_vi="Kết quả còn thấp — AGEN sẽ dạy lại kiến thức này từ đầu.",
+            reason_vi="Kết quả còn thấp — AI AGENT ENGLISH sẽ dạy lại kiến thức này từ đầu.",
             reason_en="Low score — re-teaching the concept.",
         )
 
@@ -91,7 +91,7 @@ def decide(inp: AdaptiveInput) -> AdaptiveResult:
         return AdaptiveResult(
             decision=AdaptiveDecision.DECREASE,
             recommended_difficulty=_clamp_difficulty(diff - 1),
-            reason_vi="Bài hơi khó — AGEN sẽ giảm độ khó để bạn nắm chắc hơn.",
+            reason_vi="Bài hơi khó — AI AGENT ENGLISH sẽ giảm độ khó để bạn nắm chắc hơn.",
             reason_en="Below passing — decreasing difficulty.",
         )
 
@@ -101,7 +101,7 @@ def decide(inp: AdaptiveInput) -> AdaptiveResult:
             return AdaptiveResult(
                 decision=AdaptiveDecision.INCREASE,
                 recommended_difficulty=_clamp_difficulty(diff + 1),
-                reason_vi="Xuất sắc! AGEN sẽ tăng độ khó để bạn tiến bộ nhanh hơn.",
+                reason_vi="Xuất sắc! AI AGENT ENGLISH sẽ tăng độ khó để bạn tiến bộ nhanh hơn.",
                 reason_en="Mastered — increasing difficulty.",
             )
         return AdaptiveResult(

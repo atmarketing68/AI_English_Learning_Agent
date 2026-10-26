@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getChildren, linkChild, unlinkChild, getChildReport,
   type ChildSummary, type ChildReport,
@@ -259,6 +259,7 @@ function ChildReportPanel({ learnerId, childName }: { learnerId: string; childNa
 export default function ParentDashboardPage() {
   const router = useRouter();
   const { isAuthenticated, logout } = useAuthStore();
+  const hydrated = useAuthHydrated();
   const [children, setChildren] = useState<ChildSummary[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -274,10 +275,11 @@ export default function ParentDashboardPage() {
   };
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [hydrated, isAuthenticated]);
 
   const handleUnlink = async (id: string) => {
     await unlinkChild(id);

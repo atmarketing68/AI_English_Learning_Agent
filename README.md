@@ -144,7 +144,7 @@ DATABASE_URL=sqlite:///./agen_dev.db
 ALLOWED_ORIGINS=http://localhost:3000
 GEMINI_API_KEY=<khóa Gemini do người vận hành quản lý>
 ADMIN_EMAILS=<email quản trị của bạn>   # để truy cập trang /admin
-FREE_DAILY_LESSON_LIMIT=1000            # cao = không chặn khi test (0 = không giới hạn)
+FREE_DAILY_LESSON_LIMIT=3               # bài/ngày cho gói free (0 = không giới hạn)
 ```
 
 Khởi động server (KHÔNG dùng `--reload` khi pilot để tránh vòng lặp reload):
@@ -213,7 +213,7 @@ pytest -q
 | `GEMINI_API_KEY` | Yes* | Google Gemini API key |
 | `OPENAI_API_KEY` | No | OpenAI API key (alternative to Gemini) |
 | `ADMIN_EMAILS` | No | Comma-separated emails cho phép truy cập `/admin` (rỗng = không ai) |
-| `FREE_DAILY_LESSON_LIMIT` | No | Số bài/ngày cho gói free (mặc định 1000; `0` = không giới hạn) |
+| `FREE_DAILY_LESSON_LIMIT` | No | Số bài/ngày cho gói free (mặc định 3; `0` = không giới hạn) |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Default: 1440 (24h) |
 
 *At least one AI key is required.

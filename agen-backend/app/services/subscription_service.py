@@ -1,6 +1,6 @@
 """Subscription plan logic + free-tier gating.
 
-Pilot: free users may generate up to FREE_DAILY_LESSON_LIMIT lessons per day;
+Free users may complete up to FREE_DAILY_LESSON_LIMIT lessons per day (default 3);
 premium users are unlimited. No real payment gateway — upgrade is recorded
 directly. A webhook-driven integration can later drive plan/status changes.
 """
@@ -48,7 +48,8 @@ def is_premium(db: Session, user_id: str) -> bool:
 
 
 def _lessons_today(db: Session, learner_id: str) -> int:
-    start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    from app.core.timeutil import local_day_start_utc
+    start = local_day_start_utc()
     return (
         db.query(func.count(LearningEvent.id))
         .filter(

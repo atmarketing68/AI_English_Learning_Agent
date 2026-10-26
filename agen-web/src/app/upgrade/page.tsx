@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getSubscription, upgradeToPremium, cancelSubscription,
   type SubscriptionInfo,
@@ -12,6 +12,7 @@ import {
 import { playSound } from '@/lib/soundEffects';
 import confetti from 'canvas-confetti';
 import { ArrowLeft, Check, CircleAlert, CircleCheck, LoaderCircle, Minus } from 'lucide-react';
+import { track } from '@/lib/analytics';
 
 const FREE_FEATURES = [
   { label: '3 bài học AI / ngày', included: true },
@@ -46,6 +47,7 @@ const PLAN_PRICES = [
 export default function UpgradePage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hydrated = useAuthHydrated();
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [selectedMonths, setSelectedMonths] = useState(3);
   const [loading, setLoading] = useState(true);
@@ -55,24 +57,28 @@ export default function UpgradePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     getSubscription()
       .then(setSubscription)
       .catch(() => setError('Không thể tải thông tin gói.'))
       .finally(() => setLoading(false));
-  }, [isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router]);
 
   const handleUpgrade = async () => {
     setUpgrading(true);
     setError('');
+    track('upgrade_clicked', { months: selectedMonths });
     try {
       const updated = await upgradeToPremium(selectedMonths);
       setSubscription(updated);
       setSuccess(true);
+      track('upgrade_completed', { months: selectedMonths });
       playSound('success');
       confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
-    } catch {
-      setError('Nâng cấp thất bại. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Nâng cấp thất bại. Vui lòng thử lại.');
     } finally {
       setUpgrading(false);
     }
@@ -137,7 +143,7 @@ export default function UpgradePage() {
           >
             <div>
               <div style={{ fontWeight: 600, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CircleCheck size={18} color="var(--agen-success)" /> Bạn đang dùng AGEN Premium
+                <CircleCheck size={18} color="var(--agen-success)" /> Bạn đang dùng AI AGENT ENGLISH Premium
               </div>
               {subscription?.current_period_end && (
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -166,7 +172,7 @@ export default function UpgradePage() {
           >
             <CircleCheck size={36} strokeWidth={1.6} color="var(--agen-success)" style={{ marginBottom: 10 }} />
             <div style={{ fontWeight: 600, fontSize: '1.15rem' }}>
-              Chào mừng đến với AGEN Premium
+              Chào mừng đến với AI AGENT ENGLISH Premium
             </div>
             <p style={{ color: 'var(--text-secondary)', marginTop: 4, fontSize: '0.92rem' }}>
               Tất cả tính năng Premium đã được mở khóa. Chúc bạn học vui.

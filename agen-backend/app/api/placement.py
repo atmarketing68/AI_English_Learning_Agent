@@ -96,7 +96,7 @@ def start_placement(
 
     return StartResponse(
         session_id=session.id,
-        message="Bài Placement Test của bạn đã bắt đầu! Hãy trả lời 10 câu hỏi để AGEN tìm hiểu trình độ của bạn.",
+        message="Bài Placement Test của bạn đã bắt đầu! Hãy trả lời 10 câu hỏi để AI AGENT ENGLISH tìm hiểu trình độ của bạn.",
         total_questions=TOTAL_QUESTIONS,
         assessment_type=assessment_type,
     )
@@ -294,5 +294,5 @@ def finish_placement(
     return FinishResponse(
         assessment_type=session.assessment_type,
         **final,
-        message=f"🎉 Hoàn tất! Trình độ của bạn là {final['overall_level']}. AGEN sẽ tạo lộ trình học phù hợp!",
+        message=f"🎉 Hoàn tất! Trình độ của bạn là {final['overall_level']}. AI AGENT ENGLISH sẽ tạo lộ trình học phù hợp!",
     )

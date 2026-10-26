@@ -11,6 +11,7 @@ Logic:
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
+from app.core.timeutil import local_date, local_today
 from app.models.learner_profile import LearnerProfile
 from app.models.achievement import DailyChallenge
 
@@ -28,19 +29,15 @@ def update_streak(learner: LearnerProfile, db: Session) -> dict:
     Returns dict with updated streak values.
     """
     now = datetime.now(timezone.utc)
-    today = now.date()
+    today = local_date(now)
 
     last_active = learner.last_active_at
-    # Make last_active timezone-aware if stored as naive UTC
-    if last_active is not None and last_active.tzinfo is None:
-        last_active = last_active.replace(tzinfo=timezone.utc)
 
     if last_active is None:
         # First ever activity
         learner.current_streak = 1
     else:
-        last_date = last_active.date()
-        delta = (today - last_date).days
+        delta = (today - local_date(last_active)).days
 
         if delta == 0:
             # Already counted today — no change
@@ -72,7 +69,7 @@ def update_daily_challenge_progress(learner: LearnerProfile, activity_skill: str
 
     Returns True if challenge was completed (newly), False otherwise.
     """
-    today = datetime.now(timezone.utc).date().isoformat()
+    today = local_today().isoformat()
 
     challenge = db.query(DailyChallenge).filter(
         DailyChallenge.learner_id == learner.id,

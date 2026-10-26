@@ -1,6 +1,8 @@
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { LearnerProfile } from '@/types';
+import { resetAnalytics } from '@/lib/analytics';
 
 interface AuthState {
   token: string | null;
@@ -32,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
       setUserRole: (role) => set({ userRole: role }),
 
       logout: () => {
+        resetAnalytics();
         set({ token: null, refreshToken: null, learner: null, userRole: null, isAuthenticated: false });
       },
     }),
@@ -46,3 +49,19 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+const subscribeHydration = (onDone: () => void) => useAuthStore.persist.onFinishHydration(onDone);
+
+/**
+ * True once the persisted session has been restored from localStorage.
+ * Pages must wait for this before redirecting a "logged-out" user: on a hard
+ * reload the store starts empty for a moment, and redirecting then would log
+ * out every learner who refreshes the page.
+ */
+export function useAuthHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeHydration,
+    () => useAuthStore.persist.hasHydrated(),
+    () => false,
+  );
+}

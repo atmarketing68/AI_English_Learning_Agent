@@ -674,6 +674,7 @@ a:hover { opacity: 0.8; }
 .lp-nav-links a:hover { color: var(--text-primary); opacity: 1; }
 .lp-nav-links a:hover::after { transform: scaleX(1); }
 @media (max-width: 860px) { .lp-nav-links { display: none; } }
+@media (max-width: 480px) { .lp-nav-login { display: none; } }
 
 /* Hero extras */
 .hero-media { animation: heroZoom 20s ease-in-out infinite alternate; }

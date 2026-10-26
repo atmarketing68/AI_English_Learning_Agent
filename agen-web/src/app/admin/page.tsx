@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getAdminMe, getEvaluationSummary, listEvaluations,
   listContent, setContentStatus, batchGenerateContent,
@@ -258,6 +258,7 @@ function ContentPanel() {
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hydrated = useAuthHydrated();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [summary, setSummary] = useState<EvalSummary | null>(null);
   const [traces, setTraces] = useState<EvalTraceItem[]>([]);
@@ -269,11 +270,12 @@ export default function AdminDashboardPage() {
 
   // Access check
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     getAdminMe()
       .then((me) => setAuthorized(me.is_admin))
       .catch(() => setAuthorized(false));
-  }, [isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router]);
 
   // Load data once authorized / filters change
   useEffect(() => {
@@ -327,7 +329,7 @@ export default function AdminDashboardPage() {
       <div className="container" style={{ padding: 0 }}>
 
         <div className="animate-fade-in-up" style={{ marginBottom: 'var(--spacing-lg)' }}>
-          <h1 style={{ margin: 0, fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', display: 'flex', alignItems: 'center', gap: 10 }}><ShieldCheck size={28} strokeWidth={1.8} /> Quản trị AGEN</h1>
+          <h1 style={{ margin: 0, fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', display: 'flex', alignItems: 'center', gap: 10 }}><ShieldCheck size={28} strokeWidth={1.8} /> Quản trị AI AGENT ENGLISH</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>
             Giám sát chất lượng AI và quản lý kho nội dung bài học (Master Plan §29 / Content Factory)
           </p>

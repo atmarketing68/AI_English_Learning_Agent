@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   startPlacement, getPlacementQuestion, submitAnswer, finishPlacement,
   PlacementQuestion, PlacementAnswerRes, PlacementResult,
 } from '@/lib/placementService';
 import Logo from '@/components/ui/Logo';
 import { ArrowRight, BookOpen, BookText, Check, CircleAlert, CircleCheck, CircleX, Gauge, Headphones, Lightbulb, ListChecks, LoaderCircle, PenLine, X, Zap, type LucideIcon } from 'lucide-react';
+import { track } from '@/lib/analytics';
 
 // ──── Sub Components ────────────────────────────────────────────────────────
 
@@ -24,7 +25,7 @@ function IntroScreen({ onStart, loading }: { onStart: () => void; loading: boole
     <div className="card animate-fade-in-up" style={{ maxWidth: 560, width: '100%', textAlign: 'center', padding: 'clamp(24px, 5vw, 44px)', border: 'none', boxShadow: 'var(--shadow-md)' }}>
       <h2 style={{ marginBottom: 12 }}>Bài kiểm tra đầu vào</h2>
       <p style={{ marginBottom: 28, lineHeight: 1.6 }}>
-        AGEN sẽ đặt <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>10 câu hỏi</strong> về Vocabulary,
+        AI AGENT ENGLISH sẽ đặt <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>10 câu hỏi</strong> về Vocabulary,
         Grammar và Reading để xác định chính xác trình độ của bạn. Kết quả được dùng để tạo{' '}
         <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>lộ trình học cá nhân hóa</strong>.
       </p>
@@ -230,7 +231,7 @@ function ResultScreen({ result, onGoToDashboard }: { result: PlacementResult; on
       {/* Recommendations */}
       {result.recommendations.length > 0 && (
         <div className="card" style={{ marginBottom: 20, textAlign: 'left' }}>
-          <h3 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Lightbulb size={18} color="var(--agen-accent)" /> Gợi ý của AGEN</h3>
+          <h3 style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><Lightbulb size={18} color="var(--agen-accent)" /> Gợi ý của AI AGENT ENGLISH</h3>
           {result.recommendations.map((rec, i) => (
             <div key={i} style={{ padding: '8px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-elevated)', marginBottom: 8, fontSize: '0.875rem', color: 'var(--text-secondary)', display: 'flex', gap: 8 }}>
               <span>•</span><span>{rec}</span>
@@ -252,6 +253,7 @@ type Phase = 'intro' | 'testing' | 'result';
 export default function PlacementPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hydrated = useAuthHydrated();
 
   const [phase, setPhase] = useState<Phase>('intro');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -267,9 +269,10 @@ export default function PlacementPage() {
   });
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) router.push('/login');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [hydrated, isAuthenticated]);
 
   const handleStart = async () => {
     setLoading(true);
@@ -277,6 +280,7 @@ export default function PlacementPage() {
     try {
       const res = await startPlacement(assessmentType);
       setSessionId(res.session_id);
+      track('placement_started', { type: assessmentType });
       const q = await getPlacementQuestion(res.session_id);
       setCurrentQuestion(q);
       setPhase('testing');
@@ -297,6 +301,7 @@ export default function PlacementPage() {
         try {
           const res = await finishPlacement(sessionId);
           setResult(res);
+          track('placement_completed', { type: assessmentType, level: res.overall_level, accuracy: res.accuracy_percent });
           setPhase('result');
         } catch (err: unknown) {
           setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Lỗi khi tổng hợp kết quả.');
@@ -325,7 +330,7 @@ export default function PlacementPage() {
     } finally {
       setSubmitting(false);
     }
-  }, [sessionId, currentQuestion, feedback]);
+  }, [sessionId, currentQuestion, feedback, assessmentType]);
 
   return (
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>

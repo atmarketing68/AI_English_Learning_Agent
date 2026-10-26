@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getOverview, getActivity, getCoachAdvice, getWeeklyReport,
   getAssessmentOutcomes, getLeaderboard,
@@ -82,6 +82,7 @@ function ActivityCalendar({ days }: { days: ActivityData['days'] }) {
 export default function ProgressPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hydrated = useAuthHydrated();
 
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [activity, setActivity] = useState<ActivityData | null>(null);
@@ -96,6 +97,7 @@ export default function ProgressPage() {
   const [activeTab, setActiveTab] = useState<'progress' | 'leaderboard'>('progress');
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
 
     // Load overview, activity & achievements first (fast)
@@ -110,7 +112,7 @@ export default function ProgressPage() {
       .catch(() => { /* non-critical */ })
       .finally(() => setCoachLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [hydrated, isAuthenticated]);
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-muted)' }}>
@@ -264,7 +266,7 @@ export default function ProgressPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
               <span className="icon-tile" style={{ background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><Sparkles size={20} strokeWidth={1.8} /></span>
               <div>
-                <div style={{ fontWeight: 600 }}>AGEN Coach</div>
+                <div style={{ fontWeight: 600 }}>AI AGENT ENGLISH Coach</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Lời khuyên học tập hôm nay</div>
               </div>
             </div>
@@ -442,7 +444,7 @@ export default function ProgressPage() {
               <div className="card" style={{ marginBottom: 'var(--spacing-xl)', padding: 'var(--spacing-xl)' }}>
                 <div style={{ textAlign: 'center', marginBottom: 24 }}>
                   <Trophy size={32} strokeWidth={1.6} color="var(--agen-accent)" style={{ marginBottom: 12 }} />
-                  <h3>Top 10 học viên AGEN</h3>
+                  <h3>Top 10 học viên AI AGENT ENGLISH</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Bảng xếp hạng vinh danh những học viên chăm chỉ nhất</p>
                 </div>
 

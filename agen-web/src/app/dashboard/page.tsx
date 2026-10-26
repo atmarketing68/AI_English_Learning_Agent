@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, Variants } from 'framer-motion';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import { getMyProfile, getDailyChallenge } from '@/lib/services';
 import { getNextLesson, type NextLesson } from '@/lib/curriculumService';
 import NotificationBell from '@/components/NotificationBell';
@@ -75,7 +75,7 @@ function MissionCard({ learner, nextLesson }: { learner: LearnerProfile; nextLes
         <>
           <h3 style={{ fontSize: '1.5rem', marginBottom: 8 }}>Kiểm tra đầu vào</h3>
           <p style={{ marginBottom: 'var(--spacing-lg)', fontSize: '0.95rem', flex: 1 }}>
-            Làm bài kiểm tra đầu vào để AGEN tạo lộ trình học riêng cho bạn.
+            Làm bài kiểm tra đầu vào để AI AGENT ENGLISH tạo lộ trình học riêng cho bạn.
           </p>
           <div>
             <Link href="/placement" className="btn btn-primary">
@@ -145,10 +145,12 @@ function DailyChallengeCard({ challenge }: { challenge: DailyChallenge }) {
 export default function DashboardPage() {
   const router = useRouter();
   const { isAuthenticated, learner, setLearner, logout } = useAuthStore();
+  const hydrated = useAuthHydrated();
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [nextLesson, setNextLesson] = useState<NextLesson | null>(null);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -165,7 +167,7 @@ export default function DashboardPage() {
       })
       .catch(() => logout());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [hydrated, isAuthenticated]);
 
   if (!learner) {
     return <PageSkeleton cards={3} />;
@@ -293,7 +295,7 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <span className="icon-tile" style={{ background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><Sparkles size={20} strokeWidth={1.8} /></span>
               <div>
-                <div style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>AGEN Premium</div>
+                <div style={{ fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>AI AGENT ENGLISH Premium</div>
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Bài học không giới hạn · Báo cáo phụ huynh · Lộ trình cá nhân hóa</div>
               </div>
             </div>

@@ -17,6 +17,7 @@ import AudioPlayerTTS from '@/components/AudioPlayerTTS';
 import confetti from 'canvas-confetti';
 import { playSound } from '@/lib/soundEffects';
 import { ArrowRight, BookOpen, BookText, ChevronDown, ChevronUp, CircleAlert, CircleCheck, CircleX, Flame, Headphones, PenLine, Sparkles, Star, Trophy, X, type LucideIcon } from 'lucide-react';
+import { track } from '@/lib/analytics';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
@@ -212,6 +213,7 @@ export default function LessonPlayerPage() {
       getLessonDetail(lessonId)
         .then(data => {
           setLesson(data);
+          if (data.status !== 'completed') track('lesson_started', { skill: data.skill, level: data.level });
           if (data.status === 'in_progress') {
             const nextIdx = data.exercises.findIndex(e => e.user_answer == null);
             setCurrentIndex(nextIdx !== -1 ? nextIdx : data.exercises.length - 1);
@@ -264,6 +266,7 @@ export default function LessonPlayerPage() {
         setFinishResult(fin);
         const updated = await getLessonDetail(lesson.id);
         setLesson(updated);
+        track('lesson_completed', { skill: updated.skill, level: updated.level, score: updated.score });
 
         // Notify backend → streak + daily challenge + achievements in one call
         const result = await notifyActivityCompleted(lesson.skill);
@@ -345,7 +348,7 @@ export default function LessonPlayerPage() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <Sparkles size={16} color="var(--agen-primary)" />
-                <span style={{ fontWeight: 600, color: 'var(--agen-primary-light)' }}>AGEN Coach</span>
+                <span style={{ fontWeight: 600, color: 'var(--agen-primary-light)' }}>AI AGENT ENGLISH Coach</span>
               </div>
               <p style={{ fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>{finishResult.adaptive_reason}</p>
             </div>
