@@ -26,7 +26,10 @@ export type AnalyticsEvent =
   | 'speaking_session_completed'
   | 'writing_submitted'
   | 'upgrade_clicked'
-  | 'upgrade_completed';
+  | 'upgrade_completed'
+  | 'review_started'
+  | 'review_completed'
+  | 'notebook_opened';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

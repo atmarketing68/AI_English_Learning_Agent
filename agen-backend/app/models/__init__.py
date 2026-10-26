@@ -16,6 +16,7 @@ from app.models.email_verification import EmailVerificationToken
 from app.models.notification import Notification
 from app.models.subscription import Subscription
 from app.models.curriculum_content import CurriculumLessonContent
+from app.models.review_item import ReviewItem
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -29,4 +30,5 @@ __all__ = [
     "Notification",
     "Subscription",
     "CurriculumLessonContent",
+    "ReviewItem",
 ]

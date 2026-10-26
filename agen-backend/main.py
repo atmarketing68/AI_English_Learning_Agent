@@ -24,6 +24,7 @@ from app.api.parent import router as parent_router
 from app.api.admin import router as admin_router
 from app.api.notifications import router as notifications_router
 from app.api.billing import router as billing_router
+from app.api.review import router as review_router
 from app.services.gamification import seed_achievements
 from app.services.curriculum_seed import seed_curriculum
 
@@ -138,6 +139,7 @@ app.include_router(parent_router, prefix=PREFIX)
 app.include_router(admin_router, prefix=PREFIX)
 app.include_router(notifications_router, prefix=PREFIX)
 app.include_router(billing_router, prefix=PREFIX)
+app.include_router(review_router, prefix=PREFIX)
 
 # ── Root & Health ─────────────────────────────────────────────────────────────
 @app.get("/", tags=["Health"])

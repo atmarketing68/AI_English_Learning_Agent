@@ -14,6 +14,7 @@ from app.models.achievement import LearnerAchievement, DailyChallenge
 from app.models.placement import PlacementSession
 from app.models.roleplay import RoleplaySession
 from app.models.writing import WritingSubmission
+from app.models.review_item import ReviewItem
 
 router = APIRouter(prefix="/privacy", tags=["Privacy"])
 PRIVACY_POLICY_VERSION = "2026-09-07"
@@ -69,6 +70,7 @@ def export_personal_data(
     profile = db.query(LearnerProfile).filter(LearnerProfile.user_id == current_user.id).first()
     events = db.query(LearningEvent).filter(LearningEvent.learner_id == profile.id).all() if profile else []
     lessons = db.query(Lesson).filter(Lesson.learner_id == profile.id).all() if profile else []
+    review_items = db.query(ReviewItem).filter(ReviewItem.learner_id == profile.id).all() if profile else []
     consents = db.query(ConsentRecord).filter(ConsentRecord.user_id == current_user.id).all()
     return {
         "user": {"id": current_user.id, "email": current_user.email, "full_name": current_user.full_name},
@@ -82,6 +84,7 @@ def export_personal_data(
         } if profile else None,
         "learning_events": [{"id": event.id, "event_type": event.event_type, "skill": event.skill, "score": event.score, "recorded_at": event.recorded_at} for event in events],
         "lessons": [{"id": lesson.id, "skill": lesson.skill, "topic": lesson.topic, "status": lesson.status, "score": lesson.score, "created_at": lesson.created_at} for lesson in lessons],
+        "review_items": [{"id": item.id, "kind": item.kind, "front": item.front, "back": item.back, "reps": item.reps, "due_at": item.due_at} for item in review_items],
         "consents": [{"consent_type": consent.consent_type, "policy_version": consent.policy_version, "granted": consent.granted, "recorded_at": consent.recorded_at} for consent in consents],
     }
 
@@ -104,6 +107,7 @@ def delete_account(
         db.query(PlacementSession).filter(PlacementSession.learner_id == profile.id).delete(synchronize_session=False)
         db.query(RoleplaySession).filter(RoleplaySession.learner_id == profile.id).delete(synchronize_session=False)
         db.query(WritingSubmission).filter(WritingSubmission.learner_id == profile.id).delete(synchronize_session=False)
+        db.query(ReviewItem).filter(ReviewItem.learner_id == profile.id).delete(synchronize_session=False)
         lesson_ids = [lesson.id for lesson in db.query(Lesson).filter(Lesson.learner_id == profile.id).all()]
         if lesson_ids:
             from app.models.lesson import Exercise

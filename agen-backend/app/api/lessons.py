@@ -22,6 +22,7 @@ from app.agents.orchestrator import AgentRequest, execute
 from app.services.agent_jobs import create_job, get_job, update_job
 from app.worker import enqueue_lesson_generation
 from app.services.streak_service import record_activity
+from app.services.srs import collect_lesson_vocabulary, record_mistake
 from app.services.adaptive_engine import (
     decide as adaptive_decide,
     AdaptiveInput,
@@ -114,6 +115,7 @@ class FinishLessonResponse(BaseModel):
     adaptive_decision: Optional[str] = None       # keep_level / increase / ...
     adaptive_reason: Optional[str] = None          # human-readable (Vietnamese)
     recommended_difficulty: Optional[int] = None
+    words_saved: int = 0                           # new words added to the review notebook
 
 
 class DailyRecommendation(BaseModel):
@@ -638,6 +640,8 @@ def submit_exercise_answer(
             duration_seconds=payload.duration_seconds,
             extra_data={"exercise_order": exercise.order},
         ))
+        if not is_correct:
+            record_mistake(db, learner.id, exercise, payload.answer, datetime.utcnow())
 
     db.commit()
 
@@ -752,6 +756,9 @@ def finish_lesson(
     # ── Update curriculum progress if this lesson maps to a curriculum node ──
     _update_curriculum_progress(db, learner.id, lesson, result["score"])
 
+    # Words from this lesson go into the learner's notebook for spaced review
+    words_saved = collect_lesson_vocabulary(db, learner.id, lesson, datetime.utcnow())
+
     # Update streak and daily challenge progress
     record_activity(learner, lesson.skill, db)
 
@@ -776,6 +783,7 @@ def finish_lesson(
         adaptive_decision=adaptive.decision.value,
         adaptive_reason=adaptive.reason_vi,
         recommended_difficulty=adaptive.recommended_difficulty,
+        words_saved=words_saved,
     )
 
 
