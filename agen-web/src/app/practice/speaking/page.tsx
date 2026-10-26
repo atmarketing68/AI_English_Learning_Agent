@@ -12,6 +12,7 @@ import { getMyProfile } from '@/lib/services';
 import { playSound } from '@/lib/soundEffects';
 import { ArrowLeft, ChevronRight, CircleAlert, Lightbulb, LoaderCircle, Mic, Star } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 interface Message {
   role: 'ai' | 'user';
@@ -73,7 +74,7 @@ export default function SpeakingPracticePage() {
       setMessages([{ role: 'ai', content: res.ai_first_message }]);
       speakText(res.ai_first_message);
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Lỗi khởi tạo roleplay');
+      setError(apiErrorMessage(err, 'Lỗi khởi tạo roleplay'));
     } finally {
       setLoading(false);
     }
@@ -114,7 +115,7 @@ export default function SpeakingPracticePage() {
       playSound('pop');
 
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Lỗi khi gửi câu trả lời');
+      setError(apiErrorMessage(err, 'Lỗi khi gửi câu trả lời'));
     } finally {
       setLoading(false);
     }

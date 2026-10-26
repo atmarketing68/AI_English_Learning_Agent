@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { getMyProfile } from '@/lib/services';
 import { ArrowLeft, BookText, CircleAlert, Feather, Lightbulb, LoaderCircle, Mail, MessageSquareQuote, Palette, Sparkles, Star } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 export default function WritingPracticePage() {
   const { setLearner } = useAuthStore();
@@ -35,7 +36,7 @@ export default function WritingPracticePage() {
       const res = await getWritingPrompt(genre);
       setPromptData(res);
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Lỗi lấy đề tài viết.');
+      setError(apiErrorMessage(err, 'Lỗi lấy đề tài viết.'));
     } finally {
       setLoading(false);
     }
@@ -60,7 +61,7 @@ export default function WritingPracticePage() {
       const freshProfile = await getMyProfile();
       setLearner(freshProfile);
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Lỗi khi nộp bài.');
+      setError(apiErrorMessage(err, 'Lỗi khi nộp bài.'));
     } finally {
       setEvalLoading(false);
     }

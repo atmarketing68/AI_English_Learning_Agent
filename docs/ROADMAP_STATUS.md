@@ -27,6 +27,7 @@ Cập nhật lần cuối: 2026-10-26.
 | G1 | PWA cài được + trang offline; Content Factory tự sinh bài A1–B1 (workflow 2 giờ/lần); luyện tập tự do lấy bài có sẵn | #8 |
 | G1 | 6 dạng bài mới: ghép câu, nối cặp, nghe chọn, nghe-chép, nói lặp lại, sắp xếp hội thoại (dựng từ nội dung bài, không tốn AI) | #9 |
 | G1 | App shell: sidebar máy tính + tab bar điện thoại thống nhất (`components/ui/navigation.ts`), trang Hồ sơ `/profile` | #10 |
+| — | Sửa lỗi đăng ký/đăng nhập: báo lỗi rõ (mất kết nối, mật khẩu thiếu số, email trùng, sai mật khẩu), lỗi 500 vẫn có CORS, `APP_URL` tự vào CORS (`lib/apiError.ts`) | #11 |
 
 **G1 hoàn tất.** Chưa làm trong G1: "sửa chuỗi trong 24 giờ" (streak repair) và mua bảo vệ chuỗi bằng XP —
 hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi người tặng sẵn 1, tối đa 2).
@@ -42,7 +43,11 @@ Khoá đã được tạo và gửi cho chủ dự án trong chat (KHÔNG có tr
    Giữ nâng Premium giả lập cho pilot: `ALLOW_DEMO_UPGRADE=true` trên Render.
 2. **GitHub → Settings → Secrets → Actions:** `REMINDER_API_URL` (URL backend Render),
    `REMINDER_CRON_SECRET` (cùng giá trị Render). Dùng chung cho workflow nhắc học và Content Factory.
-3. Chạy thử: Actions → *Content Factory* → Run workflow (limit 10); Actions → *Learning reminders* → Run.
+3. **Tài khoản admin:** đăng ký trên web bằng `atmarketing68@gmail.com`, rồi thêm `ADMIN_EMAILS=atmarketing68@gmail.com`
+   trên Render → vào `/admin`.
+4. **Kiểm tra `ALLOWED_ORIGINS` / `APP_URL` trên Render = đúng URL web đang dùng** (vd. `https://agen-web.vercel.app`).
+   Sai URL thì mọi lệnh gọi API bị chặn — đăng ký báo "Không kết nối được máy chủ".
+5. Chạy thử: Actions → *Content Factory* → Run workflow (limit 10); Actions → *Learning reminders* → Run.
 
 Nếu khoá bị mất: tạo lại bằng `python agen-backend/scripts/generate_vapid_keys.py` (đổi khoá thì người
 học phải bật lại thông báo).

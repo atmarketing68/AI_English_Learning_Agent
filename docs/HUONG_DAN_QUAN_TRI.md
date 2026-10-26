@@ -163,7 +163,8 @@ Trong `agen-backend/.env`:
 | `FREE_DAILY_LESSON_LIMIT` | Số bài/ngày cho gói free. Mặc định **3** (khớp với landing). Nhóm test nội bộ có thể đặt **0 (không giới hạn)** |
 | `GEMINI_API_KEY` | Khóa AI — **bắt buộc** để sinh nội dung. Không có = không tạo được bài |
 | `OPENAI_API_KEY` | Khóa dự phòng (nếu Gemini lỗi, hệ thống tự chuyển sang OpenAI) |
-| `ALLOWED_ORIGINS` | URL frontend được phép gọi API (CORS) |
+| `ALLOWED_ORIGINS` | URL frontend được phép gọi API (CORS). `APP_URL` cũng tự được cho phép. **Sai URL → đăng ký/đăng nhập báo "Không kết nối được máy chủ"** |
+| `ALLOWED_ORIGIN_REGEX` | (Tuỳ chọn) Cho phép thêm theo mẫu, vd. bản xem trước Vercel `https://agen-web-.*\.vercel\.app` |
 
 > 🔐 **An ninh:** đừng commit khóa API vào git. Nếu khóa từng lộ (ví dụ trong file mẫu),
 > hãy **thu hồi và tạo khóa mới** ngay.

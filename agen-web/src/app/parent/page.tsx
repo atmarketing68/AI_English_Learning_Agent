@@ -9,6 +9,7 @@ import {
   type ChildSummary, type ChildReport,
 } from '@/lib/parentService';
 import { BookOpen, BookText, ChartColumn, CircleAlert, CircleCheck, Clock, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
@@ -65,7 +66,7 @@ function LinkChildForm({ onLinked }: { onLinked: () => void }) {
       setCode(''); setLabel(''); setOpen(false);
       onLinked();
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không thể liên kết.');
+      setError(apiErrorMessage(err, 'Không thể liên kết.'));
     } finally { setLoading(false); }
   };
 
