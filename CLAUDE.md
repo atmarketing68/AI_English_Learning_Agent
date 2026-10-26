@@ -69,6 +69,13 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
   Chi phí AI: `core/usage_context.py` (middleware ASGI đặt user + feature, orchestrator đặt feature = tên agent) →
   `services/ai_usage.py` ghi `AiUsage` trong `llm_client.get_llm_response` và `tts_service.synthesize`; test đổi
   `ai_usage._session_factory` sang engine test. Giới hạn ngày ném `LLMError(is_quota=True)` → các luồng dùng fallback sẵn có.
+- G11: podcast AI `agents/podcast_agent.py` → `podcast_generator.normalize_episode` → `GeneratedEpisode` (chỉ `approved` vào
+  `media_library.list_episodes(db)`, id `gen-<uuid>`, `youtube_id` → kind video); phòng nói hẹn giờ `SpeakingRoom.scheduled_at` +
+  `RoomMember.reminded_at`, `speaking_club.run_reminders` (cron `/club/cron/remind` 10 phút/lần + fallback trong `/reminders/cron/run`);
+  giáo viên chấm lại `WritingSubmission.teacher_*` qua `groups.grade_writing` (tạo `TeacherFeedback` + thông báo); hoàn tiền
+  `payments.refund_order`/`record_refund` (trạng thái `refunded`, trừ lại thời hạn Premium; Stripe `charge.refunded` tìm đơn theo
+  `provider_txn`), biên nhận `/billing/orders/<id>/receipt` + web `/receipt/<id>` (ALWAYS_CLASSIC); cảnh báo chi phí
+  `ai_usage.check_alerts` (cờ ngày trong `AppConfig`, chạy trong cron hằng giờ). Ngày của học viên luôn theo `local_today()` — cả trong test.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

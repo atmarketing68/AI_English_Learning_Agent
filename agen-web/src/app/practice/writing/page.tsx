@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { getMyProfile } from '@/lib/services';
 import { ArrowLeft, Award, BookText, Briefcase, CircleAlert, Feather, GraduationCap, Lightbulb, LoaderCircle, Mail, MessageSquareQuote, Palette, Sparkles, Star, TrendingUp } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import WritingHistoryCard from '@/components/writing/WritingHistoryCard';
 
 interface GenreCard { id: string; label: string; sub?: string; icon: typeof Mail }
 const GENERAL_GENRES: GenreCard[] = [
@@ -157,6 +158,7 @@ export default function WritingPracticePage() {
             </div>
           ))}
           {loading && <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 24, color: 'var(--text-muted)', fontSize: '0.9rem' }}><LoaderCircle className="animate-spin" size={16} /> Đang chuẩn bị đề bài…</div>}
+          <WritingHistoryCard />
         </div>
       </main>
     );

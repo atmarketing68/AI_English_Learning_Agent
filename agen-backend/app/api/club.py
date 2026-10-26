@@ -1,12 +1,14 @@
 """G10 · Câu lạc bộ nói: lobby, create/join a room, poll its state, speak your turn, skip, leave."""
-from datetime import datetime
+import hmac
+from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.agents.orchestrator import AgentRequest, execute
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.learner_profile import LearnerProfile
@@ -37,12 +39,14 @@ class RoomCard(BaseModel):
     members: int
     host_name: str
     created_at: datetime
+    scheduled_at: Optional[datetime] = None     # G11 · booked session (UTC)
 
 
 class LobbyOut(BaseModel):
     topics: list[TopicOut]
     open_rooms: list[RoomCard]
     my_rooms: list[RoomCard]
+    upcoming_rooms: list[RoomCard] = []
     max_members: int
 
 
@@ -81,11 +85,14 @@ class RoomState(BaseModel):
     turns_taken: int
     total_turns: int
     last_seq: int
+    scheduled_at: Optional[datetime] = None
+    opens_at: Optional[datetime] = None         # G11 · earliest moment the host may start a booked room
 
 
 class CreateIn(BaseModel):
     topic_id: str = Field(min_length=1, max_length=40)
     is_public: bool = True
+    scheduled_at: Optional[datetime] = None     # G11 · ISO time with offset; empty = start now
 
 
 class JoinIn(BaseModel):
@@ -112,7 +119,8 @@ def _topic_out(topic_id: str) -> TopicOut:
 def _card(db: Session, room: SpeakingRoom) -> RoomCard:
     host = db.query(LearnerProfile).filter(LearnerProfile.id == room.host_learner_id).first()
     return RoomCard(id=room.id, code=room.code, topic=_topic_out(room.topic_id), status=room.status, members=len(club.active_members(db, room.id)),
-                    host_name=(host.display_name if host else None) or "Học viên", created_at=room.created_at)
+                    host_name=(host.display_name if host else None) or "Học viên", created_at=room.created_at,
+                    scheduled_at=room.scheduled_at)
 
 
 def _room_or_404(db: Session, room_id: str) -> SpeakingRoom:
@@ -141,6 +149,8 @@ def _state(db: Session, room: SpeakingRoom, learner: LearnerProfile, after: int 
         current_speaker_id=speaker.learner_id if speaker else None, is_my_turn=bool(speaker and speaker.learner_id == learner.id),
         is_host=room.host_learner_id == learner.id, turns_taken=room.turns_taken, total_turns=club.total_turns(db, room) if room.status != ROOM_FINISHED else room.turns_taken,
         last_seq=last_seq,
+        scheduled_at=room.scheduled_at,
+        opens_at=room.scheduled_at - timedelta(minutes=club.EARLY_START_MIN) if room.scheduled_at else None,
     )
 
 
@@ -149,18 +159,19 @@ def lobby(current_user: User = Depends(get_current_user), db: Session = Depends(
     learner = _learner(db, current_user)
     mine = (db.query(SpeakingRoom).join(RoomMember, RoomMember.room_id == SpeakingRoom.id)
             .filter(RoomMember.learner_id == learner.id, RoomMember.left_at.is_(None), SpeakingRoom.status != ROOM_FINISHED)
-            .order_by(SpeakingRoom.created_at.desc()).limit(5).all())
+            .order_by(SpeakingRoom.created_at.desc()).limit(8).all())
     mine_ids = {r.id for r in mine}
     return LobbyOut(topics=[_topic_out(t["id"]) for t in club.TOPICS],
                     open_rooms=[_card(db, r) for r in club.lobby(db) if r.id not in mine_ids],
-                    my_rooms=[_card(db, r) for r in mine], max_members=club.MAX_MEMBERS)
+                    my_rooms=[_card(db, r) for r in mine], max_members=club.MAX_MEMBERS,
+                    upcoming_rooms=[_card(db, r) for r in club.upcoming(db) if r.id not in mine_ids])
 
 
 @router.post("/rooms", response_model=RoomState)
 def create(payload: CreateIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     learner = _learner(db, current_user)
     try:
-        room = club.create_room(db, learner, payload.topic_id, payload.is_public)
+        room = club.create_room(db, learner, payload.topic_id, payload.is_public, payload.scheduled_at)
     except club.ClubError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
@@ -271,3 +282,12 @@ def leave(room_id: str, current_user: User = Depends(get_current_user), db: Sess
     club.leave_room(db, room, learner)
     db.commit()
     return lobby(current_user, db)
+
+
+@router.post("/cron/remind")
+def cron_remind(x_cron_secret: str = Header(default=""), db: Session = Depends(get_db)):
+    """G11 · Called every ~10 minutes by .github/workflows/club-reminders.yml (and by the hourly reminder run)."""
+    secret = settings.cron_secret
+    if not secret or not hmac.compare_digest(x_cron_secret, secret):
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return club.run_reminders(db)

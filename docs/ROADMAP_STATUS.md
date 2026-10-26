@@ -4,7 +4,7 @@
 > Kế hoạch gốc (đã được chủ dự án duyệt): Claude Doc "Kế hoạch nâng cấp AGEN — Audit & Lộ trình"
 > https://claude.ai/artifact/7PHjES4CK5zB9i8rBxrCuT
 
-Cập nhật lần cuối: 2026-10-26 (G10).
+Cập nhật lần cuối: 2026-10-27 (G11).
 
 ## Cách làm việc với chủ dự án
 
@@ -223,9 +223,23 @@ Migration `z3c4d5e6f7a8` tự chạy khi deploy.
 
 Chưa làm trong G10: thêm video thật có bản quyền/khớp lời thoại; câu lạc bộ nói bằng giọng thật (WebRTC) thay cho nhận diện giọng nói + đọc to; hoàn tiền Stripe tự động; chứng nhận xuất file PDF phía server.
 
-## G11 — gợi ý tiếp theo
+## G11 — Podcast AI, câu lạc bộ nói hẹn giờ, giáo viên chấm lại bài viết, hoàn tiền + biên nhận, cảnh báo chi phí AI: hoàn tất trên code
 
-Thư viện video có bản quyền + tự sinh tập podcast mới bằng AI (duyệt như đề thi) · Câu lạc bộ nói theo lịch (đặt giờ, nhắc trước 15 phút) · Giáo viên chấm lại bài viết và ghi đè điểm AI · Hoá đơn + hoàn tiền Stripe trong trang admin · Cảnh báo khi chi phí AI một ngày vượt ngưỡng.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Podcast do AI sinh | Admin vào `/admin` → tab **Podcast AI** → chọn trình độ, dạng (hội thoại / một người dẫn), chủ đề → "Sinh bản nháp" (1 lượt AI) → đọc lời thoại + đáp án → **Duyệt**. Tập đã duyệt hiện ở mục Podcast cho mọi học viên. Muốn có video: dán link YouTube có lời nói **khớp đúng** lời thoại và cho phép nhúng (tuỳ chọn giây bắt đầu/kết thúc). Không tự lấy video có bản quyền của người khác. |
+| Câu lạc bộ nói hẹn giờ | 1) Workflow mới `.github/workflows/club-reminders.yml` chạy 10 phút/lần từ 6:00 đến 22:59 giờ VN, dùng **chung** 2 secret `REMINDER_API_URL` + `REMINDER_CRON_SECRET` đã có — không cần thêm gì. 2) Học viên tick "Hẹn giờ", chọn ngày giờ (10 phút → 14 ngày tới), chọn chủ đề; người khác bấm **Đăng ký** ở mục "Buổi nói sắp diễn ra" hoặc vào bằng mã. Trước ~15 phút mọi người nhận thông báo trong app + push (+ Zalo nếu đã liên kết). Chủ phòng mở được từ 10 phút trước giờ hẹn; phòng không ai mở tự đóng sau 2 giờ. Lưu ý: gọi 10 phút/lần giữ máy chủ Render gói free luôn thức trong khung giờ đó (vẫn trong hạn mức 750 giờ/tháng nếu chỉ có 1 dịch vụ free). |
+| Giáo viên chấm lại bài viết | Không cần gì. Trong trang học viên (`/teacher/<nhóm>` → bấm tên) → tab Bài viết → mở bài → nhập điểm /100 (và band IELTS/TOEIC với đề thi) + nhận xét → học viên nhận thông báo, thấy điểm giáo viên ở **Luyện viết → Bài viết gần đây**. |
+| Hoàn tiền + biên nhận | Admin → tab **Doanh thu** → bảng đơn hàng: **Biên nhận** (in/lưu PDF) và **Hoàn tiền**. Đơn Stripe hoàn qua API ngay; đơn VNPay/MoMo phải hoàn trên cổng trước rồi bấm để ghi nhận. Hoàn tiền trừ lại thời hạn Premium đã mua. Hoàn tiền trực tiếp trên trang Stripe cũng tự ghi nhận nếu webhook Stripe có thêm sự kiện **`charge.refunded`**. Người mua xem "Lịch sử thanh toán" + biên nhận ở `/upgrade`. Tuỳ chọn trên Render để in thông tin người bán: `SELLER_NAME`, `SELLER_TAX_CODE`, `SELLER_ADDRESS`, `SELLER_EMAIL`. Biên nhận **không** thay hoá đơn GTGT. |
+| Cảnh báo chi phí AI | Đặt trên Render: `AI_ALERT_DAILY_USD` (tổng cả app/ngày) và/hoặc `AI_ALERT_USER_DAILY_USD` (một tài khoản/ngày); 0 = tắt. Job nhắc học hằng giờ kiểm tra và email cho `ADMIN_EMAILS` (cần `RESEND_API_KEY`), mỗi ngưỡng tối đa 1 lần/ngày; tab **Chi phí AI** hiện băng cảnh báo đỏ. |
+
+Migration `a4d5e6f7a8b9` tự chạy khi deploy. Sửa kèm: 3 test thử thách hằng ngày từng đỏ khi chạy CI sau 17:00 UTC (test dùng ngày UTC, code dùng ngày giờ VN).
+
+Chưa làm trong G11: thư viện video có bản quyền (cần hợp đồng với nhà sản xuất); câu lạc bộ nói bằng giọng thật (WebRTC); hoàn tiền một phần; hoá đơn điện tử tự động.
+
+## G12 — gợi ý tiếp theo
+
+Podcast sinh tự động theo lịch cho từng trình độ (vẫn chờ duyệt) · Lịch câu lạc bộ nói định kỳ hằng tuần do giáo viên mở cho cả lớp · Rubric chấm bài viết cho giáo viên (4 tiêu chí IELTS) · Kết nối hoá đơn điện tử (VNPT/Viettel S-Invoice) · Tự hạ cấp mô hình AI rẻ hơn khi chi phí vượt ngưỡng.
 
 ## Câu hỏi còn mở với chủ dự án
 

@@ -121,7 +121,7 @@ export interface MemberDetail {
   skills: Record<string, number>;
   last_active_at: string | null;
   lessons: { id: string; title: string; skill: string; topic: string; score: number; completed_at: string | null }[];
-  writings: { id: string; prompt_title: string; genre: string; score: number | null; grade: string | null; band: number | null; word_count: number; excerpt: string; created_at: string }[];
+  writings: { id: string; prompt_title: string; genre: string; score: number | null; grade: string | null; band: number | null; word_count: number; excerpt: string; created_at: string; teacher_score?: number | null; teacher_band?: number | null }[];
   exams: { id: string; title: string; exam: string; skill: string; pct: number; estimate: number | null; created_at: string }[];
   speaking_exams: { id: string; title: string; exam: string; estimate: number | null; created_at: string }[];
   assignments: AssignmentInfo[];
@@ -142,7 +142,17 @@ export interface WritingDetail {
   grade: string | null;
   evaluation: Record<string, unknown>;
   created_at: string;
+  /** G11 · 'ielts' | 'toeic' for exam genres */
+  exam?: 'ielts' | 'toeic' | null;
+  teacher_score?: number | null;
+  teacher_band?: number | null;
+  teacher_comment?: string | null;
+  teacher_scored_at?: string | null;
 }
+
+/** G11 · Teacher re-grade of a writing piece; score null clears it. */
+export const gradeMemberWriting = async (groupId: string, learnerId: string, submissionId: string, payload: { score: number | null; band?: number | null; comment?: string | null }): Promise<WritingDetail> =>
+  (await api.post(`/groups/${groupId}/members/${learnerId}/writing/${submissionId}/grade`, payload)).data;
 
 export interface LearnerFeedback {
   id: string;

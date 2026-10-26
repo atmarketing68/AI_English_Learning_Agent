@@ -511,6 +511,18 @@ class AdminOrder(BaseModel):
     invoice_issued_at: Optional[datetime]
     created_at: datetime
     paid_at: Optional[datetime]
+    # G10/G11
+    currency: str = "VND"
+    amount_foreign: Optional[int] = None
+    refunded_at: Optional[datetime] = None
+    refund_note: Optional[str] = None
+
+
+def _admin_order(o: PaymentOrder, email, role) -> AdminOrder:
+    return AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
+                      amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
+                      invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at, currency=o.currency or "VND",
+                      amount_foreign=o.amount_foreign, refunded_at=o.refunded_at, refund_note=o.refund_note)
 
 
 @router.get("/revenue/orders", response_model=list[AdminOrder])
@@ -526,9 +538,7 @@ def revenue_orders(
     if invoice_only:
         q = q.filter(PaymentOrder.invoice_info.isnot(None))
     rows = q.order_by(PaymentOrder.created_at.desc()).limit(limit).all()
-    return [AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
-                       amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
-                       invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at) for o, email, role in rows]
+    return [_admin_order(o, email, role) for o, email, role in rows]
 
 
 class InvoiceIssuedIn(BaseModel):
@@ -550,9 +560,31 @@ def mark_invoice_issued(
     o, email, role = row
     o.invoice_issued_at = datetime.utcnow() if payload.issued else None
     db.commit()
-    return AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
-                      amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
-                      invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at)
+    return _admin_order(o, email, role)
+
+
+class RefundIn(BaseModel):
+    note: str = Field(default="", max_length=300)
+    manual: bool = False        # Stripe: record a refund already made on the Stripe dashboard
+
+
+@router.post("/revenue/orders/{order_id}/refund", response_model=AdminOrder)
+def refund_order(order_id: str, payload: RefundIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G11 · Refund a paid order: Stripe through the API, other gateways recorded after refunding on the gateway.
+    The Premium time the order bought is taken back."""
+    _require_admin(current_user)
+    from app.services import payments
+    row = db.query(PaymentOrder, User.email, User.role).join(User, User.id == PaymentOrder.user_id).filter(PaymentOrder.id == order_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
+    o, email, role = row
+    try:
+        payments.refund_order(db, o, note=payload.note or f"Hoàn tiền bởi {current_user.email}", manual=payload.manual)
+    except payments.PaymentError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return _admin_order(o, email, role)
 
 
 # ── G9 · Đề thi thử do AI sinh (duyệt trước khi phát hành) ────────────────────
@@ -655,3 +687,119 @@ def ai_usage_summary(days: int = 30, current_user: User = Depends(get_current_us
     _require_admin(current_user)
     from app.services import ai_usage
     return ai_usage.summary(db, days=max(1, min(days, 90)))
+
+
+# ── G11 · Podcast do AI sinh (duyệt như đề thi) ──────────────────────────────
+class GeneratedEpisodeOut(BaseModel):
+    id: str
+    public_id: str
+    level: str
+    topic: Optional[str]
+    title: str
+    title_vi: str
+    status: str
+    lines: int
+    questions: int
+    youtube_id: Optional[str]
+    video_start: Optional[int]
+    video_end: Optional[int]
+    eval_score: Optional[float]
+    eval_flagged: Optional[bool]
+    created_at: datetime
+    approved_at: Optional[datetime]
+
+
+class GeneratePodcastIn(BaseModel):
+    level: str = Field(default="B1", pattern="^(A2|B1|B2|C1)$")
+    topic: str = Field(default="", max_length=120)
+    style: str = Field(default="conversation", pattern="^(conversation|talk)$")
+    auto_approve: bool = False
+
+
+class PodcastVideoIn(BaseModel):
+    youtube: Optional[str] = Field(default=None, max_length=200)
+    start: Optional[int] = Field(default=None, ge=0, le=36000)
+    end: Optional[int] = Field(default=None, ge=0, le=36000)
+
+
+def _ep_out(r) -> GeneratedEpisodeOut:
+    from app.services.podcast_generator import public_id
+    c = r.content or {}
+    return GeneratedEpisodeOut(id=r.id, public_id=public_id(r), level=r.level, topic=r.topic, title=r.title, title_vi=c.get("title_vi", ""),
+                               status=r.status, lines=len(c.get("lines", [])), questions=len(c.get("questions", [])), youtube_id=r.youtube_id,
+                               video_start=r.video_start, video_end=r.video_end, eval_score=r.eval_score, eval_flagged=r.eval_flagged,
+                               created_at=r.created_at, approved_at=r.approved_at)
+
+
+def _episode_row(db: Session, episode_id: str):
+    from app.models.generated_episode import GeneratedEpisode
+    row = db.query(GeneratedEpisode).filter(GeneratedEpisode.id == episode_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tập podcast.")
+    return row
+
+
+@router.get("/podcasts", response_model=list[GeneratedEpisodeOut])
+def list_generated_podcasts(status: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_episode import GeneratedEpisode
+    q = db.query(GeneratedEpisode)
+    if status:
+        q = q.filter(GeneratedEpisode.status == status)
+    return [_ep_out(r) for r in q.order_by(GeneratedEpisode.created_at.desc()).limit(200).all()]
+
+
+@router.post("/podcasts/generate", response_model=GeneratedEpisodeOut)
+def generate_podcast(payload: GeneratePodcastIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """One AI call → one draft episode (or approved straight away with auto_approve)."""
+    _require_admin(current_user)
+    from app.services.podcast_generator import PodcastGenerationError, generate_episode_draft
+    try:
+        row = generate_episode_draft(db, payload.level, payload.topic, payload.style, payload.auto_approve)
+    except PodcastGenerationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(exc))
+    db.commit()
+    return _ep_out(row)
+
+
+@router.get("/podcasts/{episode_id}")
+def get_generated_podcast(episode_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Full episode with answers, for review."""
+    _require_admin(current_user)
+    row = _episode_row(db, episode_id)
+    return {"meta": _ep_out(row).model_dump(), "episode": row.content}
+
+
+@router.post("/podcasts/{episode_id}/status", response_model=GeneratedEpisodeOut)
+def set_generated_podcast_status(episode_id: str, payload: ExamStatusIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.services.podcast_generator import set_status
+    row = set_status(_episode_row(db, episode_id), payload.status)
+    db.commit()
+    return _ep_out(row)
+
+
+@router.post("/podcasts/{episode_id}/video", response_model=GeneratedEpisodeOut)
+def set_generated_podcast_video(episode_id: str, payload: PodcastVideoIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Attach (or clear) a YouTube clip whose speech matches the transcript."""
+    _require_admin(current_user)
+    from app.services.podcast_generator import PodcastGenerationError, set_video
+    row = _episode_row(db, episode_id)
+    try:
+        set_video(row, payload.youtube, payload.start, payload.end)
+    except PodcastGenerationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return _ep_out(row)
+
+
+@router.delete("/podcasts/{episode_id}", status_code=204)
+def delete_generated_podcast(episode_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.media_progress import MediaProgress
+    from app.services.podcast_generator import public_id
+    row = _episode_row(db, episode_id)
+    db.query(MediaProgress).filter(MediaProgress.episode_id == public_id(row)).delete(synchronize_session=False)
+    db.delete(row)
+    db.commit()

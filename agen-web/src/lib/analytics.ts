@@ -91,7 +91,13 @@ export type AnalyticsEvent =
   | 'club_turn_spoken'
   | 'teacher_feedback_sent'
   | 'certificate_issued'
-  | 'certificate_claimed';
+  | 'certificate_claimed'
+  // G11
+  | 'podcast_generated'
+  | 'club_room_scheduled'
+  | 'writing_regraded'
+  | 'order_refunded'
+  | 'receipt_opened';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

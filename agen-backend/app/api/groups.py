@@ -109,6 +109,12 @@ class FeedbackIn(BaseModel):
     target_label: Optional[str] = Field(default=None, max_length=200)
 
 
+class WritingGradeIn(BaseModel):
+    score: Optional[float] = Field(default=None, ge=0, le=100)     # None clears the teacher grade
+    band: Optional[float] = Field(default=None, ge=0, le=200)
+    comment: Optional[str] = Field(default=None, max_length=2000)
+
+
 class CertificateIn(BaseModel):
     title: str = Field(min_length=3, max_length=200)
     note: Optional[str] = Field(default=None, max_length=300)
@@ -239,8 +245,32 @@ def member_writing(group_id: str, learner_id: str, submission_id: str, current_u
     w = db.query(WritingSubmission).filter(WritingSubmission.id == submission_id, WritingSubmission.learner_id == learner.id).first()
     if not w:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài viết.")
+    return _writing_out(w)
+
+
+def _writing_out(w) -> dict:
+    from app.agents.writing_agent import EXAM_GENRES
     return {"id": w.id, "prompt_title": w.prompt_title, "prompt_text": w.prompt_text, "genre": w.genre, "level": w.level, "user_text": w.user_text,
-            "word_count": w.word_count, "overall_score": w.overall_score, "grade": w.grade, "evaluation": w.evaluation or {}, "created_at": w.created_at}
+            "word_count": w.word_count, "overall_score": w.overall_score, "grade": w.grade, "evaluation": w.evaluation or {}, "created_at": w.created_at,
+            "exam": (EXAM_GENRES.get(w.genre or "") or {}).get("exam"),
+            "teacher_score": w.teacher_score, "teacher_band": w.teacher_band, "teacher_comment": w.teacher_comment, "teacher_scored_at": w.teacher_scored_at}
+
+
+@router.post("/{group_id}/members/{learner_id}/writing/{submission_id}/grade")
+def grade_member_writing(group_id: str, learner_id: str, submission_id: str, payload: WritingGradeIn,
+                         current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G11 · Teacher re-grades a writing piece (overrides the AI score shown to the learner)."""
+    g, learner = _owned_member(db, current_user, group_id, learner_id)
+    from app.models.writing import WritingSubmission
+    w = db.query(WritingSubmission).filter(WritingSubmission.id == submission_id, WritingSubmission.learner_id == learner.id).first()
+    if not w:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết.")
+    try:
+        svc.grade_writing(db, g, current_user, learner, w, payload.score, payload.band, payload.comment)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return _writing_out(w)
 
 
 @router.post("/{group_id}/members/{learner_id}/feedback")

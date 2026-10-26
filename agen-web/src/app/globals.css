@@ -3112,3 +3112,25 @@ a.member-cert:hover { color: var(--agen-primary); }
   .cert-sheet { box-shadow: none; padding: 0; max-width: none; border-radius: 0; }
   .cert-border, .cert-seal, .cert-skills span { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* ============================================
+   G11 — biên nhận, phòng nói hẹn giờ, giáo viên chấm lại bài viết
+   ============================================ */
+.receipt-sheet[data-refunded="true"] { position: relative; }
+.receipt-refunded { margin: 0 0 16px; padding: 8px 12px; border-radius: 10px; background: #FDECEC; color: #B42318; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.02em; }
+.receipt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.receipt-grid > div { padding: 12px; border-radius: 12px; background: #F5F5F7; display: grid; gap: 2px; font-size: 0.85rem; color: #515154; overflow-wrap: anywhere; }
+.receipt-grid span { font-size: 0.72rem; color: #86868B; text-transform: uppercase; letter-spacing: 0.06em; }
+.receipt-grid strong { color: #1D1D1F; font-size: 0.95rem; }
+.receipt-table { width: 100%; border-collapse: collapse; font-size: 0.92rem; color: #1D1D1F; margin-bottom: 14px; }
+.receipt-table th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: #86868B; padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.12); }
+.receipt-table td { padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
+.receipt-table tfoot td { font-weight: 700; border-bottom: none; padding-top: 14px; }
+.receipt-note { font-size: 0.8rem; color: #6E6E73; margin: 6px 0 0; }
+@media print { .receipt-refunded, .receipt-grid > div { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+
+.club-schedule { display: grid; gap: 8px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--bg-elevated); margin-bottom: 12px; }
+.club-when { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; font-weight: 600; color: var(--agen-primary); }
+.writing-grade { display: grid; gap: 8px; margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--bg-elevated); }
+.writing-grade-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.teacher-score { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: color-mix(in srgb, var(--agen-success) 14%, transparent); color: var(--agen-success); }

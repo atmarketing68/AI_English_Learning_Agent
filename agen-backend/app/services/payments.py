@@ -28,7 +28,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.payment_order import STATUS_FAILED, STATUS_PAID, STATUS_PENDING, PaymentOrder
+from app.models.payment_order import STATUS_FAILED, STATUS_PAID, STATUS_PENDING, STATUS_REFUNDED, PaymentOrder
 from app.models.subscription import PLAN_FAMILY, PLAN_PREMIUM, PLAN_TEAM, Subscription
 from app.services import subscription_service as subs
 
@@ -361,9 +361,12 @@ def handle_stripe_event(db: Session, event: dict) -> str:
     kind = event.get("type", "")
     obj = (event.get("data") or {}).get("object") or {}
     order_id = (obj.get("metadata") or {}).get("order_id") or obj.get("client_reference_id")
-    if not order_id:
+    intent = obj.get("payment_intent") if kind == "charge.refunded" else None
+    if not order_id and not intent:
         return "ignored"
-    order = db.query(PaymentOrder).filter(PaymentOrder.id == order_id, PaymentOrder.provider == "stripe").first()
+    q = db.query(PaymentOrder).filter(PaymentOrder.provider == "stripe")
+    # a Charge may not carry the PaymentIntent's metadata: fall back to the stored intent id
+    order = (q.filter(PaymentOrder.id == order_id).first() if order_id else None) or (q.filter(PaymentOrder.provider_txn == intent).first() if intent else None)
     if not order:
         return "unknown_order"
     if kind in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
@@ -374,6 +377,15 @@ def handle_stripe_event(db: Session, event: dict) -> str:
             mark_failed(db, order, {"stripe_event": kind, "reason": "amount_mismatch"})
             return "amount_mismatch"
         return "paid" if mark_paid(db, order, obj.get("payment_intent") or obj.get("id"), {"stripe_event": kind, "session": obj.get("id")}) else "already_paid"
+    if kind == "charge.refunded":
+        # G11 · refunded from the Stripe dashboard (or echo of our own refund call)
+        if order.status != STATUS_PAID:
+            return "already_refunded" if order.status == STATUS_REFUNDED else "ignored"
+        if not obj.get("refunded"):
+            return "partial_refund"
+        record_refund(db, order, txn=((obj.get("refunds") or {}).get("data") or [{}])[0].get("id") or obj.get("id"), note="Hoàn tiền từ Stripe")
+        db.commit()
+        return "refunded"
     if kind in ("checkout.session.expired", "checkout.session.async_payment_failed"):
         mark_failed(db, order, {"stripe_event": kind})
         return "failed"
@@ -388,10 +400,66 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
+# ── G11 · Hoàn tiền ──────────────────────────────────────────────────────────
+def record_refund(db: Session, order: PaymentOrder, txn: str | None = None, note: str | None = None) -> PaymentOrder:
+    """Mark a paid order refunded and take back the Premium time it bought (caller commits)."""
+    if order.status != STATUS_PAID:
+        raise PaymentError("Chỉ hoàn tiền được đơn đã thanh toán.")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    order.status = STATUS_REFUNDED
+    order.refunded_at = now
+    order.refund_txn = (txn or "")[:120] or None
+    order.refund_note = (note or "").strip()[:300] or None
+    sub = db.query(Subscription).filter(Subscription.user_id == order.user_id).first()
+    if sub and sub.current_period_end is not None:
+        sub.current_period_end = sub.current_period_end - timedelta(days=30 * (order.months or 0))
+        if sub.current_period_end <= now:
+            sub.plan = subs.PLAN_FREE
+            sub.current_period_end = None
+            sub.seats = 1
+    return order
+
+
+def stripe_refund(order: PaymentOrder) -> str:
+    """Full refund of a Stripe order through the API; returns the refund id."""
+    if not stripe_enabled():
+        raise PaymentError("Chưa cấu hình Stripe nên không hoàn tiền tự động được.")
+    intent = order.provider_txn or ""
+    if not intent.startswith("pi_"):
+        raise PaymentError("Đơn Stripe này không có mã PaymentIntent; hãy hoàn tiền trên trang Stripe rồi đánh dấu thủ công.")
+    try:
+        resp = httpx.post(f"{STRIPE_API}/refunds", data={"payment_intent": intent, "metadata[order_id]": order.id},
+                          auth=(settings.STRIPE_SECRET_KEY, ""), timeout=15)
+        data = resp.json()
+    except Exception as exc:
+        raise PaymentError(f"Stripe không phản hồi: {exc}") from exc
+    if resp.status_code >= 400 or not data.get("id"):
+        raise PaymentError(f"Stripe từ chối hoàn tiền: {(data.get('error') or {}).get('message', resp.status_code)}")
+    return data["id"]
+
+
+def refund_order(db: Session, order: PaymentOrder, note: str | None = None, manual: bool = False) -> PaymentOrder:
+    """Admin refund: Stripe orders are refunded through the API unless `manual`; other gateways are
+    refunded by the operator on the gateway first, then recorded here. Caller commits."""
+    if order.status != STATUS_PAID:
+        raise PaymentError("Chỉ hoàn tiền được đơn đã thanh toán.")
+    txn = None
+    if order.provider == "stripe" and not manual:
+        txn = stripe_refund(order)
+    return record_refund(db, order, txn=txn, note=note)
+
+
+def receipt_number(order: PaymentOrder) -> str:
+    """Stable, human-friendly receipt number: BN-<yymmdd>-<first 6 of the order id>."""
+    when = order.paid_at or order.created_at or datetime.now(timezone.utc)
+    return f"BN-{when.strftime('%y%m%d')}-{order.id.replace('-', '')[:6].upper()}"
+
+
 __all__ = [
     "PRICES_VND", "FAMILY_PRICES_VND", "FAMILY_MAX_CHILDREN", "TEAM_PRICES_VND", "TEAM_MIN_SEATS", "TEAM_MAX_SEATS", "price_for", "TRIAL_DAYS", "PaymentError", "providers", "vnpay_enabled", "momo_enabled",
     "create_order", "mark_paid", "mark_failed", "trial_available", "start_trial",
     "vnpay_pay_url", "vnpay_verify", "handle_vnpay_callback",
     "momo_create_request", "momo_pay_url", "momo_verify", "handle_momo_ipn", "status_of", "new_id", "json",
     "PRICES_USD", "FAMILY_PRICES_USD", "TEAM_PRICES_USD", "price_usd_for", "stripe_enabled", "stripe_checkout_url", "stripe_verify", "handle_stripe_event",
+    "record_refund", "stripe_refund", "refund_order", "receipt_number",
 ]

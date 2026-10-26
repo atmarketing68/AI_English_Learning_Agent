@@ -8,13 +8,14 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from app.agents import adaptive_coach, assessment_agent, club_agent, exam_agent, lesson_agent, speaking_agent, speaking_exam_agent, tutor_agent, writing_agent
+from app.agents import adaptive_coach, assessment_agent, club_agent, exam_agent, lesson_agent, podcast_agent, speaking_agent, speaking_exam_agent, tutor_agent, writing_agent
 from app.agents.contracts import (
     ClubModeratorOutput,
     CoachAdviceOutput,
     GeneratedExamOutput,
     LessonOutput,
     PlacementQuestionOutput,
+    PodcastEpisodeOutput,
     RoleplayScenarioOutput,
     SpeakingExamEvaluationOutput,
     SpeakingTurnOutput,
@@ -39,6 +40,7 @@ AgentName = Literal[
     "speaking_exam_evaluation",
     "exam_generation",
     "club_moderator",
+    "podcast_generation",
 ]
 
 
@@ -82,6 +84,7 @@ AGENT_SPECS: dict[AgentName, AgentSpec] = {
     "speaking_exam_evaluation": AgentSpec(speaking_exam_agent.evaluate_speaking_exam, SpeakingExamEvaluationOutput),
     "exam_generation": AgentSpec(exam_agent.generate_exam, GeneratedExamOutput),
     "club_moderator": AgentSpec(club_agent.moderate_turn, ClubModeratorOutput),
+    "podcast_generation": AgentSpec(podcast_agent.generate_episode, PodcastEpisodeOutput),
 }
 
 

@@ -200,4 +200,20 @@ def run_reminders(
         import logging
         logging.getLogger("agen.parent_digest").exception("Parent digest run failed")
         stats["parents"] = {"error": True}
+    # G11 · booked speaking-club sessions (the 10-minute club job is the main path; this is the fallback).
+    try:
+        from app.services.speaking_club import run_reminders as club_reminders
+        stats["club"] = club_reminders(db)
+    except Exception:
+        import logging
+        logging.getLogger("agen.club").exception("Club reminder run failed")
+        stats["club"] = {"error": True}
+    # G11 · AI spend alerts for admins (once per day per threshold)
+    try:
+        from app.services.ai_usage import check_alerts
+        stats["ai_alerts"] = check_alerts(db)
+    except Exception:
+        import logging
+        logging.getLogger("agen.ai_usage").exception("AI alert check failed")
+        stats["ai_alerts"] = {"error": True}
     return stats

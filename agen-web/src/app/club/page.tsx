@@ -3,14 +3,20 @@
 /** G10 · Câu lạc bộ nói: phòng 2–4 người, AI dẫn chuyện và gọi từng người nói. */
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, CircleAlert, DoorOpen, Lock, LoaderCircle, MessagesSquare, Plus, Users } from 'lucide-react';
+import { ArrowRight, CalendarClock, CircleAlert, DoorOpen, Lock, LoaderCircle, MessagesSquare, Plus, Users } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
-import { createRoom, getClubLobby, joinRoom, type ClubLobby, type RoomCard } from '@/lib/clubService';
+import { createRoom, formatSlot, getClubLobby, joinRoom, type ClubLobby, type RoomCard } from '@/lib/clubService';
 import { PageSkeleton } from '@/components/Skeleton';
 import Mascot from '@/components/ui/Mascot';
 import { track } from '@/lib/analytics';
 
 const errText = (err: unknown, fallback: string) => (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback;
+
+/** "2026-10-27T19:30" for <input type="datetime-local">, in the device's time zone. */
+function localInputValue(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
 
 function RoomRow({ r, action, onClick, busy }: { r: RoomCard; action: string; onClick: () => void; busy: boolean }) {
   return (
@@ -19,6 +25,7 @@ function RoomRow({ r, action, onClick, busy }: { r: RoomCard; action: string; on
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600 }}>{r.topic.title_vi}</div>
         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{r.topic.level} · chủ phòng {r.host_name} · <Users size={12} /> {r.members}/4 · mã {r.code}</div>
+        {r.scheduled_at && <div className="club-when"><CalendarClock size={12} /> {formatSlot(r.scheduled_at)}</div>}
       </div>
       <button type="button" className="btn btn-primary btn-sm" onClick={onClick} disabled={busy}>{action} <ArrowRight size={14} /></button>
     </div>
@@ -32,6 +39,10 @@ export default function ClubLobbyPage() {
   const [lobby, setLobby] = useState<ClubLobby | null>(null);
   const [code, setCode] = useState('');
   const [isPublic, setIsPublic] = useState(true);
+  // G11 · book a session for later ("" = start now); value of <input type="datetime-local"> in the device's time zone
+  const [scheduleOn, setScheduleOn] = useState(false);
+  const [when, setWhen] = useState('');
+  const [minWhen, setMinWhen] = useState('');
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
 
@@ -49,8 +60,10 @@ export default function ClubLobbyPage() {
   const create = async (topicId: string) => {
     setBusy(topicId); setError('');
     try {
-      const room = await createRoom(topicId, isPublic);
-      track('club_room_created', { topic: topicId, public: isPublic });
+      if (scheduleOn && !when) { setError('Chọn ngày giờ hẹn trước khi chọn chủ đề.'); setBusy(''); return; }
+      const scheduledAt = scheduleOn && when ? new Date(when).toISOString() : null;
+      const room = await createRoom(topicId, isPublic, scheduledAt);
+      track(scheduledAt ? 'club_room_scheduled' : 'club_room_created', { topic: topicId, public: isPublic });
       router.push(`/club/${room.id}`);
     } catch (err) { setError(errText(err, 'Chưa tạo được phòng.')); setBusy(''); }
   };
@@ -93,6 +106,14 @@ export default function ClubLobbyPage() {
           </form>
         </section>
 
+        {!!lobby.upcoming_rooms?.length && (
+          <section className="card" style={{ marginTop: 16 }}>
+            <div className="section-head"><h3><CalendarClock size={16} /> Buổi nói sắp diễn ra</h3></div>
+            <p style={{ margin: '0 0 6px', fontSize: '0.82rem', color: 'var(--text-muted)' }}>Đăng ký trước, bạn sẽ được nhắc khoảng 15 phút trước giờ bắt đầu.</p>
+            {lobby.upcoming_rooms.map(r => <RoomRow key={r.id} r={r} action="Đăng ký" busy={busy === r.code} onClick={() => join(r.code)} />)}
+          </section>
+        )}
+
         <section className="card" style={{ marginTop: 16 }}>
           <div className="section-head"><h3>Phòng đang chờ người</h3></div>
           {lobby.open_rooms.length === 0
@@ -102,10 +123,21 @@ export default function ClubLobbyPage() {
 
         <section style={{ marginTop: 20 }}>
           <div className="section-head" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <h3 style={{ flex: 1 }}>Tạo phòng mới · chọn chủ đề</h3>
+            <h3 style={{ flex: '1 1 220px' }}>Tạo phòng mới · chọn chủ đề</h3>
             <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
               <input type="checkbox" checked={!isPublic} onChange={e => setIsPublic(!e.target.checked)} /> <Lock size={13} /> Phòng riêng (chỉ vào bằng mã)
             </label>
+          </div>
+          <div className="club-schedule">
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.88rem', cursor: 'pointer' }}>
+              <input type="checkbox" checked={scheduleOn} onChange={e => { setScheduleOn(e.target.checked); setMinWhen(localInputValue(new Date(Date.now() + 15 * 60_000))); }} /> <CalendarClock size={14} /> Hẹn giờ cho buổi nói (rủ bạn đăng ký trước)
+            </label>
+            {scheduleOn && (
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input type="datetime-local" className="form-input" value={when} min={minWhen} onChange={e => setWhen(e.target.value)} aria-label="Ngày giờ hẹn" style={{ maxWidth: 260 }} />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Từ 10 phút đến 14 ngày tới. Mọi người được nhắc trước ~15 phút.</span>
+              </div>
+            )}
           </div>
           <div className="club-topic-grid">
             {lobby.topics.map(t => (

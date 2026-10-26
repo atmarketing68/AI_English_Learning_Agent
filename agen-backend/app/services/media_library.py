@@ -201,12 +201,19 @@ EPISODES: list[dict] = [
 _BY_ID = {e["id"]: e for e in EPISODES}
 
 
-def list_episodes() -> list[dict]:
-    return EPISODES
+def list_episodes(db=None) -> list[dict]:
+    """Hand-written episodes, then (with a db) G11 AI episodes an admin approved, newest first."""
+    if db is None:
+        return EPISODES
+    from app.services.podcast_generator import approved_episodes
+    return EPISODES + approved_episodes(db)
 
 
-def get_episode(episode_id: str) -> dict | None:
-    return _BY_ID.get(episode_id)
+def get_episode(episode_id: str, db=None) -> dict | None:
+    if episode_id in _BY_ID or db is None:
+        return _BY_ID.get(episode_id)
+    from app.services.podcast_generator import episode_by_public_id
+    return episode_by_public_id(db, episode_id)
 
 
 def public_episode(ep: dict) -> dict:

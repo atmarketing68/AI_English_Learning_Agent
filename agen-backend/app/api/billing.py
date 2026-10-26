@@ -113,6 +113,7 @@ class OrderOut(BaseModel):
     paid_at: datetime | None = None
     currency: str = "VND"
     amount_foreign: int | None = None
+    refunded_at: datetime | None = None
 
 
 def _order_out(order: PaymentOrder) -> OrderOut:
@@ -120,7 +121,7 @@ def _order_out(order: PaymentOrder) -> OrderOut:
     return OrderOut(order_id=order.id, provider=order.provider, plan=order.plan or "premium", seats=order.seats or 1, months=order.months,
                     amount_vnd=order.amount_vnd, status=order.status, invoice=InvoiceIn(**inv) if inv else None,
                     invoice_issued_at=order.invoice_issued_at, created_at=order.created_at, paid_at=order.paid_at,
-                    currency=order.currency or "VND", amount_foreign=order.amount_foreign)
+                    currency=order.currency or "VND", amount_foreign=order.amount_foreign, refunded_at=order.refunded_at)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -269,6 +270,30 @@ def my_orders(current_user: User = Depends(get_current_user), db: Session = Depe
     """G8 · The account's orders (paid first), with any VAT invoice request."""
     rows = db.query(PaymentOrder).filter(PaymentOrder.user_id == current_user.id).order_by(PaymentOrder.created_at.desc()).limit(50).all()
     return [_order_out(o) for o in rows]
+
+
+@router.get("/orders/{order_id}/receipt")
+def order_receipt(order_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G11 · Printable payment receipt (not a VAT invoice) for the buyer or an admin."""
+    order = db.query(PaymentOrder).filter(PaymentOrder.id == order_id).first()
+    is_admin = bool(current_user.email) and current_user.email.strip().lower() in settings.admin_emails_list
+    if not order or (order.user_id != current_user.id and not is_admin):
+        raise HTTPException(status_code=404, detail="Order not found.")
+    if order.status not in ("paid", "refunded"):
+        raise HTTPException(status_code=400, detail="Đơn chưa thanh toán nên chưa có biên nhận.")
+    buyer = db.query(User).filter(User.id == order.user_id).first()
+    plan_vi = {"premium": "Premium", "family": "Gói gia đình", "team": "Gói theo ghế"}.get(order.plan or "premium", order.plan)
+    provider_vi = {"vnpay": "VNPay", "momo": "Ví MoMo", "stripe": "Thẻ quốc tế (Stripe)", "demo": "Kích hoạt thủ công"}.get(order.provider, order.provider)
+    return {
+        "number": payments.receipt_number(order), "order": _order_out(order).model_dump(),
+        "item": f"AI AGENT ENGLISH {plan_vi} · {order.months} tháng" + (f" · {order.seats} ghế" if (order.plan == "team") else ""),
+        "provider_label": provider_vi, "provider_txn": order.provider_txn if order.status in ("paid", "refunded") else None,
+        "buyer": {"name": getattr(buyer, "full_name", None), "email": getattr(buyer, "email", None)},
+        "invoice": order.invoice_info if isinstance(order.invoice_info, dict) else None,
+        "seller": {"name": settings.SELLER_NAME, "tax_code": settings.SELLER_TAX_CODE or None, "address": settings.SELLER_ADDRESS or None,
+                   "email": settings.SELLER_EMAIL or None},
+        "refund_note": order.refund_note,
+    }
 
 
 @router.put("/orders/{order_id}/invoice", response_model=OrderOut)
