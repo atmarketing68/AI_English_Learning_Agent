@@ -223,7 +223,7 @@ export default function HomePage() {
               <Link href="/register" className="btn btn-primary btn-lg btn-shine">
                 Bắt đầu học miễn phí <ArrowRight size={18} />
               </Link>
-              <GuestTrialButton className="btn btn-lg hero-guest-btn" />
+              <GuestTrialButton className="btn btn-lg hero-guest-btn" label="Học thử ngay" />
               <Link href="/login" className="hero-link">
                 Đăng nhập <ChevronRight size={18} />
               </Link>
