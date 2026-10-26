@@ -7,6 +7,7 @@ import {
   startPlacement, getPlacementQuestion, submitAnswer, finishPlacement,
   PlacementQuestion, PlacementAnswerRes, PlacementResult,
 } from '@/lib/placementService';
+import Logo from '@/components/ui/Logo';
 import { ArrowRight, BookOpen, BookText, Check, CircleAlert, CircleCheck, CircleX, Gauge, Headphones, Lightbulb, ListChecks, LoaderCircle, PenLine, X, Zap, type LucideIcon } from 'lucide-react';
 
 // ──── Sub Components ────────────────────────────────────────────────────────
@@ -330,7 +331,7 @@ export default function PlacementPage() {
     <main style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
       {/* Logo bar */}
       <div style={{ position: 'absolute', top: 20, left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>AGEN</span>
+        <Logo size={24} />
         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
           {assessmentType === 'followup' ? 'Progress Check' : 'Placement Test'}
         </span>

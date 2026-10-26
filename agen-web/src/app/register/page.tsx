@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { register, login, getMyProfile } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
+import Logo from '@/components/ui/Logo';
 import { CircleAlert, GraduationCap, Users } from 'lucide-react';
 
 const GRADES = [
@@ -63,7 +64,7 @@ export default function RegisterPage() {
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
       <div className="animate-fade-in-up" style={{ width: '100%', maxWidth: 480 }}>
-        <Link href="/" style={{ display: 'block', textAlign: 'center', fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: 32 }}>AGEN</Link>
+        <Link href="/" aria-label="AGEN — trang chủ" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, opacity: 1 }}><Logo size={64} wordmark={false} /></Link>
         <div className="card" style={{ padding: 'clamp(24px, 5vw, 40px)', boxShadow: 'var(--shadow-md)', border: 'none' }}>
 
           <div className="text-center" style={{ marginBottom: 'var(--spacing-xl)' }}>

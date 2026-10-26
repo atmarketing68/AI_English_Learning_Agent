@@ -6,6 +6,7 @@ import {
   ArrowRight, ChevronRight, Brain, Mic, TrendingUp, Flame, Users, Route,
   Headphones, BookOpen, PenLine, Check, type LucideIcon,
 } from 'lucide-react';
+import Logo from '@/components/ui/Logo';
 
 const STATS = [
   { value: '1,247', label: 'Học viên đang học' },
@@ -111,7 +112,7 @@ export default function HomePage() {
         borderBottom: '1px solid var(--border-subtle)',
       }}>
         <div style={{ maxWidth: 1024, margin: '0 auto', height: '100%', padding: '0 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Link href="/" style={{ fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>AGEN</Link>
+          <Link href="/" aria-label="AGEN — trang chủ" style={{ display: 'inline-flex', opacity: 1 }}><Logo size={28} /></Link>
           <nav style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: '0.85rem' }}>
             <Link href="/login" style={{ color: 'var(--text-secondary)' }}>Đăng nhập</Link>
             <Link href="/register" className="btn btn-primary btn-sm" style={{ padding: '6px 14px', fontSize: '0.8rem' }}>Bắt đầu</Link>
@@ -126,7 +127,12 @@ export default function HomePage() {
           transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
           style={{ maxWidth: 820, margin: '0 auto' }}
         >
-          <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--agen-accent)', marginBottom: 14 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
+            <span style={{ display: 'inline-flex', borderRadius: 26, boxShadow: '0 12px 32px rgba(0,80,200,0.25)' }}>
+              <Logo size={112} wordmark={false} />
+            </span>
+          </div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--agen-primary-light)', marginBottom: 14 }}>
             AI English Learning Agent
           </div>
           <h1 style={{ fontSize: 'clamp(2.6rem, 7.5vw, 5rem)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-0.04em', marginBottom: 22 }}>
@@ -254,7 +260,7 @@ export default function HomePage() {
       {/* ─── FOOTER ───────────────────────────────────────────────────── */}
       <footer style={{ background: 'var(--bg-base)', borderTop: '1px solid var(--border-subtle)', padding: '24px 22px' }}>
         <div style={{ maxWidth: 1024, margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-          <span>© {new Date().getFullYear()} AGEN. Bảo lưu mọi quyền.</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><Logo size={20} wordmark={false} /> © {new Date().getFullYear()} AGEN. Bảo lưu mọi quyền.</span>
           <span>AI English Learning Agent</span>
         </div>
       </footer>
