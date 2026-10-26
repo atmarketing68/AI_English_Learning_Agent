@@ -21,6 +21,7 @@ from app.models.daily_quest import DailyQuest
 from app.models.push_subscription import PushSubscription
 from app.models.payment_order import PaymentOrder
 from app.models.goal_track import GoalTrackProgress
+from app.models.league_membership import LeagueMembership
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -39,4 +40,5 @@ __all__ = [
     "PushSubscription",
     "PaymentOrder",
     "GoalTrackProgress",
+    "LeagueMembership",
 ]

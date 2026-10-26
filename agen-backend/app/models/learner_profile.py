@@ -64,6 +64,11 @@ class LearnerProfile(Base):
     weekly_goal_claimed_week = Column(String(10), nullable=True)   # e.g. "2026-W44"
     # G3 · weekly league: reward claimed for this ISO week (last week's standing).
     league_reward_claimed_week = Column(String(10), nullable=True)
+    # G4 · fun layer: cosmetic currency, avatar and the chosen look of the app.
+    gems = Column(Integer, default=0, server_default="0", nullable=False)
+    avatar = Column(JSON, nullable=True)            # {"emoji", "color", "frame"}
+    owned_items = Column(JSON, nullable=True)       # shop item ids bought
+    ui_skin = Column(String(10), nullable=True)     # "vivid" | "classic" | None = by age
     # Daily reminder: local hour (0–23) or None for off; email is opt-in.
     reminder_hour = Column(Integer, nullable=True)
     reminder_email = Column(Boolean, default=False, server_default=sa_false(), nullable=False)

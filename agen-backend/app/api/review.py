@@ -408,3 +408,90 @@ def lookup_word_endpoint(
     except ValueError:
         raise HTTPException(status_code=502, detail="Không tra được từ này lúc này. Hãy thử lại.")
     return WordLookup(**data)
+
+
+# ── G4 · Thử thách 60 giây (blitz) ────────────────────────────────────────────
+BLITZ_QUESTIONS = 15
+BLITZ_XP_PER_CORRECT = 2
+BLITZ_DAILY_XP_CAP = 40
+
+
+class BlitzQuestion(BaseModel):
+    prompt: str              # English word
+    options: list[str]       # Vietnamese meanings
+    answer: int              # index into options (client checks locally for speed)
+    phonetic: Optional[str] = None
+
+
+class BlitzOut(BaseModel):
+    questions: list[BlitzQuestion]
+    seconds: int = 60
+    from_notebook: int
+
+
+class BlitzResultIn(BaseModel):
+    correct: int = Field(ge=0, le=100)
+    answered: int = Field(ge=0, le=100)
+    seconds: float = Field(ge=0, le=600)
+
+
+class BlitzResultOut(BaseModel):
+    xp_earned: int
+    gems_earned: int
+    total_xp: int
+    gems: int
+    daily_xp_left: int
+
+
+def _blitz_xp_today(db: Session, learner_id: str) -> int:
+    start = local_day_start_utc().replace(tzinfo=None)
+    return int(
+        db.query(func.coalesce(func.sum(LearningEvent.xp_earned), 0))
+        .filter(LearningEvent.learner_id == learner_id, LearningEvent.event_type == "blitz_played", LearningEvent.recorded_at >= start)
+        .scalar() or 0
+    )
+
+
+@router.get("/blitz", response_model=BlitzOut)
+def blitz_round(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """A 60-second meaning quiz from the learner's own words (filled up with common words)."""
+    learner = _get_learner(db, current_user.id)
+    rows = db.query(ReviewItem).filter(ReviewItem.learner_id == learner.id, ReviewItem.kind == "vocab").all()
+    pool: list[tuple[str, str, Optional[str]]] = [(r.front, r.back, r.phonetic) for r in rows if r.front and r.back]
+    from_notebook = min(len(pool), BLITZ_QUESTIONS)
+    rng = random.Random()
+    rng.shuffle(pool)
+    chosen = pool[:BLITZ_QUESTIONS]
+    fallback = [(w, m, None) for w, m in FALLBACK_WORDS if w.lower() not in {p[0].lower() for p in pool}]
+    rng.shuffle(fallback)
+    chosen += fallback[: BLITZ_QUESTIONS - len(chosen)]
+    meanings = [m for _, m, _ in pool + fallback]
+    questions = []
+    for word, meaning, phonetic in chosen:
+        others = [m for m in meanings if m != meaning]
+        rng.shuffle(others)
+        options = others[:3] + [meaning]
+        rng.shuffle(options)
+        questions.append(BlitzQuestion(prompt=word, options=options, answer=options.index(meaning), phonetic=phonetic))
+    return BlitzOut(questions=questions, from_notebook=from_notebook)
+
+
+@router.post("/blitz/result", response_model=BlitzResultOut)
+def blitz_result(payload: BlitzResultIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.services.shop import GEMS_BLITZ_MAX, GEMS_BLITZ_PER_CORRECT, award_gems
+
+    learner = _get_learner(db, current_user.id)
+    correct = min(payload.correct, payload.answered, BLITZ_QUESTIONS)
+    left = max(0, BLITZ_DAILY_XP_CAP - _blitz_xp_today(db, learner.id))
+    xp = min(correct * BLITZ_XP_PER_CORRECT, left)
+    gems = award_gems(learner, min(correct * GEMS_BLITZ_PER_CORRECT, GEMS_BLITZ_MAX))
+    learner.total_xp = (learner.total_xp or 0) + xp
+    db.add(LearningEvent(
+        learner_id=learner.id, event_type="blitz_played", skill="vocabulary", activity_type="game",
+        score=round(correct / payload.answered * 100, 1) if payload.answered else 0.0,
+        xp_earned=xp, duration_seconds=payload.seconds,
+        extra_data={"correct": correct, "answered": payload.answered},
+    ))
+    update_streak(learner, db)
+    db.commit()
+    return BlitzResultOut(xp_earned=xp, gems_earned=gems, total_xp=learner.total_xp or 0, gems=learner.gems or 0, daily_xp_left=max(0, left - xp))
