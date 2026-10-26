@@ -18,6 +18,7 @@ class PaymentOrder(Base):
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
 
     provider = Column(String(20), nullable=False)            # vnpay | momo
+    plan = Column(String(20), nullable=False, default="premium", server_default="premium")   # premium | family (G5)
     months = Column(Integer, nullable=False)
     amount_vnd = Column(Integer, nullable=False)
     status = Column(String(20), nullable=False, default=STATUS_PENDING)

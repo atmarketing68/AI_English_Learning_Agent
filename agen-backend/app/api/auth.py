@@ -302,6 +302,7 @@ def claim_guest(
     current_user.hashed_password = get_password_hash(payload.password)
     current_user.full_name = payload.full_name
     current_user.is_guest = False
+    current_user.claimed_at = datetime.utcnow()
     learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == current_user.id).first()
     if learner:
         learner.display_name = payload.display_name

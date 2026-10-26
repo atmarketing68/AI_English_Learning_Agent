@@ -18,6 +18,8 @@ from app.models.user import User
 from app.models.agent_trace import AgentTrace
 from app.models.learner_profile import LearnerProfile
 from app.models.learning_event import LearningEvent
+from app.models.payment_order import STATUS_FAILED, STATUS_PAID, STATUS_PENDING, PaymentOrder
+from app.models.subscription import PLAN_FAMILY, PLAN_PREMIUM, Subscription
 
 router = APIRouter(prefix="/admin", tags=["Admin / Quality"])
 
@@ -395,4 +397,100 @@ def pilot_summary(
             value=successful_lessons,
             rate=round((successful_lessons / lesson_traces) * 100, 1) if lesson_traces else 0.0,
         ),
+    )
+
+
+# ── G5 · Doanh thu & chuyển đổi ──────────────────────────────────────────────
+class RevenueBucket(BaseModel):
+    key: str                  # "2026-10" | "vnpay" | "premium·12"
+    label: str
+    revenue_vnd: int
+    orders: int
+
+
+class RevenueSummary(BaseModel):
+    total_vnd: int
+    paid_orders: int
+    pending_orders: int
+    failed_orders: int
+    by_month: list[RevenueBucket]        # last 6 months, oldest first
+    by_provider: list[RevenueBucket]
+    by_plan: list[RevenueBucket]
+    active_premium: int                  # learner subscriptions currently paid (own)
+    active_family: int                   # parent family subscriptions currently active
+    trials_started: int
+    trials_converted: int                # trial accounts that later paid
+    trial_conversion_pct: float
+    guests_now: int
+    guests_claimed: int
+    registered_learners: int
+
+
+@router.get("/revenue/summary", response_model=RevenueSummary)
+def revenue_summary(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Revenue from paid orders (VNPay/MoMo) and the trial → paid / guest → registered funnels."""
+    _require_admin(current_user)
+    orders = db.query(PaymentOrder).all()
+    paid = [o for o in orders if o.status == STATUS_PAID]
+    now = datetime.utcnow()
+
+    months: list[str] = []
+    y, m = now.year, now.month
+    for _ in range(6):
+        months.append(f"{y:04d}-{m:02d}")
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+    months.reverse()
+    by_month = {k: RevenueBucket(key=k, label=f"{k[5:]}/{k[:4]}", revenue_vnd=0, orders=0) for k in months}
+    by_provider: dict[str, RevenueBucket] = {}
+    by_plan: dict[str, RevenueBucket] = {}
+    for o in paid:
+        when = o.paid_at or o.created_at
+        key = f"{when.year:04d}-{when.month:02d}"
+        if key in by_month:
+            by_month[key].revenue_vnd += o.amount_vnd
+            by_month[key].orders += 1
+        prov = by_provider.setdefault(o.provider, RevenueBucket(key=o.provider, label=o.provider.upper(), revenue_vnd=0, orders=0))
+        prov.revenue_vnd += o.amount_vnd
+        prov.orders += 1
+        plan = o.plan or PLAN_PREMIUM
+        pk = f"{plan}·{o.months}"
+        label = f"{'Gia đình' if plan == PLAN_FAMILY else 'Premium'} {o.months} tháng"
+        bucket = by_plan.setdefault(pk, RevenueBucket(key=pk, label=label, revenue_vnd=0, orders=0))
+        bucket.revenue_vnd += o.amount_vnd
+        bucket.orders += 1
+
+    subs_all = db.query(Subscription).all()
+    def _active(sub: Subscription) -> bool:
+        return sub.status == "active" and (sub.current_period_end is None or sub.current_period_end >= now)
+    active_premium = sum(1 for s in subs_all if s.plan == PLAN_PREMIUM and _active(s) and s.provider != "trial")
+    active_family = sum(1 for s in subs_all if s.plan == PLAN_FAMILY and _active(s))
+    trial_users = {s.user_id for s in subs_all if s.trial_started_at is not None}
+    paid_users = {o.user_id for o in paid}
+    trials_converted = len(trial_users & paid_users)
+
+    guests_now = db.query(func.count(User.id)).filter(User.is_guest.is_(True)).scalar() or 0
+    guests_claimed = db.query(func.count(User.id)).filter(User.claimed_at.isnot(None)).scalar() or 0
+    registered = db.query(func.count(User.id)).filter(User.role == "learner", User.is_guest.is_(False)).scalar() or 0
+
+    return RevenueSummary(
+        total_vnd=sum(o.amount_vnd for o in paid),
+        paid_orders=len(paid),
+        pending_orders=sum(1 for o in orders if o.status == STATUS_PENDING),
+        failed_orders=sum(1 for o in orders if o.status == STATUS_FAILED),
+        by_month=list(by_month.values()),
+        by_provider=sorted(by_provider.values(), key=lambda b: -b.revenue_vnd),
+        by_plan=sorted(by_plan.values(), key=lambda b: -b.revenue_vnd),
+        active_premium=active_premium,
+        active_family=active_family,
+        trials_started=len(trial_users),
+        trials_converted=trials_converted,
+        trial_conversion_pct=round(trials_converted / len(trial_users) * 100, 1) if trial_users else 0.0,
+        guests_now=guests_now,
+        guests_claimed=guests_claimed,
+        registered_learners=registered,
     )

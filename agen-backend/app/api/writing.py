@@ -15,13 +15,14 @@ from app.models.user import User
 from app.models.learner_profile import LearnerProfile
 from app.models.writing import WritingSubmission
 from app.models.learning_event import LearningEvent
+from app.agents.writing_agent import EXAM_GENRES
 from app.agents.orchestrator import AgentRequest, execute
 from app.services.streak_service import record_activity
 from app.services.trace_recorder import record_agent_trace
 
 router = APIRouter(prefix="/writing", tags=["Writing"])
 
-GENRES = ["opinion", "narrative", "descriptive", "email"]
+GENRES = ["opinion", "narrative", "descriptive", "email", "ielts_task2", "ielts_task1", "toeic_email", "toeic_essay"]   # G5 · exam genres
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
@@ -61,6 +62,13 @@ class SubmitRequest(BaseModel):
     user_text: str = Field(max_length=5000)
 
 
+class ExamBand(BaseModel):
+    exam: str                     # ielts | toeic
+    overall: float                # IELTS 0–9 · TOEIC 0–200
+    criteria: dict[str, float]
+    next_band_tips: list[str]
+
+
 class EvaluationResponse(BaseModel):
     submission_id: str
     overall_score: float
@@ -75,6 +83,7 @@ class EvaluationResponse(BaseModel):
     corrected_version: str
     encouragement: str
     xp_earned: int
+    exam_band: Optional[ExamBand] = None
 
 
 class HistoryItem(BaseModel):
@@ -152,6 +161,7 @@ def submit_writing(
             "prompt_text": payload.prompt_text,
             "user_text": payload.user_text,
             "level": learner.overall_level,
+            "genre": payload.genre if payload.genre in GENRES else "opinion",
         },
     ))
     record_agent_trace(db, learner.id, result.trace_id, result, {"genre": payload.genre, "level": learner.overall_level})
@@ -230,6 +240,7 @@ def submit_writing(
         corrected_version=eval_result.get("corrected_version", ""),
         encouragement=eval_result.get("encouragement", "Cố lên nhé!"),
         xp_earned=xp,
+        exam_band=ExamBand(**eval_result["exam_band"]) if payload.genre in EXAM_GENRES and eval_result.get("exam_band") else None,
     )
 
 

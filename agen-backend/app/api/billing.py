@@ -30,6 +30,7 @@ class SubscriptionOut(BaseModel):
     is_premium: bool
     current_period_end: datetime | None
     provider: str | None = None
+    premium_source: str | None = None     # G5 · "own" | "family" | None
 
 
 class QuotaOut(BaseModel):
@@ -43,6 +44,7 @@ class QuotaOut(BaseModel):
 
 class UpgradeRequest(BaseModel):
     months: int = Field(default=1, ge=1, le=12)
+    plan: str = Field(default="premium", pattern="^(premium|family)$")
 
 
 class PriceOut(BaseModel):
@@ -56,11 +58,16 @@ class BillingOptions(BaseModel):
     demo_enabled: bool            # pilot mock upgrade
     trial_available: bool
     trial_days: int
+    # G5 · gói gia đình (phụ huynh mua, các con được Premium)
+    family_prices: list[PriceOut] = []
+    family_max_children: int = 4
+    can_buy_family: bool = False      # only parent accounts
 
 
 class CheckoutRequest(BaseModel):
     months: int = Field(ge=1, le=12)
     provider: str = Field(pattern="^(vnpay|momo)$")
+    plan: str = Field(default="premium", pattern="^(premium|family)$")
 
 
 class CheckoutOut(BaseModel):
@@ -72,6 +79,7 @@ class CheckoutOut(BaseModel):
 class OrderOut(BaseModel):
     order_id: str
     provider: str
+    plan: str = "premium"
     months: int
     amount_vnd: int
     status: str
@@ -80,11 +88,13 @@ class OrderOut(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _sub_out(db: Session, user_id: str) -> SubscriptionOut:
     sub = subs.get_or_create_subscription(db, user_id)
+    source = subs.premium_source(db, user_id)
     return SubscriptionOut(
         plan=sub.plan, status=sub.status,
-        is_premium=subs.is_premium(db, user_id),
+        is_premium=source is not None,
         current_period_end=sub.current_period_end,
         provider=sub.provider,
+        premium_source=source,
     )
 
 
@@ -92,6 +102,14 @@ def _api_base(request: Request) -> str:
     if settings.API_PUBLIC_URL:
         return settings.API_PUBLIC_URL.rstrip("/")
     return str(request.base_url).rstrip("/")
+
+
+def _check_plan_for_user(user: User, plan: str) -> None:
+    """G5 · Family plans are bought by parent accounts; the learner plan by learners."""
+    if plan == "family" and user.role != "parent":
+        raise HTTPException(status_code=400, detail="Gói gia đình dành cho tài khoản phụ huynh.")
+    if plan == "premium" and user.role == "parent":
+        raise HTTPException(status_code=400, detail="Tài khoản phụ huynh mua gói gia đình để các con được Premium.")
 
 
 def _app_redirect(status: str, order_id: str) -> RedirectResponse:
@@ -132,6 +150,9 @@ def billing_options(
         demo_enabled=settings.demo_upgrade_enabled,
         trial_available=payments.trial_available(db, current_user.id),
         trial_days=payments.TRIAL_DAYS,
+        family_prices=[PriceOut(months=m, amount_vnd=a) for m, a in payments.FAMILY_PRICES_VND.items()],
+        family_max_children=payments.FAMILY_MAX_CHILDREN,
+        can_buy_family=current_user.role == "parent",
     )
 
 
@@ -160,8 +181,9 @@ def checkout(
     """G3 · Create an order and return the gateway's pay URL."""
     if current_user.is_guest:
         raise HTTPException(status_code=403, detail="Hãy lưu tài khoản trước khi thanh toán.")
+    _check_plan_for_user(current_user, payload.plan)
     try:
-        order = payments.create_order(db, current_user.id, payload.provider, payload.months)
+        order = payments.create_order(db, current_user.id, payload.provider, payload.months, plan=payload.plan)
         base = _api_base(request)
         if payload.provider == "vnpay":
             pay_url = payments.vnpay_pay_url(order, client_ip(request), f"{base}/api/v1/billing/vnpay/return")
@@ -184,7 +206,7 @@ def get_order(
     order = db.query(PaymentOrder).filter(PaymentOrder.id == order_id, PaymentOrder.user_id == current_user.id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
-    return OrderOut(order_id=order.id, provider=order.provider, months=order.months, amount_vnd=order.amount_vnd, status=order.status)
+    return OrderOut(order_id=order.id, provider=order.provider, plan=order.plan or "premium", months=order.months, amount_vnd=order.amount_vnd, status=order.status)
 
 
 # ── Gateway callbacks (no login) ──────────────────────────────────────────────
@@ -230,7 +252,8 @@ def upgrade(
             status_code=403,
             detail="Thanh toán trực tuyến đang được tích hợp. Vui lòng quay lại sau.",
         )
-    subs.upgrade_to_premium(db, current_user.id, months=payload.months)
+    _check_plan_for_user(current_user, payload.plan)
+    subs.upgrade_to_premium(db, current_user.id, months=payload.months, plan=payload.plan)
     return _sub_out(db, current_user.id)
 
 

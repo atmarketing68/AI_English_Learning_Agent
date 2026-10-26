@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
+from app.services.subscription_service import premium_source
 from app.models.learner_profile import LearnerProfile
 from app.models.parent import ParentProfile, ParentChildLink
 from app.services.streak_service import effective_streak
@@ -39,6 +40,7 @@ class ChildSummary(BaseModel):
     current_streak: int
     total_lessons_completed: int
     relationship_label: str | None
+    premium_source: str | None = None     # G5 · "own" | "family" | None
 
 
 class SkillImprovement(BaseModel):
@@ -149,6 +151,7 @@ def list_children(
             current_streak=effective_streak(learner),
             total_lessons_completed=learner.total_lessons_completed or 0,
             relationship_label=link.relationship_label,
+            premium_source=premium_source(db, learner.user_id),
         ))
     return out
 
