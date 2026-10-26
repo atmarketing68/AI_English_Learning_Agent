@@ -215,7 +215,7 @@ export default function HomePage() {
             transition={{ duration: 0.8, ease: EASE }}
           >
             <span className="hero-badge"><Sparkles size={14} /> AI Coach tiếng Anh cá nhân cho người Việt</span>
-            <h1><span className="nowrap">Học tiếng Anh</span> <span className="nowrap">cùng AI.</span><br /><span className="nowrap">Theo cách của</span> <span className="nowrap">riêng bạn.</span></h1>
+            <h1 className="lp-hero-title"><span className="lp-hero-title-main">Học tiếng Anh cùng AI</span><span className="lp-hero-title-sub">Theo cách của riêng bạn.</span></h1>
             <p>
               Người thầy, người bạn và huấn luyện viên tiếng Anh — đồng hành từ nền tảng đến nâng cao, theo đúng tốc độ của bạn.
             </p>

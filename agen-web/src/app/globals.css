@@ -2980,3 +2980,23 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
   .h3d *, .h3d *::after { animation: none !important; }
   .h3d-xp { opacity: 1; }
 }
+
+/* Hero headline: one-line uppercase main title that glows, italic smaller tagline */
+.lp-hero-copy { container-type: inline-size; }
+.lp-hero-title { display: grid; gap: 10px; margin-bottom: 20px; }
+.lp-hero-title-main {
+  display: block; white-space: nowrap; text-transform: uppercase; font-weight: 800; letter-spacing: 0.01em; line-height: 1.05;
+  font-size: min(6.9cqw, 3.4rem);
+  background: linear-gradient(100deg, #FFFFFF 0%, #E0F2FE 45%, #7DD3FC 75%, #FFFFFF 100%); background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 8px 26px rgba(56,189,248,0.45)) drop-shadow(0 2px 2px rgba(0,0,0,0.25));
+  animation: lp-title-shine 7s ease-in-out infinite;
+}
+@keyframes lp-title-shine { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+.lp-hero-title-sub {
+  display: block; font-style: italic; font-weight: 500; letter-spacing: -0.01em; line-height: 1.2;
+  font-size: clamp(1.25rem, 2.3vw, 1.9rem); color: rgba(255,255,255,0.88);
+}
+:root[data-skin="vivid"] .lp-hero-title-main { background: linear-gradient(100deg, #FFFFFF 0%, #FDE68A 50%, #FFFFFF 100%); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; }
+@media (max-width: 959px) { .lp-hero-title { justify-items: center; } .lp-hero-title-main { font-size: min(7.5cqw, 2.6rem); } }
+@media (prefers-reduced-motion: reduce) { .lp-hero-title-main { animation: none; } }
