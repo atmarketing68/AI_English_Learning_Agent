@@ -14,7 +14,7 @@ from app.models.user import User
 from app.models.learner_profile import LearnerProfile
 from app.models.achievement import Achievement, LearnerAchievement, DailyChallenge
 from app.services.gamification import check_and_award_achievements, get_or_create_daily_challenge
-from app.services.streak_service import record_activity
+from app.services.streak_service import effective_streak, record_activity
 
 router = APIRouter(prefix="/gamification", tags=["Gamification"])
 
@@ -186,7 +186,7 @@ def get_streak(
     """Get current streak info for the learner."""
     learner = _get_learner(db, current_user.id)
     return StreakResponse(
-        current_streak=learner.current_streak or 0,
+        current_streak=effective_streak(learner),
         longest_streak=learner.longest_streak or 0,
         last_active_at=learner.last_active_at,
     )

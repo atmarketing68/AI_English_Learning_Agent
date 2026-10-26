@@ -22,6 +22,8 @@ import {
   Flame, Headphones, Lightbulb, PenLine, RotateCcw, Sparkles, Star, Target, Trophy, X, type LucideIcon,
 } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import { getEngagement, type Engagement } from '@/lib/engagementService';
+import DailyQuests from '@/components/engagement/DailyQuests';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
@@ -248,6 +250,7 @@ export default function LessonPlayerPage() {
   const [newAchievements, setNewAchievements] = useState<EarnedAchievement[]>([]);
   const [activityResult, setActivityResult] = useState<ActivityUpdateResponse | null>(null);
   const [finishResult, setFinishResult] = useState<FinishLessonResult | null>(null);
+  const [engagement, setEngagement] = useState<Engagement | null>(null);
 
   const isSplitScreen = lesson?.skill === 'reading' || lesson?.skill === 'listening';
 
@@ -320,6 +323,8 @@ export default function LessonPlayerPage() {
       if (result.newly_earned_achievements.length > 0) {
         setNewAchievements(result.newly_earned_achievements as EarnedAchievement[]);
       }
+
+      getEngagement().then(setEngagement).catch(() => undefined);
 
       // Refresh learner profile in store so dashboard shows updated streak/XP
       const freshProfile = await getMyProfile();
@@ -481,11 +486,12 @@ export default function LessonPlayerPage() {
                 <Flame size={14} /> Chuỗi {activityResult.current_streak} ngày
                 {activityResult.current_streak > 1 && <span style={{ marginLeft: 6, fontSize: '0.75rem', color: 'var(--text-muted)' }}>+1 hôm nay!</span>}
               </div>
-              {activityResult.daily_challenge_completed && (
-                <div style={{ padding: '8px 14px', borderRadius: 99, background: 'rgba(52,199,89,0.1)', fontWeight: 500, fontSize: '0.88rem', color: 'var(--agen-success)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                  <CircleCheck size={14} /> Hoàn thành thử thách ngày
-                </div>
-              )}
+            </div>
+          )}
+
+          {engagement && (
+            <div className="animate-fade-in-up" style={{ marginBottom: 24, textAlign: 'left' }}>
+              <DailyQuests state={engagement} onChange={setEngagement} compact />
             </div>
           )}
 

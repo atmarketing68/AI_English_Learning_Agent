@@ -4,16 +4,19 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, Variants } from 'framer-motion';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
-import { getMyProfile, getDailyChallenge } from '@/lib/services';
+import { getMyProfile } from '@/lib/services';
 import { getNextLesson, type NextLesson } from '@/lib/curriculumService';
 import { getReviewSummary, type ReviewSummary } from '@/lib/reviewService';
+import { getEngagement, type Engagement } from '@/lib/engagementService';
+import DailyQuests from '@/components/engagement/DailyQuests';
+import StreakWeekCard from '@/components/engagement/StreakWeekCard';
 import NotificationBell from '@/components/NotificationBell';
 import { PageSkeleton } from '@/components/Skeleton';
-import type { LearnerProfile, DailyChallenge } from '@/types';
+import type { LearnerProfile } from '@/types';
 import Link from 'next/link';
 import {
   ArrowRight, BookMarked, BookOpen, BookText, Brain, ChevronRight, CircleCheck, Copy, Flame, GraduationCap, Headphones,
-  Mic, PenLine, Sparkles, Star, Target, Trophy, Users, type LucideIcon,
+  Mic, PenLine, Sparkles, Star, Target, Users, type LucideIcon,
 } from 'lucide-react';
 
 const SKILL_ICONS: Record<string, LucideIcon> = {
@@ -69,7 +72,7 @@ function MissionCard({ learner, nextLesson }: { learner: LearnerProfile; nextLes
   return (
     <div className="card" style={{ padding: 'var(--spacing-xl)', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column' }}>
       <div className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--spacing-md)' }}>
-        <Target size={14} /> Nhiệm vụ hôm nay
+        <Target size={14} /> Bài học tiếp theo
       </div>
 
       {!isPlacementDone ? (
@@ -112,32 +115,6 @@ function MissionCard({ learner, nextLesson }: { learner: LearnerProfile; nextLes
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-// --- Daily Challenge Card ---
-function DailyChallengeCard({ challenge }: { challenge: DailyChallenge }) {
-  return (
-    <div className="card" style={{ padding: 'var(--spacing-xl)', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-md)' }}>
-        <div className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Trophy size={14} /> Thử thách hằng ngày
-        </div>
-        <span className="xp-badge"><Star size={13} fill="currentColor" /> +{challenge.xp_reward} XP</span>
-      </div>
-      <h4 style={{ fontSize: '1.15rem', marginBottom: 6 }}>{challenge.title}</h4>
-      <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 20, flex: 1 }}>{challenge.description}</p>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 8 }}>
-        <span style={{ color: challenge.is_completed ? 'var(--agen-success)' : 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          {challenge.is_completed ? <><CircleCheck size={14} /> Đã hoàn thành</> : 'Đang thực hiện'}
-        </span>
-        <span style={{ fontWeight: 600 }}>{challenge.current_value} / {challenge.target_value}</span>
-      </div>
-      <div className="progress-bar">
-        <div className="progress-fill" style={{ width: `${challenge.progress_pct}%`, background: challenge.is_completed ? 'var(--agen-success)' : 'var(--agen-accent)' }} />
-      </div>
     </div>
   );
 }
@@ -185,7 +162,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { isAuthenticated, learner, setLearner, logout } = useAuthStore();
   const hydrated = useAuthHydrated();
-  const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
+  const [engagement, setEngagement] = useState<Engagement | null>(null);
   const [nextLesson, setNextLesson] = useState<NextLesson | null>(null);
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
 
@@ -199,7 +176,7 @@ export default function DashboardPage() {
     getMyProfile()
       .then((profile) => {
         setLearner(profile);
-        getDailyChallenge().then(setDailyChallenge).catch(console.error);
+        getEngagement().then(setEngagement).catch(console.error);
         getReviewSummary().then(setReviewSummary).catch(console.error);
         // Only fetch the roadmap next lesson once placement is done
         if (profile.placement_completed === 'done') {
@@ -230,8 +207,8 @@ export default function DashboardPage() {
             <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', marginBottom: 6 }}>Xin chào, {learner.display_name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
               <span className="level-badge">{learner.overall_level}</span>
-              <span className="streak-badge"><Flame size={13} /> {learner.current_streak} ngày liên tiếp</span>
-              <span className="xp-badge"><Star size={13} fill="currentColor" /> {learner.total_xp} XP</span>
+              <span className="streak-badge"><Flame size={13} /> {engagement?.streak.current ?? learner.current_streak} ngày liên tiếp</span>
+              <span className="xp-badge"><Star size={13} fill="currentColor" /> {engagement?.total_xp ?? learner.total_xp} XP</span>
             </div>
           </motion.div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexShrink: 0 }}>
@@ -248,20 +225,21 @@ export default function DashboardPage() {
         {/* Today's Mission & Daily Challenge */}
         <motion.div variants={itemVariants} className="grid-2" style={{ marginBottom: 'var(--spacing-md)', gap: 'var(--spacing-md)' }}>
           <MissionCard learner={learner} nextLesson={nextLesson} />
-          {dailyChallenge && <DailyChallengeCard challenge={dailyChallenge} />}
+          {engagement && <DailyQuests state={engagement} onChange={setEngagement} />}
         </motion.div>
 
-        {reviewSummary && (
-          <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)' }}>
-            <ReviewCard summary={reviewSummary} />
+        {(engagement || reviewSummary) && (
+          <motion.div variants={itemVariants} className="grid-2" style={{ marginBottom: 'var(--spacing-md)', gap: 'var(--spacing-md)' }}>
+            {engagement && <StreakWeekCard state={engagement} onChange={setEngagement} />}
+            {reviewSummary && <ReviewCard summary={reviewSummary} />}
           </motion.div>
         )}
 
         {/* Stats Row */}
         <motion.div variants={itemVariants} className="grid-4" style={{ gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
           <StatCard icon={BookOpen} color="var(--agen-primary)" value={learner.total_lessons_completed} label="Bài đã học" />
-          <StatCard icon={Flame} color="var(--agen-secondary)" value={learner.current_streak} label="Ngày liên tiếp" />
-          <StatCard icon={Star} color="var(--agen-accent)" value={learner.total_xp} label="Điểm XP" />
+          <StatCard icon={Flame} color="var(--agen-secondary)" value={engagement?.streak.current ?? learner.current_streak} label="Ngày liên tiếp" />
+          <StatCard icon={Star} color="var(--agen-accent)" value={engagement?.total_xp ?? learner.total_xp} label="Điểm XP" />
           <StatCard icon={GraduationCap} color="var(--skill-writing)" label="Trình độ" value={learner.overall_level} />
         </motion.div>
 

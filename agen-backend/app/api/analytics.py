@@ -13,6 +13,7 @@ from app.core.security import get_current_user
 from app.models.user import User
 from app.models.learner_profile import LearnerProfile
 from app.models.learning_event import LearningEvent
+from app.services.streak_service import effective_streak
 from app.agents.adaptive_coach import analyze_learner, generate_weekly_report
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
@@ -153,7 +154,7 @@ def get_overview(
     return OverviewResponse(
         overall_level=learner.overall_level,
         total_xp=learner.total_xp,
-        current_streak=learner.current_streak,
+        current_streak=effective_streak(learner),
         total_lessons_completed=learner.total_lessons_completed,
         skill_scores=SkillScores(
             vocabulary=learner.vocabulary_score or 0.0,
@@ -307,7 +308,7 @@ def get_coach_advice(
         "speaking_score": learner.speaking_score or 0,
         "listening_score": learner.listening_score or 0,
         "total_xp": learner.total_xp,
-        "current_streak": learner.current_streak,
+        "current_streak": effective_streak(learner),
         "total_lessons_completed": learner.total_lessons_completed,
     }
 
@@ -359,7 +360,7 @@ def get_weekly_report(
     learner_data = {
         "overall_level": learner.overall_level,
         "total_xp": learner.total_xp,
-        "current_streak": learner.current_streak,
+        "current_streak": effective_streak(learner),
     }
 
     try:

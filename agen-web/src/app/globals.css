@@ -1427,3 +1427,110 @@ a:hover { opacity: 0.8; }
   }
   .lesson-split-questions { padding: 20px var(--page-gutter) 280px; }
 }
+
+/* ============================================
+   DAILY QUESTS
+   ============================================ */
+.quests-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.quests-count { font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.quest-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.quest { display: flex; align-items: center; gap: 12px; }
+.quest-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--agen-accent) 12%, transparent);
+  color: var(--agen-accent);
+}
+.quest[data-state="claimed"] .quest-icon { background: color-mix(in srgb, var(--agen-success) 12%, transparent); color: var(--agen-success); }
+.quest-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.quest-title { font-size: 0.92rem; font-weight: 500; color: var(--text-primary); }
+a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
+.quest[data-state="claimed"] .quest-title { color: var(--text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+.quest-progress { display: flex; align-items: center; gap: 10px; }
+.quest-progress .progress-bar { flex: 1; }
+.quest-progress .progress-fill { background: var(--agen-accent); }
+.quest[data-state="claimed"] .progress-fill, .quest[data-state="ready"] .progress-fill { background: var(--agen-success); }
+.quest-progress span { font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 34px; text-align: right; }
+.quest-reward { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; flex-shrink: 0; min-width: 84px; font-size: 0.8rem; font-weight: 600; color: var(--agen-accent); }
+.quest-claimed { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; flex-shrink: 0; min-width: 84px; font-size: 0.82rem; font-weight: 500; color: var(--agen-success); }
+.quest-claim { flex-shrink: 0; animation: pulse-glow 1.6s ease-in-out infinite; }
+.quests-done {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--agen-success) 10%, transparent);
+  color: var(--agen-success);
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: center;
+}
+.quests-compact { padding: 16px; border-radius: var(--radius-lg); background: var(--bg-elevated); }
+
+/* ============================================
+   STREAK + WEEKLY GOAL
+   ============================================ */
+.streak-card { padding: var(--spacing-xl); border-radius: var(--radius-xl); display: flex; flex-direction: column; gap: 16px; }
+.streak-top { display: flex; align-items: center; gap: 16px; }
+.streak-flame {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: var(--bg-glass-hover);
+  color: var(--text-muted);
+}
+.streak-flame[data-active="true"] { background: color-mix(in srgb, var(--agen-secondary) 12%, transparent); color: var(--agen-secondary); }
+.streak-number { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1.1; }
+.streak-number span { font-size: 0.95rem; font-weight: 500; letter-spacing: 0; color: var(--text-secondary); }
+.streak-status { margin-top: 2px; font-size: 0.85rem; color: var(--text-muted); }
+.freeze-row { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: var(--text-secondary); }
+.freeze-icons { display: inline-flex; gap: 4px; }
+.freeze {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--bg-glass-hover);
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+.freeze[data-on="true"] { background: color-mix(in srgb, var(--skill-listening) 14%, transparent); color: var(--skill-listening); opacity: 1; }
+.week-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding-top: 14px; border-top: 1px solid var(--border-subtle); }
+.week-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.week-day { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.week-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--border-medium);
+  color: #fff;
+}
+.week-day[data-done="true"] .week-dot { border: none; background: var(--agen-secondary); }
+.week-day[data-today="true"]:not([data-done="true"]) .week-dot { border-style: solid; border-color: var(--agen-secondary); }
+.week-day[data-future="true"] .week-dot { opacity: 0.5; }
+.week-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+.week-day[data-today="true"] .week-label { color: var(--text-primary); font-weight: 700; }
+.week-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 0.88rem; color: var(--text-secondary); }
+.week-foot strong { color: var(--text-primary); font-size: 1rem; }
+.week-reward { display: inline-flex; align-items: center; gap: 5px; font-size: 0.8rem; color: var(--text-muted); }
+
+@media (max-width: 480px) {
+  .quest-reward, .quest-claimed { min-width: 0; }
+  .streak-number { font-size: 1.6rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quest-claim { animation: none; }
+}
