@@ -646,3 +646,12 @@ def delete_generated_exam(exam_id: str, current_user: User = Depends(get_current
         raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
     db.delete(row)
     db.commit()
+
+
+# ── G10 · AI cost tracking ────────────────────────────────────────────────────
+@router.get("/ai-usage/summary")
+def ai_usage_summary(days: int = 30, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Estimated AI spend (LLM + TTS) per day, feature, provider and top users."""
+    _require_admin(current_user)
+    from app.services import ai_usage
+    return ai_usage.summary(db, days=max(1, min(days, 90)))

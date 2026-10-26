@@ -30,6 +30,11 @@ from app.models.device_token import DeviceToken
 from app.models.speaking_exam import SpeakingExamAttempt
 from app.models.generated_exam import GeneratedExam
 from app.models.app_config import AppConfig
+from app.models.media_progress import MediaProgress
+from app.models.speaking_club import SpeakingRoom, RoomMember, RoomMessage
+from app.models.teacher_feedback import TeacherFeedback
+from app.models.certificate import Certificate
+from app.models.ai_usage import AiUsage
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -53,4 +58,5 @@ __all__ = [
     "Group", "GroupMember", "GroupAssignment", "GroupAssignmentDone",
     "ExamAttempt", "TutorMessage", "DeviceToken",
     "SpeakingExamAttempt", "GeneratedExam", "AppConfig",
+    "MediaProgress", "SpeakingRoom", "RoomMember", "RoomMessage", "TeacherFeedback", "Certificate", "AiUsage",
 ]

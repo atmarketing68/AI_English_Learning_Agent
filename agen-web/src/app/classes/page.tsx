@@ -4,9 +4,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Check, CircleAlert, LoaderCircle, LogOut, School } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, CircleAlert, LoaderCircle, LogOut, MessageSquareText, School } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
-import { SKILL_LABELS, getMyGroups, joinGroup, leaveGroup, type LearnerGroup } from '@/lib/groupsService';
+import { SKILL_LABELS, getMyFeedback, getMyGroups, joinGroup, leaveGroup, markFeedbackRead, type LearnerFeedback, type LearnerGroup } from '@/lib/groupsService';
 import { PageSkeleton } from '@/components/Skeleton';
 import Mascot from '@/components/ui/Mascot';
 import { track } from '@/lib/analytics';
@@ -19,11 +19,14 @@ export default function ClassesPage() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState<LearnerFeedback[]>([]);
 
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     getMyGroups().then(r => setGroups(r.groups)).catch(() => setError('Không tải được lớp học.'));
+    // G10 · teachers' comments; opening this page marks them read
+    getMyFeedback().then(f => { setFeedback(f); if (f.some(x => !x.read_at)) void markFeedbackRead().catch(() => undefined); }).catch(() => undefined);
   }, [hydrated, isAuthenticated, router]);
 
   const join = async (e: React.FormEvent) => {
@@ -60,6 +63,23 @@ export default function ClassesPage() {
           <button type="submit" className="btn btn-primary" disabled={busy || !code.trim()}>{busy ? <LoaderCircle className="animate-spin" size={16} /> : 'Tham gia'}</button>
           {error && <div className="alert-error" style={{ flexBasis: '100%' }}><CircleAlert size={16} /> {error}</div>}
         </form>
+
+        {feedback.length > 0 && (
+          <section className="card" style={{ marginTop: 16 }}>
+            <div className="section-head"><h3><MessageSquareText size={16} /> Nhận xét của giáo viên</h3></div>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {feedback.slice(0, 10).map(f => (
+                <div key={f.id} className="member-feedback" data-unread={!f.read_at}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {!f.read_at && <span className="plan-chip is-premium" style={{ marginRight: 6 }}>Mới</span>}
+                    {f.teacher_name} · {f.group_name}{f.target_label ? ` · về “${f.target_label}”` : ''} · {new Date(f.created_at.endsWith('Z') ? f.created_at : `${f.created_at}Z`).toLocaleDateString('vi-VN')}
+                  </div>
+                  <div style={{ whiteSpace: 'pre-line', fontSize: '0.92rem' }}>{f.text}</div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         {groups.length === 0 && <div className="card" style={{ marginTop: 16, textAlign: 'center', color: 'var(--text-muted)', padding: 28 }}>Bạn chưa ở trong lớp hoặc nhóm nào.</div>}
         {groups.map(({ group, owner_name, assignments }) => (

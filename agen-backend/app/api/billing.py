@@ -79,11 +79,15 @@ class BillingOptions(BaseModel):
     team_max_seats: int = 500
     can_buy_team: bool = False        # only teacher accounts
     seats: int = 1
+    # G10 · Stripe prices (USD cents) for international cards
+    prices_usd: list[PriceOut] = []
+    family_prices_usd: list[PriceOut] = []
+    team_prices_usd: list[PriceOut] = []
 
 
 class CheckoutRequest(BaseModel):
     months: int = Field(ge=1, le=12)
-    provider: str = Field(pattern="^(vnpay|momo)$")
+    provider: str = Field(pattern="^(vnpay|momo|stripe)$")
     plan: str = Field(default="premium", pattern="^(premium|family|team)$")
     seats: int = Field(default=1, ge=1, le=500)
     invoice: InvoiceIn | None = None                 # G8 · VAT invoice request
@@ -107,13 +111,16 @@ class OrderOut(BaseModel):
     invoice_issued_at: datetime | None = None
     created_at: datetime | None = None
     paid_at: datetime | None = None
+    currency: str = "VND"
+    amount_foreign: int | None = None
 
 
 def _order_out(order: PaymentOrder) -> OrderOut:
     inv = order.invoice_info if isinstance(order.invoice_info, dict) else None
     return OrderOut(order_id=order.id, provider=order.provider, plan=order.plan or "premium", seats=order.seats or 1, months=order.months,
                     amount_vnd=order.amount_vnd, status=order.status, invoice=InvoiceIn(**inv) if inv else None,
-                    invoice_issued_at=order.invoice_issued_at, created_at=order.created_at, paid_at=order.paid_at)
+                    invoice_issued_at=order.invoice_issued_at, created_at=order.created_at, paid_at=order.paid_at,
+                    currency=order.currency or "VND", amount_foreign=order.amount_foreign)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -194,6 +201,9 @@ def billing_options(
         team_max_seats=payments.TEAM_MAX_SEATS,
         can_buy_team=current_user.role == "teacher",
         seats=subs.get_or_create_subscription(db, current_user.id).seats or 1,
+        prices_usd=[PriceOut(months=m, amount_vnd=a) for m, a in payments.PRICES_USD.items()],
+        family_prices_usd=[PriceOut(months=m, amount_vnd=a) for m, a in payments.FAMILY_PRICES_USD.items()],
+        team_prices_usd=[PriceOut(months=m, amount_vnd=a) for m, a in payments.TEAM_PRICES_USD.items()],
     )
 
 
@@ -230,6 +240,8 @@ def checkout(
         base = _api_base(request)
         if payload.provider == "vnpay":
             pay_url = payments.vnpay_pay_url(order, client_ip(request), f"{base}/api/v1/billing/vnpay/return")
+        elif payload.provider == "stripe":
+            pay_url = payments.stripe_checkout_url(order, f"{settings.app_url}/upgrade?order={order.id}", f"{settings.app_url}/upgrade?status=failed&order={order.id}")
         else:
             pay_url = payments.momo_pay_url(order, f"{settings.app_url}/upgrade?order={order.id}", f"{base}/api/v1/billing/momo/ipn")
     except payments.PaymentError as exc:
@@ -300,6 +312,20 @@ async def momo_ipn(request: Request, db: Session = Depends(get_db)):
         return Response(status_code=204)
     payments.handle_momo_ipn(db, payload if isinstance(payload, dict) else {})
     return Response(status_code=204)
+
+
+@router.post("/stripe/webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    """G10 · Stripe → server confirmation; only a correctly signed event credits an order."""
+    payload = await request.body()
+    if not payments.stripe_verify(payload, request.headers.get("stripe-signature", "")):
+        raise HTTPException(status_code=400, detail="Bad signature")
+    try:
+        import json as _json
+        event = _json.loads(payload.decode("utf-8"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Bad payload")
+    return {"received": True, "result": payments.handle_stripe_event(db, event if isinstance(event, dict) else {})}
 
 
 # ── Pilot mock upgrade / cancel ───────────────────────────────────────────────

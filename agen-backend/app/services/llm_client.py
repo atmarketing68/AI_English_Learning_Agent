@@ -26,6 +26,8 @@ _QUOTA_PHRASES = (
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
+MODELS = {"gemini": "gemini-3.6-flash", "openai": "gpt-4o-mini"}
+
 
 class LLMError(RuntimeError):
     """Raised when every configured LLM provider fails."""
@@ -62,6 +64,14 @@ def get_llm_response(prompt: str) -> str:
             is_quota=False,
         )
 
+    from app.services import ai_usage
+    if ai_usage.over_daily_limit():
+        # G10 · per-user daily AI budget: callers treat this like any quota error and fall back.
+        raise LLMError(
+            "Bạn đã dùng hết lượt AI hôm nay. Hãy quay lại vào ngày mai nhé!",
+            is_quota=True,
+        )
+
     failures: list[str] = []
     quota_hit = False
 
@@ -69,8 +79,11 @@ def get_llm_response(prompt: str) -> str:
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
                 if provider == "gemini":
-                    return _call_gemini(prompt)
-                return _call_openai(prompt)
+                    text = _call_gemini(prompt)
+                else:
+                    text = _call_openai(prompt)
+                ai_usage.record_llm(provider, MODELS[provider], prompt, text or "")
+                return text
             except Exception as exc:
                 is_quota = _is_quota_error(exc)
                 if is_quota:
@@ -105,7 +118,7 @@ def _call_gemini(prompt: str) -> str:
         http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_S * 1000),
     )
     # Use Chat (Interactions API) — avoids AFC warning
-    chat = client.chats.create(model="gemini-3.6-flash")
+    chat = client.chats.create(model=MODELS["gemini"])
     response = chat.send_message(prompt)
     return response.text
 
@@ -114,7 +127,7 @@ def _call_openai(prompt: str) -> str:
     from openai import OpenAI
     client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=REQUEST_TIMEOUT_S, max_retries=0)
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=MODELS["openai"],
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7,
     )
