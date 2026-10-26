@@ -19,6 +19,7 @@ from app.models.curriculum_content import CurriculumLessonContent
 from app.models.review_item import ReviewItem
 from app.models.daily_quest import DailyQuest
 from app.models.push_subscription import PushSubscription
+from app.models.payment_order import PaymentOrder
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -35,4 +36,5 @@ __all__ = [
     "ReviewItem",
     "DailyQuest",
     "PushSubscription",
+    "PaymentOrder",
 ]

@@ -6,12 +6,12 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
-  getSubscription, upgradeToPremium, cancelSubscription,
-  type SubscriptionInfo,
+  getSubscription, upgradeToPremium, cancelSubscription, getBillingOptions, startPremiumTrial, checkout, getOrder,
+  type SubscriptionInfo, type BillingOptions, type PaymentProvider,
 } from '@/lib/billingService';
 import { playSound } from '@/lib/soundEffects';
 import confetti from 'canvas-confetti';
-import { ArrowLeft, Check, CircleAlert, CircleCheck, LoaderCircle, Minus } from 'lucide-react';
+import { ArrowLeft, Check, CircleAlert, CircleCheck, CreditCard, Gift, LoaderCircle, Minus, Wallet } from 'lucide-react';
 import { track } from '@/lib/analytics';
 
 const FREE_FEATURES = [
@@ -49,6 +49,15 @@ export default function UpgradePage() {
   const { isAuthenticated } = useAuthStore();
   const hydrated = useAuthHydrated();
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
+  const [options, setOptions] = useState<BillingOptions | null>(null);
+  const [paying, setPaying] = useState<PaymentProvider | null>(null);
+  const [trialing, setTrialing] = useState(false);
+  // Back from a gateway: /upgrade?status=success|failed&order=…
+  const [returned] = useState(() => {
+    if (typeof window === 'undefined') return { status: null as string | null, order: null as string | null };
+    const q = new URLSearchParams(window.location.search);
+    return { status: q.get('status'), order: q.get('order') };
+  });
   const [selectedMonths, setSelectedMonths] = useState(3);
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
@@ -59,11 +68,67 @@ export default function UpgradePage() {
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
-    getSubscription()
-      .then(setSubscription)
+    getBillingOptions().then(setOptions).catch(() => null);
+    const load = () => getSubscription().then(setSubscription);
+    load()
       .catch(() => setError('Không thể tải thông tin gói.'))
       .finally(() => setLoading(false));
-  }, [hydrated, isAuthenticated, router]);
+    // A MoMo redirect carries no status: poll the order a few times until the IPN lands.
+    if (returned.order) {
+      let tries = 0;
+      const timer = setInterval(async () => {
+        tries += 1;
+        try {
+          const order = await getOrder(returned.order!);
+          if (order.status === 'paid') {
+            clearInterval(timer);
+            await load();
+            setSuccess(true);
+            track('upgrade_completed', { months: order.months, provider: order.provider });
+            playSound('success');
+            confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
+          } else if (order.status === 'failed' || tries >= 10) {
+            clearInterval(timer);
+            if (order.status === 'failed' || returned.status === 'failed') setError('Thanh toán chưa hoàn tất. Bạn có thể thử lại.');
+          }
+        } catch { clearInterval(timer); }
+      }, 2000);
+      return () => clearInterval(timer);
+    }
+  }, [hydrated, isAuthenticated, router, returned.order, returned.status]);
+
+  const handleCheckout = async (provider: PaymentProvider) => {
+    setPaying(provider);
+    setError('');
+    track('checkout_started', { months: selectedMonths, provider });
+    try {
+      const res = await checkout(selectedMonths, provider);
+      window.location.href = res.pay_url;
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Không mở được cổng thanh toán. Vui lòng thử lại.');
+      setPaying(null);
+    }
+  };
+
+  const handleTrial = async () => {
+    setTrialing(true);
+    setError('');
+    try {
+      const updated = await startPremiumTrial();
+      setSubscription(updated);
+      setOptions(o => (o ? { ...o, trial_available: false } : o));
+      setSuccess(true);
+      track('trial_started');
+      playSound('success');
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Không bắt đầu được dùng thử.');
+    } finally {
+      setTrialing(false);
+    }
+  };
 
   const handleUpgrade = async () => {
     setUpgrading(true);
@@ -217,18 +282,50 @@ export default function UpgradePage() {
               })}
             </div>
 
-            <div style={{ textAlign: 'center' }}>
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={handleUpgrade}
-                disabled={upgrading}
-                style={{ minWidth: 300 }}
-              >
-                {upgrading ? 'Đang xử lý…' : `Nâng cấp Premium · ${PLAN_PRICES.find(p => p.months === selectedMonths)?.price}`}
-              </button>
+            {options?.trial_available && (
+              <div className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', borderColor: 'color-mix(in srgb, var(--agen-success) 40%, transparent)' }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <span className="icon-tile" style={{ background: 'color-mix(in srgb, var(--agen-success) 12%, transparent)', color: 'var(--agen-success)' }}><Gift size={20} /></span>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Dùng thử Premium {options.trial_days} ngày miễn phí</div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Không cần thẻ. Hết hạn tự về gói miễn phí, không trừ tiền.</div>
+                  </div>
+                </div>
+                <button className="btn btn-success" onClick={handleTrial} disabled={trialing}>
+                  {trialing ? <LoaderCircle className="animate-spin" size={16} /> : <Gift size={16} />} Bắt đầu dùng thử
+                </button>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+              {options?.providers.includes('vnpay') && (
+                <button className="btn btn-primary btn-lg" onClick={() => handleCheckout('vnpay')} disabled={!!paying || upgrading} style={{ minWidth: 300 }}>
+                  {paying === 'vnpay' ? <LoaderCircle className="animate-spin" size={18} /> : <CreditCard size={18} />} Thanh toán qua VNPay · {PLAN_PRICES.find(p => p.months === selectedMonths)?.price}
+                </button>
+              )}
+              {options?.providers.includes('momo') && (
+                <button className="btn btn-lg" onClick={() => handleCheckout('momo')} disabled={!!paying || upgrading} style={{ minWidth: 300, background: '#A50064', color: '#fff' }}>
+                  {paying === 'momo' ? <LoaderCircle className="animate-spin" size={18} /> : <Wallet size={18} />} Thanh toán qua Ví MoMo
+                </button>
+              )}
+              {options?.demo_enabled && (
+                <button
+                  className={`btn btn-lg ${options.providers.length ? 'btn-outline' : 'btn-primary'}`}
+                  onClick={handleUpgrade}
+                  disabled={upgrading || !!paying}
+                  style={{ minWidth: 300 }}
+                >
+                  {upgrading ? 'Đang xử lý…' : `${options.providers.length ? 'Kích hoạt demo' : 'Nâng cấp Premium'} · ${PLAN_PRICES.find(p => p.months === selectedMonths)?.price}`}
+                </button>
+              )}
+              {options && !options.providers.length && !options.demo_enabled && (
+                <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>Thanh toán trực tuyến đang được kích hoạt. Hãy dùng thử 7 ngày miễn phí trước nhé.</p>
+              )}
             </div>
             <p style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 12 }}>
-              Demo: không có thanh toán thật — chỉ dùng cho mục đích Pilot.
+              {options?.providers.length
+                ? 'Thanh toán an toàn qua VNPay (thẻ ATM/QR/thẻ quốc tế) hoặc Ví MoMo. Gói được kích hoạt ngay sau khi thanh toán thành công.'
+                : options?.demo_enabled ? 'Demo: không có thanh toán thật — chỉ dùng cho mục đích Pilot.' : ''}
             </p>
           </div>
         )}
