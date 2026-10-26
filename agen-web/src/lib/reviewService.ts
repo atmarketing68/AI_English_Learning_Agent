@@ -89,3 +89,25 @@ export function intervalLabel(days: number): string {
   if (days < 365) return `${Math.round(days / 30)} tháng`;
   return '1 năm';
 }
+
+// ── G2 · tap-a-word in a listening transcript ────────────────────────────────
+export interface WordLookup {
+  word: string;
+  phonetic: string;
+  part_of_speech: string;
+  meaning_vi: string;
+  definition_en: string;
+  example: string;
+}
+
+export async function lookupWord(word: string, context?: string): Promise<WordLookup> {
+  const { data } = await api.get('/review/lookup', { params: { word, context: context ?? '' } });
+  return data;
+}
+
+export async function addNotebookWord(payload: {
+  word: string; meaning: string; phonetic?: string; example?: string; source_lesson_id?: string;
+}): Promise<{ item: NotebookItem; created: boolean }> {
+  const { data } = await api.post('/review/items', payload);
+  return data;
+}

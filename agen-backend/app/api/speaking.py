@@ -14,13 +14,55 @@ from app.models.roleplay import RoleplaySession
 from app.agents.orchestrator import AgentRequest, execute
 from app.services.streak_service import record_activity
 from app.services.trace_recorder import record_agent_trace
+from app.services import speaking_scenarios
 
 router = APIRouter(prefix="/speaking", tags=["Speaking"])
 
 
 # --- Schemas ---
+class Persona(BaseModel):
+    name: str
+    role_en: str
+    role_vi: str
+    style: str
+    voice: str
+
+
+class Phrase(BaseModel):
+    en: str
+    vi: str
+
+
+class ScenarioSummary(BaseModel):
+    id: str
+    category: str
+    level: str
+    emoji: str
+    title_vi: str
+    title_en: str
+    persona: Persona
+    learner_role_en: str
+    learner_role_vi: str
+    goal_en: str
+    goal_vi: str
+    first_message: str
+    phrase_count: int
+    recommended: bool
+
+
+class ScenarioDetail(ScenarioSummary):
+    phrases: list[Phrase]
+
+
+class ScenarioList(BaseModel):
+    categories: dict[str, str]
+    learner_level: str
+    scenarios: list[ScenarioSummary]
+
+
 class StartRoleplayRequest(BaseModel):
-    topic: str
+    topic: Optional[str] = Field(default=None, max_length=120)
+    scenario_id: Optional[str] = Field(default=None, max_length=60)
 
 
 class StartRoleplayResponse(BaseModel):
@@ -28,6 +70,8 @@ class StartRoleplayResponse(BaseModel):
     topic: str
     system_prompt: str
     ai_first_message: str
+    scenario_id: Optional[str] = None
+    persona: Optional[Persona] = None
 
 
 class SpeakingTurnRequest(BaseModel):
@@ -42,6 +86,8 @@ class SpeakingTurnResponse(BaseModel):
     feedback: str
     is_correct: bool
     score: float
+    corrected: str = ""
+    hint_en: str = ""
 
 
 class FinishRoleplayRequest(BaseModel):
@@ -54,39 +100,97 @@ class FinishRoleplayRequest(BaseModel):
 class FinishRoleplayResponse(BaseModel):
     xp_earned: int
     message: str
+    total_turns: int = 0
+    average_score: float = 0.0
+
+
+# --- Helpers ---
+def _learner_or_404(db: Session, user: User) -> LearnerProfile:
+    learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == user.id).first()
+    if not learner:
+        raise HTTPException(status_code=404, detail="Learner profile not found.")
+    return learner
+
+
+def _detail(scenario: dict, learner_level: str) -> dict:
+    data = {k: v for k, v in scenario.items()}
+    data["phrase_count"] = len(scenario["phrases"])
+    data["recommended"] = speaking_scenarios._recommended(scenario["level"], learner_level)
+    return data
 
 
 # --- Endpoints ---
+@router.get("/scenarios", response_model=ScenarioList)
+def list_scenarios(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """G2 · Curated roleplay scenarios with Vietnamese context (no LLM call)."""
+    learner = _learner_or_404(db, current_user)
+    level = learner.overall_level or "A1"
+    return ScenarioList(
+        categories=speaking_scenarios.CATEGORIES,
+        learner_level=level,
+        scenarios=speaking_scenarios.list_scenarios(level),
+    )
+
+
+@router.get("/scenarios/{scenario_id}", response_model=ScenarioDetail)
+def get_scenario(
+    scenario_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    learner = _learner_or_404(db, current_user)
+    scenario = speaking_scenarios.get_scenario(scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found.")
+    return ScenarioDetail(**_detail(scenario, learner.overall_level or "A1"))
+
+
 @router.post("/start", response_model=StartRoleplayResponse)
 def start_roleplay(
     payload: StartRoleplayRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == current_user.id).first()
-    if not learner:
-        raise HTTPException(status_code=404, detail="Learner profile not found.")
+    learner = _learner_or_404(db, current_user)
+    level = learner.overall_level or "A1"
 
-    result = execute(AgentRequest(
-        agent="roleplay_scenario",
-        payload={"level": learner.overall_level, "topic": payload.topic},
-    ))
-    record_agent_trace(db, learner.id, result.trace_id, result, {"topic": payload.topic, "level": learner.overall_level})
-    db.commit()
+    if payload.scenario_id:
+        # Curated scenario: persona + opening line are ready, no LLM round-trip.
+        scenario = speaking_scenarios.get_scenario(payload.scenario_id)
+        if not scenario:
+            raise HTTPException(status_code=404, detail="Scenario not found.")
+        topic = scenario["title_en"]
+        system_prompt = speaking_scenarios.build_system_prompt(scenario, level)
+        first_message = scenario["first_message"]
+        persona = Persona(**scenario["persona"])
+    else:
+        if not (payload.topic or "").strip():
+            raise HTTPException(status_code=422, detail="topic or scenario_id is required.")
+        topic = payload.topic.strip()
+        result = execute(AgentRequest(
+            agent="roleplay_scenario",
+            payload={"level": level, "topic": topic},
+        ))
+        record_agent_trace(db, learner.id, result.trace_id, result, {"topic": topic, "level": level})
+        db.commit()
+        if result.status == "failed":
+            raise HTTPException(
+                status_code=429 if result.is_quota_error else 502,
+                detail=result.error or "Failed to generate scenario",
+            )
+        scenario_out = result.data
+        system_prompt = scenario_out.get("system_prompt", "")
+        first_message = scenario_out.get("ai_first_message", "Hello!")
+        persona = None
 
-    if result.status == "failed":
-        raise HTTPException(
-            status_code=429 if result.is_quota_error else 502,
-            detail=result.error or "Failed to generate scenario",
-        )
-
-    scenario = result.data
-    first_message = scenario.get("ai_first_message", "Hello!")
     roleplay = RoleplaySession(
         id=str(uuid.uuid4()),
         learner_id=learner.id,
-        topic=payload.topic,
-        system_prompt=scenario.get("system_prompt", ""),
+        topic=topic,
+        system_prompt=system_prompt,
         history=[{"role": "ai", "content": first_message}],
     )
     db.add(roleplay)
@@ -94,9 +198,11 @@ def start_roleplay(
 
     return StartRoleplayResponse(
         session_id=roleplay.id,
-        topic=payload.topic,
+        topic=topic,
         system_prompt=roleplay.system_prompt,
         ai_first_message=first_message,
+        scenario_id=payload.scenario_id,
+        persona=persona,
     )
 
 
@@ -123,6 +229,7 @@ def handle_speaking_turn(
             "system_prompt": session.system_prompt,
             "history": server_history,
             "user_message": payload.user_message,
+            "level": learner.overall_level or "A2",
         },
     ))
     record_agent_trace(db, learner.id, result.trace_id, result, {"session_id": payload.session_id, "skill": "speaking"})
@@ -151,6 +258,8 @@ def handle_speaking_turn(
         feedback=evaluation.get("feedback", ""),
         is_correct=evaluation.get("is_correct", True),
         score=score,
+        corrected=evaluation.get("corrected", "") or "",
+        hint_en=evaluation.get("hint_en", "") or "",
     )
 
 
@@ -158,6 +267,20 @@ class PronunciationRequest(BaseModel):
     target_text: str = Field(min_length=1, max_length=1000)
     transcript: str = Field(default="", max_length=2000)
     duration_seconds: float | None = None
+    # Optional context so the learning event can say where the attempt came from.
+    source: str = Field(default="practice", max_length=40)
+
+
+class WordVerdict(BaseModel):
+    word: str
+    status: str           # ok | wrong | missed
+    heard: Optional[str] = None
+
+
+class SoundTip(BaseModel):
+    sound: str
+    tip_vi: str
+    words: list[str]
 
 
 class PronunciationResponse(BaseModel):
@@ -170,6 +293,8 @@ class PronunciationResponse(BaseModel):
     missed_words: list[str]
     extra_words: list[str]
     feedback_vi: str
+    words: list[WordVerdict] = []
+    sound_tips: list[SoundTip] = []
     xp_earned: int
 
 
@@ -183,9 +308,7 @@ def score_pronunciation_attempt(
 
     The client transcribes speech with the Web Speech API and posts the text here.
     """
-    learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == current_user.id).first()
-    if not learner:
-        raise HTTPException(status_code=404, detail="Learner profile not found.")
+    learner = _learner_or_404(db, current_user)
 
     from app.services.pronunciation_service import score_pronunciation
     result = score_pronunciation(
@@ -213,6 +336,8 @@ def score_pronunciation_attempt(
             "accuracy": round(result.accuracy, 1),
             "coverage": round(result.coverage, 1),
             "missed_words": result.missed_words[:10],
+            "source": payload.source,
+            "sounds": [t["sound"] for t in result.sound_tips],
         },
     ))
     record_activity(learner, "speaking", db)
@@ -227,14 +352,10 @@ def finish_roleplay(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == current_user.id).first()
-    if not learner:
-        raise HTTPException(status_code=404, detail="Learner profile not found.")
-
-    learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == current_user.id).first()
+    learner = _learner_or_404(db, current_user)
     session = db.query(RoleplaySession).filter(
         RoleplaySession.id == payload.session_id,
-        RoleplaySession.learner_id == learner.id if learner else False,
+        RoleplaySession.learner_id == learner.id,
     ).first()
     if not session:
         raise HTTPException(status_code=404, detail="Roleplay session not found.")
@@ -275,5 +396,7 @@ def finish_roleplay(
 
     return FinishRoleplayResponse(
         xp_earned=total_xp,
-        message="Roleplay completed successfully!"
+        message="Roleplay completed successfully!",
+        total_turns=session.total_turns,
+        average_score=round(average_score, 1),
     )

@@ -34,6 +34,8 @@ class PlacementQuestionOutput(BaseModel):
     skill: str = Field(min_length=1)
     level: str = Field(min_length=1)
     passage: str = ""
+    # G2 · listening questions: the learner only hears this text (client TTS).
+    audio_text: str = ""
     question: str = Field(min_length=1)
     options: dict[str, str]
     correct_answer: Literal["A", "B", "C", "D"]
@@ -81,6 +83,9 @@ class SpeakingTurnOutput(BaseModel):
     feedback: str = ""
     is_correct: bool
     score: float = Field(ge=0, le=100)
+    # G2 · AI Coach: natural version of the learner's line and a suggestion for the next turn.
+    corrected: str = ""
+    hint_en: str = ""
 
 
 class GrammarErrorOutput(BaseModel):
@@ -122,3 +127,13 @@ class WritingEvaluationOutput(BaseModel):
     improvements: list[str] = Field(min_length=1)
     corrected_version: str = Field(min_length=1)
     encouragement: str = Field(min_length=1)
+
+
+class WordLookupOutput(BaseModel):
+    """G2 · tap-a-word dictionary lookup (listening transcript)."""
+    word: str = Field(min_length=1)
+    phonetic: str = ""
+    part_of_speech: str = ""
+    meaning_vi: str = Field(min_length=1)
+    definition_en: str = ""
+    example: str = ""

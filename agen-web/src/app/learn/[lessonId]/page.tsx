@@ -679,6 +679,8 @@ export default function LessonPlayerPage() {
               <AudioPlayerTTS
                 text={lesson.content.text}
                 scriptLines={lesson.content.script_lines}
+                knownWords={lesson.content.vocabulary_highlights}
+                lessonId={lesson.id}
               />
             )}
 

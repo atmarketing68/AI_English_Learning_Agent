@@ -66,6 +66,17 @@ class Settings(BaseSettings):
     CRON_SECRET: str = ""
     REMINDER_CRON_SECRET: str = ""
 
+    # G2 · Server-side neural text-to-speech (optional; browser voice otherwise).
+    # "auto" uses whichever LLM key exists (Gemini → OpenAI); "gemini" / "openai"
+    # pins one; "off" disables it. Audio is cached on disk; new characters per
+    # day are capped so a busy day cannot run up a surprise bill.
+    TTS_PROVIDER: str = "auto"
+    TTS_DAILY_CHAR_LIMIT: int = 150_000
+    TTS_CACHE_DIR: str = ".tts_cache"
+    TTS_CACHE_MAX_FILES: int = 3000
+    GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
+    OPENAI_TTS_MODEL: str = "tts-1"
+
     @field_validator("SECRET_KEY")
     @classmethod
     def warn_default_secret(cls, v: str) -> str:

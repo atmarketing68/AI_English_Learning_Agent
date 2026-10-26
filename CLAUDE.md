@@ -23,6 +23,9 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
 - Thời gian lưu DB là **UTC naive**; "ngày" của người học theo giờ VN qua `app/core/timeutil.py`.
 - Hoạt động học ghi `LearningEvent`; nhiệm vụ ngày & mục tiêu tuần tính từ đó (không cần hook mới).
 - Bài học: bài tập mới dựng từ nội dung bài trong `app/services/exercise_builder.py`; ôn tập FSRS ở `app/services/srs.py`.
+- Nói & nghe (G2): tình huống + nhân vật ở `app/services/speaking_scenarios.py` (không cần LLM cho bước 1–2); chấm theo
+  từ ở `pronunciation_service.py`; giọng đọc server ở `tts_service.py` (`/audio/tts`, tự tắt khi không có khoá). Web:
+  mọi nút nghe đi qua `playText()` trong `lib/speechService.ts` (server → trình duyệt), micro qua `lib/useSpeechRecorder.ts`.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy
