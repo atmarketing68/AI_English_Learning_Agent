@@ -7,6 +7,7 @@ import { register, login, getMyProfile } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
 import Logo from '@/components/ui/Logo';
 import { CircleAlert, GraduationCap, Users } from 'lucide-react';
+import { identifyUser, track } from '@/lib/analytics';
 
 const GRADES = [
   { value: 'grade_1', label: 'Lớp 1' }, { value: 'grade_2', label: 'Lớp 2' },
@@ -36,7 +37,7 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
     try {
-      await register({
+      const created = await register({
         ...form,
         age: role === 'learner' && form.age ? parseInt(form.age) : undefined,
         role,
@@ -45,6 +46,8 @@ export default function RegisterPage() {
       const token = await login({ username: form.email, password: form.password });
       setAuth(token.access_token, token.refresh_token);
       setUserRole(role);
+      identifyUser(created.id, { role });
+      track('signup_completed', { role });
 
       if (role === 'parent') {
         // Parents have no learner profile — go straight to parent dashboard
@@ -64,11 +67,11 @@ export default function RegisterPage() {
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
       <div className="animate-fade-in-up" style={{ width: '100%', maxWidth: 480 }}>
-        <Link href="/" aria-label="AGEN — trang chủ" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, opacity: 1 }}><Logo size={64} wordmark={false} /></Link>
+        <Link href="/" aria-label="AI AGENT ENGLISH — trang chủ" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, opacity: 1 }}><Logo size={64} wordmark={false} /></Link>
         <div className="card" style={{ padding: 'clamp(24px, 5vw, 40px)', boxShadow: 'var(--shadow-md)', border: 'none' }}>
 
           <div className="text-center" style={{ marginBottom: 'var(--spacing-xl)' }}>
-            <h2 style={{ fontSize: '1.75rem' }}>Tạo tài khoản AGEN</h2>
+            <h2 style={{ fontSize: '1.75rem' }}>Tạo tài khoản AI AGENT ENGLISH</h2>
             <p style={{ marginTop: 8, fontSize: '0.95rem' }}>Bắt đầu hành trình tiếng Anh cá nhân hóa của bạn.</p>
           </div>
 

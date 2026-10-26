@@ -11,6 +11,7 @@ import { useAuthStore } from '@/store/authStore';
 import { getMyProfile } from '@/lib/services';
 import { playSound } from '@/lib/soundEffects';
 import { ArrowLeft, ChevronRight, CircleAlert, Lightbulb, LoaderCircle, Mic, Star } from 'lucide-react';
+import { track } from '@/lib/analytics';
 
 interface Message {
   role: 'ai' | 'user';
@@ -145,6 +146,7 @@ export default function SpeakingPracticePage() {
       const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
       const res = await finishRoleplay(session.id, topic, messages.filter(m => m.role === 'user').length, avgScore);
       setEarnedXp(res.xp_earned);
+      track('speaking_session_completed', { topic, turns: messages.filter(m => m.role === 'user').length, avg_score: Math.round(avgScore) });
 
       // Update streak + daily challenge + refresh profile
       await notifyActivityCompleted('speaking');
@@ -223,7 +225,7 @@ export default function SpeakingPracticePage() {
       <div style={{ padding: '12px 24px', background: 'var(--bg-nav)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <div style={{ fontWeight: 600 }}>{topic}</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Roleplay cùng AGEN</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Roleplay cùng AI AGENT ENGLISH</div>
         </div>
         <button onClick={handleFinish} className="btn btn-sm btn-ghost" style={{ color: 'var(--agen-primary-light)' }}>Kết thúc</button>
       </div>

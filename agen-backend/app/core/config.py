@@ -7,7 +7,7 @@ from typing import List, Optional
 class Settings(BaseSettings):
     # App
     APP_ENV: str = "development"
-    APP_NAME: str = "AGEN API"
+    APP_NAME: str = "AI AGENT ENGLISH API"
     APP_VERSION: str = "1.0.0"
 
     # Security — MUST be changed in production
@@ -45,9 +45,9 @@ class Settings(BaseSettings):
     # and the daily lesson quota.
     LEARNER_TIMEZONE: str = "Asia/Ho_Chi_Minh"
 
-    # Free-tier daily lesson allowance. Set high (or 0 = unlimited) for the pilot
-    # so testers are never blocked; lower it when monetization goes live.
-    FREE_DAILY_LESSON_LIMIT: int = 1000
+    # Free-tier daily lesson allowance, as advertised on the landing page.
+    # 0 = unlimited (e.g. for an internal test group).
+    FREE_DAILY_LESSON_LIMIT: int = 3
 
     @field_validator("SECRET_KEY")
     @classmethod

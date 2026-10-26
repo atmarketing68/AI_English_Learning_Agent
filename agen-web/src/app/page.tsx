@@ -59,14 +59,14 @@ const TOPICS: { icon: LucideIcon; label: string }[] = [
 
 const STEPS: { icon: LucideIcon; tone: Tone; title: string; desc: string }[] = [
   { icon: UserPlus, tone: 'blue', title: 'Tạo tài khoản miễn phí', desc: 'Chỉ cần email, không cần thẻ tín dụng.' },
-  { icon: ClipboardCheck, tone: 'purple', title: 'Kiểm tra đầu vào 5 phút', desc: '10 câu hỏi để AGEN xác định đúng trình độ của bạn.' },
+  { icon: ClipboardCheck, tone: 'purple', title: 'Kiểm tra đầu vào 5 phút', desc: '10 câu hỏi để AI AGENT ENGLISH xác định đúng trình độ của bạn.' },
   { icon: Rocket, tone: 'pink', title: 'Nhận lộ trình và học ngay', desc: 'Bài học được tạo riêng theo mục tiêu và thời gian của bạn.' },
 ];
 
 const TESTIMONIALS: { name: string; meta: string; quote: string; tone: Tone }[] = [
-  { name: 'Minh Anh', meta: '16 tuổi · B2', quote: 'AGEN giúp mình từ B1 lên B2 chỉ trong 2 tháng. Phần luyện nói với AI là phần mình thích nhất.', tone: 'pink' },
+  { name: 'Minh Anh', meta: '16 tuổi · B2', quote: 'AI AGENT ENGLISH giúp mình từ B1 lên B2 chỉ trong 2 tháng. Phần luyện nói với AI là phần mình thích nhất.', tone: 'pink' },
   { name: 'Bố của Hùng', meta: 'Phụ huynh', quote: 'Báo cáo hằng tuần rất rõ ràng. Biết chính xác con cần cải thiện kỹ năng nào, không phải đoán mò.', tone: 'blue' },
-  { name: 'Lan Phương', meta: '28 tuổi · B1', quote: '15 phút mỗi ngày với AGEN hiệu quả hơn cả buổi học 2 tiếng. Rất hợp với người đi làm.', tone: 'green' },
+  { name: 'Lan Phương', meta: '28 tuổi · B1', quote: '15 phút mỗi ngày với AI AGENT ENGLISH hiệu quả hơn cả buổi học 2 tiếng. Rất hợp với người đi làm.', tone: 'green' },
 ];
 
 const PLANS = [
@@ -81,9 +81,9 @@ const PLANS = [
 ];
 
 const FAQS = [
-  { q: 'AGEN có miễn phí không?', a: 'Có. Gói miễn phí gồm 3 bài học AI mỗi ngày, luyện nói nhập vai, luyện viết có chấm điểm, bài kiểm tra đầu vào và hệ thống XP, chuỗi ngày học. Bạn không cần thẻ tín dụng để bắt đầu.' },
+  { q: 'AI AGENT ENGLISH có miễn phí không?', a: 'Có. Gói miễn phí gồm 3 bài học AI mỗi ngày, luyện nói nhập vai, luyện viết có chấm điểm, bài kiểm tra đầu vào và hệ thống XP, chuỗi ngày học. Bạn không cần thẻ tín dụng để bắt đầu.' },
   { q: 'Bài kiểm tra đầu vào mất bao lâu?', a: 'Khoảng 5–8 phút với 10 câu hỏi về từ vựng, ngữ pháp và đọc hiểu. Kết quả dùng để xếp trình độ theo chuẩn CEFR và tạo lộ trình học riêng cho bạn.' },
-  { q: 'Mỗi ngày nên học bao nhiêu phút?', a: 'Bạn tự chọn 5, 10, 15 hoặc 30 phút mỗi ngày. AGEN chia nhỏ bài học cho vừa lịch của bạn; 15 phút mỗi ngày là mức được khuyên dùng.' },
+  { q: 'Mỗi ngày nên học bao nhiêu phút?', a: 'Bạn tự chọn 5, 10, 15 hoặc 30 phút mỗi ngày. AI AGENT ENGLISH chia nhỏ bài học cho vừa lịch của bạn; 15 phút mỗi ngày là mức được khuyên dùng.' },
   { q: 'Phụ huynh theo dõi việc học của con như thế nào?', a: 'Con chia sẻ mã liên kết có trong ứng dụng. Phụ huynh tạo tài khoản phụ huynh, nhập mã và xem báo cáo hằng tuần: con đã tiến bộ gì, cần hỗ trợ gì và phụ huynh nên làm gì.' },
   { q: 'Gói Premium khác gì gói miễn phí?', a: 'Premium mở khoá bài học không giới hạn, báo cáo cho phụ huynh, lộ trình cá nhân hoá và ưu tiên hỗ trợ. Giá từ 99.000₫/tháng, hoặc chỉ khoảng 67.000₫/tháng khi chọn gói 12 tháng.' },
 ];
@@ -184,7 +184,7 @@ export default function HomePage() {
       {/* ─── NAV ──────────────────────────────────────────────────────── */}
       <header className="lp-nav">
         <div className="lp-nav-inner">
-          <Link href="/" aria-label="AGEN — trang chủ" style={{ display: 'inline-flex', opacity: 1 }}><Logo size={30} /></Link>
+          <Link href="/" aria-label="AI AGENT ENGLISH — trang chủ" style={{ display: 'inline-flex', opacity: 1 }}><Logo size={30} /></Link>
           <nav className="lp-nav-links" aria-label="Điều hướng trang">
             <a href="#ky-nang">Kỹ năng</a>
             <a href="#tinh-nang">Tính năng</a>
@@ -192,8 +192,8 @@ export default function HomePage() {
             <a href="#hoi-dap">Hỏi đáp</a>
           </nav>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: '0.88rem' }}>
-            <Link href="/login" style={{ color: 'var(--text-secondary)' }}>Đăng nhập</Link>
-            <Link href="/register" className="btn btn-primary btn-sm">Học miễn phí</Link>
+            <Link href="/login" className="lp-nav-login" style={{ color: 'var(--text-secondary)' }}>Đăng nhập</Link>
+            <Link href="/register" className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }}>Học miễn phí</Link>
           </div>
         </div>
       </header>
@@ -203,7 +203,7 @@ export default function HomePage() {
         <div className="hero-media">
           <Image
             src="/hero-banner.webp"
-            alt="Robot AI Coach của AGEN đọc sách tiếng Anh, xung quanh là biểu tượng luyện nghe, nói, viết"
+            alt="Robot AI Coach của AI AGENT ENGLISH đọc sách tiếng Anh, xung quanh là biểu tượng luyện nghe, nói, viết"
             fill
             priority
             sizes="100vw"
@@ -239,7 +239,7 @@ export default function HomePage() {
                 {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} fill="#F59E0B" color="#F59E0B" />)}
                 <b>4.9</b>
               </div>
-              <div className="hero-trust-text">1,247 học viên đang học cùng AGEN</div>
+              <div className="hero-trust-text">1,247 học viên đang học cùng AI AGENT ENGLISH</div>
             </div>
           </div>
         </motion.div>
@@ -277,7 +277,7 @@ export default function HomePage() {
 
       {/* ─── FEATURES (bento) ─────────────────────────────────────────── */}
       <section id="tinh-nang" className="lp-section">
-        <SectionHeading icon={Zap} eyebrow="Tất cả trong một" title="Vì sao học viên chọn AGEN?" sub="Mọi thứ bạn cần để tiến bộ đều đặn — gói gọn trong một ứng dụng." />
+        <SectionHeading icon={Zap} eyebrow="Tất cả trong một" title="Vì sao học viên chọn AI AGENT ENGLISH?" sub="Mọi thứ bạn cần để tiến bộ đều đặn — gói gọn trong một ứng dụng." />
         <div className="lp-bento">
           <motion.div {...stagger(0)} className="lp-card lp-bento-wide lp-bento-coach">
             <div>
@@ -368,7 +368,7 @@ export default function HomePage() {
 
       {/* ─── TESTIMONIALS ─────────────────────────────────────────────── */}
       <section className="lp-section">
-        <SectionHeading icon={Heart} eyebrow="Câu chuyện thật" title="Học viên nói gì về AGEN?" />
+        <SectionHeading icon={Heart} eyebrow="Câu chuyện thật" title="Học viên nói gì về AI AGENT ENGLISH?" />
         <div className="grid-3" style={{ gap: 20 }}>
           {TESTIMONIALS.map((t, i) => (
             <motion.figure key={t.name} {...stagger(i)} className="lp-card lp-quote">
@@ -468,7 +468,7 @@ export default function HomePage() {
           </div>
         </div>
         <div className="lp-footer-bottom">
-          <span>© {new Date().getFullYear()} AGEN. Bảo lưu mọi quyền.</span>
+          <span>© {new Date().getFullYear()} AI AGENT ENGLISH. Bảo lưu mọi quyền.</span>
           <span>Học tiếng Anh cùng AI</span>
         </div>
       </footer>

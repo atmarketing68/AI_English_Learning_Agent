@@ -10,6 +10,7 @@ import { notifyActivityCompleted } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
 import { getMyProfile } from '@/lib/services';
 import { ArrowLeft, BookText, CircleAlert, Feather, Lightbulb, LoaderCircle, Mail, MessageSquareQuote, Palette, Sparkles, Star } from 'lucide-react';
+import { track } from '@/lib/analytics';
 
 export default function WritingPracticePage() {
   const { setLearner } = useAuthStore();
@@ -52,6 +53,7 @@ export default function WritingPracticePage() {
         userText
       );
       setEvaluation(res);
+      track('writing_submitted', { genre: promptData.genre, score: res.overall_score, words: wordCount });
 
       // Update streak + daily challenge + refresh profile
       await notifyActivityCompleted('writing');

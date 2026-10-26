@@ -1,6 +1,6 @@
 """Subscription plan logic + free-tier gating.
 
-Pilot: free users may generate up to FREE_DAILY_LESSON_LIMIT lessons per day;
+Free users may complete up to FREE_DAILY_LESSON_LIMIT lessons per day (default 3);
 premium users are unlimited. No real payment gateway — upgrade is recorded
 directly. A webhook-driven integration can later drive plan/status changes.
 """

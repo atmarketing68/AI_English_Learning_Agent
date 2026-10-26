@@ -148,7 +148,7 @@ Trong `agen-backend/.env`:
 | Biến | Vai trò vận hành |
 |------|------------------|
 | `ADMIN_EMAILS` | Danh sách email quản trị (bắt buộc để dùng `/admin`) |
-| `FREE_DAILY_LESSON_LIMIT` | Số bài/ngày cho gói free. Pilot nên để **cao (1000)** hoặc **0 (không giới hạn)** để không chặn người test |
+| `FREE_DAILY_LESSON_LIMIT` | Số bài/ngày cho gói free. Mặc định **3** (khớp với landing). Nhóm test nội bộ có thể đặt **0 (không giới hạn)** |
 | `GEMINI_API_KEY` | Khóa AI — **bắt buộc** để sinh nội dung. Không có = không tạo được bài |
 | `OPENAI_API_KEY` | Khóa dự phòng (nếu Gemini lỗi, hệ thống tự chuyển sang OpenAI) |
 | `ALLOWED_ORIGINS` | URL frontend được phép gọi API (CORS) |
@@ -193,7 +193,7 @@ Trong `agen-backend/.env`:
 
 ## 9. Checklist chuẩn bị Pilot
 
-- [ ] Điền `.env` backend: `SECRET_KEY`, `GEMINI_API_KEY`, `ADMIN_EMAILS`, `FREE_DAILY_LESSON_LIMIT` cao.
+- [ ] Điền `.env` backend: `SECRET_KEY`, `GEMINI_API_KEY`, `ADMIN_EMAILS`, `FREE_DAILY_LESSON_LIMIT` (mặc định 3).
 - [ ] Khởi động backend (`uvicorn`, KHÔNG `--reload`) + frontend (`npm run dev`).
 - [ ] Đăng ký tài khoản admin (email trong `ADMIN_EMAILS`) và kiểm tra vào được `/admin`.
 - [ ] Pre-generate nội dung cấp A1 (`--level A1 --auto-approve`); kiểm tra "24/24 đã duyệt".

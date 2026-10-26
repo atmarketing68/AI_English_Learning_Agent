@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import { updateMyProfile } from '@/lib/services';
 import confetti from 'canvas-confetti';
 import { Briefcase, CircleCheck, Compass, GraduationCap, MessageCircle, Trophy } from 'lucide-react';
+import { track } from '@/lib/analytics';
 
 const GOALS = [
   { id: 'giao_tiep', icon: MessageCircle, label: 'Giao tiếp hằng ngày', desc: 'Tự tin nói tiếng Anh khi đi du lịch, giao tiếp cơ bản.' },
@@ -47,6 +48,7 @@ export default function OnboardingPage() {
         daily_study_minutes: studyTime,
       });
       setLearner(updated);
+      track('onboarding_completed', { goal, daily_minutes: studyTime });
       router.push('/placement');
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -83,7 +85,7 @@ export default function OnboardingPage() {
               style={{ textAlign: 'center' }}
             >
               <h2 style={{ marginBottom: 8 }}>Mục tiêu học tập của bạn là gì?</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Giúp AGEN cá nhân hoá lộ trình phù hợp nhất với bạn.</p>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>Giúp AI AGENT ENGLISH cá nhân hoá lộ trình phù hợp nhất với bạn.</p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12, textAlign: 'left', marginBottom: 32 }}>
                 {GOALS.map(g => (
@@ -122,7 +124,7 @@ export default function OnboardingPage() {
               style={{ textAlign: 'center' }}
             >
               <h2 style={{ marginBottom: 8 }}>Bạn có thể học bao lâu mỗi ngày?</h2>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>AGEN sẽ chia nhỏ bài học vừa vặn với lịch trình của bạn.</p>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 32 }}>AI AGENT ENGLISH sẽ chia nhỏ bài học vừa vặn với lịch trình của bạn.</p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 16, marginBottom: 32 }}>
                 {STUDY_MINUTES.map(s => (
@@ -177,7 +179,7 @@ export default function OnboardingPage() {
                 <span className="icon-tile" style={{ background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><Compass size={22} strokeWidth={1.8} /></span>
                 <div>
                 <h3 style={{ fontSize: '1.05rem', marginBottom: 6 }}>Bước tiếp theo: kiểm tra trình độ</h3>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Hãy dành 5 phút làm bài test nhanh để AGEN xây dựng lộ trình học phù hợp nhất với trình độ hiện tại của bạn.</p>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Hãy dành 5 phút làm bài test nhanh để AI AGENT ENGLISH xây dựng lộ trình học phù hợp nhất với trình độ hiện tại của bạn.</p>
                 </div>
               </div>
 

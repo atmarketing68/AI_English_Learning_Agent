@@ -10,7 +10,7 @@ import { LoaderCircle } from 'lucide-react';
  * wait (which can be 30-120s on the free LLM tier) never feels frozen.
  */
 const MESSAGES = [
-  'AGEN đang thiết kế bài học riêng cho bạn…',
+  'AI AGENT ENGLISH đang thiết kế bài học riêng cho bạn…',
   'Chọn từ vựng và ví dụ phù hợp trình độ…',
   'Tạo câu hỏi luyện tập…',
   'Kiểm tra chất lượng nội dung…',

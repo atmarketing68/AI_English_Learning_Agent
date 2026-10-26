@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { LearnerProfile } from '@/types';
+import { resetAnalytics } from '@/lib/analytics';
 
 interface AuthState {
   token: string | null;
@@ -33,6 +34,7 @@ export const useAuthStore = create<AuthState>()(
       setUserRole: (role) => set({ userRole: role }),
 
       logout: () => {
+        resetAnalytics();
         set({ token: null, refreshToken: null, learner: null, userRole: null, isAuthenticated: false });
       },
     }),

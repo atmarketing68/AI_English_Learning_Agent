@@ -7,6 +7,7 @@ import { login, getMyProfile, getMe } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
 import Logo from '@/components/ui/Logo';
 import { CircleAlert } from 'lucide-react';
+import { identifyUser, track } from '@/lib/analytics';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,6 +26,8 @@ export default function LoginPage() {
       setAuth(token.access_token, token.refresh_token);
       const me = await getMe();
       setUserRole(me.role);
+      identifyUser(me.id, { role: me.role });
+      track('login_completed', { role: me.role });
       if (me.role === 'parent') {
         router.push('/parent');
       } else {
@@ -42,7 +45,7 @@ export default function LoginPage() {
   return (
     <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
       <div className="animate-fade-in-up" style={{ width: '100%', maxWidth: 400 }}>
-        <Link href="/" aria-label="AGEN — trang chủ" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, opacity: 1 }}><Logo size={64} wordmark={false} /></Link>
+        <Link href="/" aria-label="AI AGENT ENGLISH — trang chủ" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, opacity: 1 }}><Logo size={64} wordmark={false} /></Link>
         <div className="card" style={{ padding: 'clamp(24px, 5vw, 40px)', boxShadow: 'var(--shadow-md)', border: 'none' }}>
 
           {/* Header */}
