@@ -126,3 +126,29 @@ export async function batchGenerateContent(
   });
   return res.data;
 }
+
+// ── G5 · Doanh thu & chuyển đổi ───────────────────────────────────────────────
+export interface RevenueBucket { key: string; label: string; revenue_vnd: number; orders: number }
+
+export interface RevenueSummary {
+  total_vnd: number;
+  paid_orders: number;
+  pending_orders: number;
+  failed_orders: number;
+  by_month: RevenueBucket[];
+  by_provider: RevenueBucket[];
+  by_plan: RevenueBucket[];
+  active_premium: number;
+  active_family: number;
+  trials_started: number;
+  trials_converted: number;
+  trial_conversion_pct: number;
+  guests_now: number;
+  guests_claimed: number;
+  registered_learners: number;
+}
+
+export async function getRevenueSummary(): Promise<RevenueSummary> {
+  const res = await api.get('/admin/revenue/summary');
+  return res.data;
+}

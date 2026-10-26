@@ -6,8 +6,8 @@ import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getAdminMe, getEvaluationSummary, listEvaluations,
   listContent, setContentStatus, batchGenerateContent,
-  getPilotSummary,
-  type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary,
+  getPilotSummary, getRevenueSummary,
+  type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
 } from '@/lib/adminService';
 import { ArrowLeft, Check, Flag, LoaderCircle, Lock, Settings, ShieldCheck, X, Zap } from 'lucide-react';
 
@@ -47,6 +47,57 @@ function PilotPanel({ summary }: { summary: PilotSummary }) {
               {typeof value === 'number' && label === 'AI không bị flag' ? value.toFixed(1) : value}
             </div>
             {rate !== null && <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{rate}%</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── G5 · Doanh thu & chuyển đổi ──────────────────────────────────────────────
+const vnd = (n: number) => n.toLocaleString('vi-VN') + '₫';
+
+function RevenuePanel({ r }: { r: RevenueSummary }) {
+  const max = Math.max(1, ...r.by_month.map(b => b.revenue_vnd));
+  const kpis: [string, string | number, string][] = [
+    ['Doanh thu (đơn đã trả)', vnd(r.total_vnd), `${r.paid_orders} đơn · ${r.pending_orders} chờ · ${r.failed_orders} lỗi`],
+    ['Premium đang hoạt động', r.active_premium, 'tài khoản học viên trả phí'],
+    ['Gói gia đình', r.active_family, 'phụ huynh đang trả phí'],
+    ['Dùng thử → trả phí', `${r.trial_conversion_pct}%`, `${r.trials_converted}/${r.trials_started} tài khoản dùng thử`],
+    ['Học thử → đăng ký', r.guests_claimed, `${r.guests_now} khách chưa lưu tài khoản`],
+    ['Học viên đã đăng ký', r.registered_learners, 'không tính khách'],
+  ];
+  return (
+    <div className="card">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 12, marginBottom: 24 }}>
+        {kpis.map(([label, value, sub]) => (
+          <div key={label} style={{ padding: 14, background: 'var(--bg-elevated)', borderRadius: 14 }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', minHeight: 32 }}>{label}</div>
+            <div style={{ fontSize: '1.4rem', fontWeight: 600, letterSpacing: '-0.02em' }}>{value}</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontWeight: 600, marginBottom: 10 }}>Doanh thu 6 tháng gần nhất</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, alignItems: 'end', height: 140, marginBottom: 24 }}>
+        {r.by_month.map(b => (
+          <div key={b.key} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, height: '100%', justifyContent: 'flex-end' }} title={`${b.label}: ${vnd(b.revenue_vnd)} · ${b.orders} đơn`}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>{b.revenue_vnd ? Math.round(b.revenue_vnd / 1000) + 'K' : ''}</div>
+            <div style={{ width: '70%', height: `${Math.max(4, (b.revenue_vnd / max) * 100)}%`, borderRadius: 6, background: b.revenue_vnd ? 'linear-gradient(180deg, var(--skill-listening), var(--agen-primary))' : 'var(--bg-glass-hover)' }} />
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{b.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+        {[['Theo cổng', r.by_provider], ['Theo gói', r.by_plan]].map(([title, rows]) => (
+          <div key={title as string}>
+            <div style={{ fontWeight: 600, marginBottom: 8 }}>{title as string}</div>
+            {(rows as RevenueSummary['by_plan']).length === 0 && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có đơn nào.</div>}
+            {(rows as RevenueSummary['by_plan']).map(b => (
+              <div key={b.key} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderTop: '1px solid var(--border-subtle)', fontSize: '0.88rem' }}>
+                <span>{b.label} <span style={{ color: 'var(--text-muted)' }}>· {b.orders} đơn</span></span><strong>{vnd(b.revenue_vnd)}</strong>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -265,8 +316,9 @@ export default function AdminDashboardPage() {
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [agent, setAgent] = useState('');
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'pilot' | 'quality' | 'content'>('pilot');
+  const [tab, setTab] = useState<'pilot' | 'revenue' | 'quality' | 'content'>('pilot');
   const [pilotSummary, setPilotSummary] = useState<PilotSummary | null>(null);
+  const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
 
   // Access check
   useEffect(() => {
@@ -283,12 +335,13 @@ export default function AdminDashboardPage() {
     let active = true;
     const load = async () => {
       try {
-        const [p, s, t] = await Promise.all([
+        const [p, s, t, rv] = await Promise.all([
           getPilotSummary(),
           getEvaluationSummary(),
           listEvaluations({ flaggedOnly, agent: agent || undefined, limit: 100 }),
+          getRevenueSummary().catch(() => null),
         ]);
-        if (active) { setPilotSummary(p); setSummary(s); setTraces(t); }
+        if (active) { setPilotSummary(p); setSummary(s); setTraces(t); setRevenue(rv); }
       } catch {
         if (active) { setPilotSummary(null); setSummary(null); setTraces([]); }
       } finally {
@@ -338,12 +391,15 @@ export default function AdminDashboardPage() {
         {/* Tabs */}
         <div className="segmented" style={{ marginBottom: 'var(--spacing-lg)' }}>
           <button onClick={() => setTab('pilot')} aria-pressed={tab === 'pilot'}>Pilot KPI</button>
+          <button onClick={() => setTab('revenue')} aria-pressed={tab === 'revenue'}>Doanh thu</button>
           <button onClick={() => setTab('quality')} aria-pressed={tab === 'quality'}>Chất lượng AI</button>
           <button onClick={() => setTab('content')} aria-pressed={tab === 'content'}>Kho nội dung</button>
         </div>
 
         {tab === 'pilot' ? (
           pilotSummary ? <div className="card"><PilotPanel summary={pilotSummary} /></div> : <div className="card">Chưa có dữ liệu pilot.</div>
+        ) : tab === 'revenue' ? (
+          revenue ? <RevenuePanel r={revenue} /> : <div className="card">Chưa có dữ liệu doanh thu.</div>
         ) : tab === 'content' ? (
           <ContentPanel />
         ) : (

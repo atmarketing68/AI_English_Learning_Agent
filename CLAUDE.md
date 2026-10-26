@@ -35,6 +35,11 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
   Web: 2 skin qua `<html data-skin="vivid|classic">` (`store/skinStore.ts`, `components/ui/SkinProvider.tsx`; token CSS
   trong `globals.css` dưới `:root[data-skin="vivid"]`); mascot `components/ui/Mascot.tsx` **tự ẩn ở skin classic** —
   người lớn/phụ huynh phải luôn thấy giao diện chuyên nghiệp; avatar `components/ui/Avatar.tsx`.
+- G5: gói gia đình = `Subscription.plan == "family"` trên tài khoản phụ huynh, con được Premium qua
+  `subscription_service.premium_source()` (luôn dùng `is_premium()`/`premium_source()`, đừng đọc `sub.plan` trực tiếp);
+  doanh thu `GET /admin/revenue/summary`; band thi: `writing_agent.EXAM_GENRES` + `exam_band` chỉ với genre thi.
+  Web: lớp "pro" cho skin classic ở cuối `globals.css` (`.pro-hero`, `.stat-card`, `.quick-tile`, `SkillRing`, `CountUp`) —
+  mọi rule chỉ-classic dùng tiền tố `:root:not([data-skin="vivid"])`.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

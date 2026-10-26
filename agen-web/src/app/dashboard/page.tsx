@@ -16,14 +16,15 @@ import LeagueCard from '@/components/engagement/LeagueCard';
 import BlitzCard from '@/components/engagement/BlitzCard';
 import Avatar from '@/components/ui/Avatar';
 import Mascot from '@/components/ui/Mascot';
-import GemsBadge from '@/components/ui/GemsBadge';
+import CountUp from '@/components/ui/CountUp';
+import SkillRing from '@/components/ui/SkillRing';
 import { useSkin } from '@/store/skinStore';
 import NotificationBell from '@/components/NotificationBell';
 import { PageSkeleton } from '@/components/Skeleton';
 import type { LearnerProfile } from '@/types';
 import Link from 'next/link';
 import {
-  ArrowRight, BookMarked, BookOpen, BookText, Brain, ChevronRight, CircleCheck, Copy, Flame, GraduationCap, Headphones,
+  ArrowRight, BookMarked, BookOpen, BookText, Brain, ChevronRight, CircleCheck, Copy, Flame, Gem, GraduationCap, Headphones,
   Mic, PenLine, Sparkles, Star, Target, Users, type LucideIcon,
 } from 'lucide-react';
 
@@ -45,6 +46,10 @@ const itemVariants: Variants = {
   show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.25, 0.1, 0.25, 1] } }
 };
 
+function todayLabel(): string {
+  return new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
 function greeting(): string {
   const h = new Date().getHours();
   if (h < 11) return 'Chào buổi sáng';
@@ -55,83 +60,78 @@ function greeting(): string {
 
 // --- Sub-components ---
 
-function SkillBar({ label, icon: Icon, score, color }: { label: string; icon: LucideIcon; score: number; color: string }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)' }}>
-          <Icon size={16} color={color} /> {label}
-        </span>
-        <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{score.toFixed(0)}%</span>
-      </div>
-      <div className="progress-bar">
-        <div className="progress-fill" style={{ width: `${score}%`, background: color }} />
-      </div>
-    </div>
-  );
-}
-
 function StatCard({ icon: Icon, color, value, label }: { icon: LucideIcon; color: string; value: string | number; label: string }) {
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <Icon size={20} color={color} strokeWidth={1.8} style={{ marginBottom: 14 }} />
-      <div style={{ fontSize: '1.75rem', fontWeight: 600, letterSpacing: '-0.03em', lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: 6 }}>{label}</div>
+    <div className="card stat-card" style={{ '--stat-color': color } as React.CSSProperties}>
+      <span className="icon-tile"><Icon size={19} strokeWidth={1.9} /></span>
+      <div className="stat-value">{typeof value === 'number' ? <CountUp value={value} /> : value}</div>
+      <div className="stat-label">{label}</div>
     </div>
   );
 }
 
-// --- Mission Card ---
-function MissionCard({ learner, nextLesson }: { learner: LearnerProfile; nextLesson: NextLesson | null }) {
+// --- Hero: greeting, chips, next lesson and the four skills ---
+function Hero({ learner, engagement, nextLesson, skin }: { learner: LearnerProfile; engagement: Engagement | null; nextLesson: NextLesson | null; skin: string }) {
   const isPlacementDone = learner.placement_completed === 'done';
   const NextIcon = nextLesson ? (SKILL_ICONS[nextLesson.skill] || Target) : Target;
+  const streak = engagement?.streak.current ?? learner.current_streak;
+  const xp = engagement?.total_xp ?? learner.total_xp;
   return (
-    <div className="card" style={{ padding: 'var(--spacing-xl)', borderRadius: 'var(--radius-xl)', display: 'flex', flexDirection: 'column' }}>
-      <div className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 'var(--spacing-md)' }}>
-        <Target size={14} /> Bài học tiếp theo
+    <motion.section variants={itemVariants} className="pro-hero">
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
+          <Link href="/shop" aria-label="Avatar · Cửa hàng" style={{ flexShrink: 0, opacity: 1 }}>
+            <Avatar avatar={learner.avatar} name={learner.display_name} size={skin === 'vivid' ? 60 : 52} />
+          </Link>
+          <div style={{ minWidth: 0 }}>
+            <div className="eyebrow">{todayLabel()}</div>
+            <h1 className="dash-greeting" style={{ margin: 0 }}>{greeting()}, {learner.display_name}</h1>
+          </div>
+        </div>
+        <div className="pro-hero-chips">
+          <span className="pro-chip"><GraduationCap size={14} /> {learner.overall_level}</span>
+          <span className="pro-chip"><Flame size={14} color="#FFB454" /> {streak} ngày liên tiếp</span>
+          <span className="pro-chip"><Star size={14} color="#FFD60A" fill="#FFD60A" /> {xp} XP</span>
+          <Link href="/shop" className="pro-chip"><Gem size={14} color="#7DD3FC" /> {learner.gems ?? 0}</Link>
+        </div>
+
+        <div className="pro-hero-next">
+          <div className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Target size={13} /> {isPlacementDone ? 'Bài học tiếp theo' : 'Bước đầu tiên'}</div>
+          {!isPlacementDone ? (
+            <>
+              <h3>Kiểm tra đầu vào</h3>
+              <p>Làm bài kiểm tra 4 kỹ năng để AI AGENT ENGLISH tạo lộ trình học riêng cho bạn.</p>
+              <Link href="/placement" className="btn btn-primary">Bắt đầu kiểm tra <ArrowRight size={16} /></Link>
+            </>
+          ) : nextLesson ? (
+            <>
+              <h3><NextIcon size={18} /> {nextLesson.title}</h3>
+              <p>{nextLesson.unit_title} · <span style={{ textTransform: 'capitalize' }}>{nextLesson.skill}</span> — {nextLesson.reason}</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Link href={`/learn?code=${encodeURIComponent(nextLesson.code)}`} className="btn btn-primary">Bắt đầu bài học <ArrowRight size={16} /></Link>
+                <Link href="/curriculum" className="btn btn-ghost btn-sm" style={{ alignSelf: 'center' }}>Xem lộ trình</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3>Hoàn thành lộ trình</h3>
+              <p>Bạn đã hoàn thành toàn bộ lộ trình cấp độ hiện tại. Tự do luyện tập thêm nhé.</p>
+              <Link href="/learn" className="btn btn-primary">Luyện tập tự do <ArrowRight size={16} /></Link>
+            </>
+          )}
+        </div>
       </div>
 
-      {!isPlacementDone ? (
-        <>
-          <h3 style={{ fontSize: '1.5rem', marginBottom: 8 }}>Kiểm tra đầu vào</h3>
-          <p style={{ marginBottom: 'var(--spacing-lg)', fontSize: '0.95rem', flex: 1 }}>
-            Làm bài kiểm tra đầu vào để AI AGENT ENGLISH tạo lộ trình học riêng cho bạn.
-          </p>
-          <div>
-            <Link href="/placement" className="btn btn-primary">
-              Bắt đầu kiểm tra <ArrowRight size={16} />
-            </Link>
-          </div>
-        </>
-      ) : nextLesson ? (
-        <>
-          <h3 style={{ fontSize: '1.5rem', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <NextIcon size={22} color="var(--agen-primary)" style={{ flexShrink: 0 }} /> {nextLesson.title}
-          </h3>
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 10 }}>
-            {nextLesson.unit_title} · <span style={{ textTransform: 'capitalize' }}>{nextLesson.skill}</span>
-          </div>
-          <p style={{ marginBottom: 'var(--spacing-lg)', fontSize: '0.95rem', flex: 1 }}>{nextLesson.reason}</p>
-          <div>
-            <Link href={`/learn?code=${encodeURIComponent(nextLesson.code)}`} className="btn btn-primary">
-              Bắt đầu bài học <ArrowRight size={16} />
-            </Link>
-          </div>
-        </>
-      ) : (
-        <>
-          <h3 style={{ fontSize: '1.5rem', marginBottom: 8 }}>Hoàn thành lộ trình</h3>
-          <p style={{ marginBottom: 'var(--spacing-lg)', fontSize: '0.95rem', flex: 1 }}>
-            Bạn đã hoàn thành toàn bộ lộ trình cấp độ hiện tại. Tự do luyện tập thêm nhé.
-          </p>
-          <div>
-            <Link href="/learn" className="btn btn-primary">
-              Luyện tập tự do <ArrowRight size={16} />
-            </Link>
-          </div>
-        </>
-      )}
-    </div>
+      <div>
+        <div className="eyebrow" style={{ marginBottom: 12 }}>4 kỹ năng</div>
+        <div className="pro-hero-rings">
+          <SkillRing label="Nghe" icon={Headphones} score={learner.listening_score} color="#64D2FF" size={88} stroke={8} />
+          <SkillRing label="Nói" icon={Mic} score={learner.speaking_score} color="#FF6B9A" size={88} stroke={8} />
+          <SkillRing label="Đọc" icon={BookOpen} score={learner.reading_score} color="#4ADE80" size={88} stroke={8} />
+          <SkillRing label="Viết" icon={PenLine} score={learner.writing_score} color="#C084FC" size={88} stroke={8} />
+        </div>
+      </div>
+    </motion.section>
   );
 }
 
@@ -218,45 +218,27 @@ export default function DashboardPage() {
         animate="show"
       >
         
-        {/* Header */}
-        <div className="dash-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 'var(--spacing-xl)' }}>
-          <motion.div variants={itemVariants} className="dash-head-main" style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
-            <Link href="/shop" aria-label="Avatar · Cửa hàng" style={{ flexShrink: 0, opacity: 1 }}>
-              <Avatar avatar={learner.avatar} name={learner.display_name} size={skin === 'vivid' ? 64 : 52} />
-            </Link>
-            <div style={{ minWidth: 0 }}>
-              <h1 className="dash-greeting">{greeting()}, {learner.display_name}</h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-                <span className="level-badge">{learner.overall_level}</span>
-                <span className="streak-badge"><Flame size={13} /> {engagement?.streak.current ?? learner.current_streak} ngày liên tiếp</span>
-                <span className="xp-badge"><Star size={13} fill="currentColor" /> {engagement?.total_xp ?? learner.total_xp} XP</span>
-                <GemsBadge gems={learner.gems ?? 0} />
-              </div>
-            </div>
+        {/* Top bar */}
+        <div className="dash-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 'var(--spacing-md)' }}>
+          <motion.div variants={itemVariants} className="dash-head-main" style={{ minWidth: 0 }}>
+            {skin === 'vivid' && (
+              <Mascot size={72} mood={(engagement?.streak.studied_today) ? 'cheer' : 'happy'}
+                say={engagement?.streak.studied_today ? `Hôm nay học rồi, giỏi quá! Chuỗi ${engagement.streak.current} ngày.` : (engagement?.streak.current ?? 0) > 0 ? `Học một bài để giữ chuỗi ${engagement?.streak.current} ngày nhé!` : 'Chào bạn! Cùng Bo học một bài hôm nay nào!'} />
+            )}
           </motion.div>
           <div className="dash-head-actions" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexShrink: 0 }}>
             <NotificationBell />
-            <button
-              className="btn btn-ghost btn-sm"
-              onClick={() => { logout(); router.push('/'); }}
-            >
-              Đăng xuất
-            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { logout(); router.push('/'); }}>Đăng xuất</button>
           </div>
         </div>
 
-        {skin === 'vivid' && (
+        <Hero learner={learner} engagement={engagement} nextLesson={nextLesson} skin={skin} />
+
+        {engagement && (
           <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)' }}>
-            <Mascot size={80} mood={(engagement?.streak.studied_today) ? 'cheer' : 'happy'}
-              say={engagement?.streak.studied_today ? `Hôm nay học rồi, giỏi quá! Chuỗi ${engagement.streak.current} ngày.` : (engagement?.streak.current ?? 0) > 0 ? `Học một bài để giữ chuỗi ${engagement?.streak.current} ngày nhé!` : 'Chào bạn! Cùng Bo học một bài hôm nay nào!'} />
+            <DailyQuests state={engagement} onChange={setEngagement} />
           </motion.div>
         )}
-
-        {/* Today's Mission & Daily Challenge */}
-        <motion.div variants={itemVariants} className="grid-2" style={{ marginBottom: 'var(--spacing-md)', gap: 'var(--spacing-md)' }}>
-          <MissionCard learner={learner} nextLesson={nextLesson} />
-          {engagement && <DailyQuests state={engagement} onChange={setEngagement} />}
-        </motion.div>
 
         {(engagement || reviewSummary) && (
           <motion.div variants={itemVariants} className="grid-2" style={{ marginBottom: 'var(--spacing-md)', gap: 'var(--spacing-md)' }}>
@@ -280,40 +262,25 @@ export default function DashboardPage() {
           <StatCard icon={GraduationCap} color="var(--skill-writing)" label="Trình độ" value={learner.overall_level} />
         </motion.div>
 
-        {/* 4-Skill Tracker */}
-        <motion.div variants={itemVariants} className="card" style={{ marginBottom: 'var(--spacing-2xl)', padding: 'var(--spacing-xl)', borderRadius: 'var(--radius-xl)' }}>
-          <h3 style={{ marginBottom: 'var(--spacing-lg)' }}>4 kỹ năng</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'var(--spacing-lg) var(--spacing-xl)' }}>
-            <SkillBar label="Listening" icon={Headphones} score={learner.listening_score} color="var(--skill-listening)" />
-            <SkillBar label="Speaking" icon={Mic} score={learner.speaking_score} color="var(--skill-speaking)" />
-            <SkillBar label="Reading" icon={BookOpen} score={learner.reading_score} color="var(--skill-reading)" />
-            <SkillBar label="Writing" icon={PenLine} score={learner.writing_score} color="var(--skill-writing)" />
-          </div>
-        </motion.div>
-
         {/* Quick Access */}
-        <motion.div variants={itemVariants}>
-          <h3 style={{ marginBottom: 'var(--spacing-md)' }}>Học nhanh</h3>
+        <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-2xl)' }}>
+          <div className="section-head"><h3>Luyện nhanh</h3><Link href="/practice/speaking">Tất cả <ChevronRight size={14} /></Link></div>
           <div className="grid-4" style={{ gap: 'var(--spacing-md)' }}>
             {[
-              { icon: Headphones, label: 'Listening', color: 'var(--skill-listening)', href: '/learn' },
-              { icon: Mic,        label: 'Speaking',  color: 'var(--skill-speaking)',  href: '/practice/speaking' },
-              { icon: BookOpen,   label: 'Reading',   color: 'var(--skill-reading)',   href: '/learn' },
-              { icon: PenLine,    label: 'Writing',   color: 'var(--skill-writing)',   href: '/practice/writing' },
-            ].map(({ icon: Icon, label, color, href }) => (
-              <Link
-                key={label}
-                href={href}
-                className="card card-hover"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: 20, opacity: 1 }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span className="icon-tile" style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color, width: 40, height: 40 }}>
-                    <Icon size={20} strokeWidth={1.8} />
+              { icon: Headphones, label: 'Listening', sub: 'Nghe & shadowing', a: '#38BDF8', b: '#2563EB', href: '/learn' },
+              { icon: Mic,        label: 'Speaking',  sub: 'Roleplay với AI', a: '#F472B6', b: '#E11D48', href: '/practice/speaking' },
+              { icon: BookOpen,   label: 'Reading',   sub: 'Bài đọc theo cấp', a: '#34D399', b: '#059669', href: '/learn' },
+              { icon: PenLine,    label: 'Writing',   sub: 'Chấm AI · band IELTS', a: '#A78BFA', b: '#7C3AED', href: '/practice/writing' },
+            ].map(({ icon: Icon, label, sub, a, b, href }) => (
+              <Link key={label} href={href} className="card card-hover quick-tile" style={{ '--qt-a': a, '--qt-b': b } as React.CSSProperties}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                  <span className="icon-tile"><Icon size={20} strokeWidth={1.9} /></span>
+                  <span style={{ minWidth: 0 }}>
+                    <span style={{ display: 'block', fontWeight: 600, color: 'var(--text-primary)' }}>{label}</span>
+                    <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{sub}</span>
                   </span>
-                  <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{label}</span>
                 </span>
-                <ChevronRight size={18} color="var(--text-muted)" />
+                <ChevronRight size={18} className="chev" />
               </Link>
             ))}
           </div>

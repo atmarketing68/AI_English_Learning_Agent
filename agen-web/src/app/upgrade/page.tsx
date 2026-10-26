@@ -11,7 +11,7 @@ import {
 } from '@/lib/billingService';
 import { playSound } from '@/lib/soundEffects';
 import confetti from 'canvas-confetti';
-import { ArrowLeft, Check, CircleAlert, CircleCheck, CreditCard, Gift, LoaderCircle, Minus, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, CircleAlert, CircleCheck, CreditCard, Gift, LoaderCircle, Minus, Users, Wallet } from 'lucide-react';
 import { track } from '@/lib/analytics';
 
 const FREE_FEATURES = [
@@ -44,6 +44,19 @@ const PLAN_PRICES = [
   { months: 12, price: '799.000₫', label: '12 tháng', badge: 'Tốt nhất' },
 ];
 
+/** G5 · Gói gia đình: phụ huynh mua, các con đã liên kết được Premium. */
+const FAMILY_PRICES = [
+  { months: 1, price: '179.000₫', label: '1 tháng', badge: null },
+  { months: 12, price: '1.490.000₫', label: '12 tháng', badge: 'Tiết kiệm 31%' },
+];
+const FAMILY_FEATURES = [
+  { label: 'Tối đa 4 con cùng Premium', included: true },
+  { label: 'Bài học không giới hạn cho mỗi con', included: true },
+  { label: 'Báo cáo tuần + cảnh báo nghỉ học qua email', included: true },
+  { label: 'Lộ trình cá nhân hoá, khoá IELTS/TOEIC', included: true },
+  { label: 'Một lần thanh toán cho cả nhà', included: true },
+];
+
 export default function UpgradePage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
@@ -59,6 +72,10 @@ export default function UpgradePage() {
     return { status: q.get('status'), order: q.get('order') };
   });
   const [selectedMonths, setSelectedMonths] = useState(3);
+  const { userRole } = useAuthStore();
+  const isParent = userRole === 'parent';
+  const plan = isParent ? 'family' : 'premium';
+  const prices = isParent ? FAMILY_PRICES : PLAN_PRICES;
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
   const [canceling, setCanceling] = useState(false);
@@ -68,7 +85,7 @@ export default function UpgradePage() {
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
-    getBillingOptions().then(setOptions).catch(() => null);
+    getBillingOptions().then(o => { setOptions(o); if (o.can_buy_family) setSelectedMonths(12); }).catch(() => null);
     const load = () => getSubscription().then(setSubscription);
     load()
       .catch(() => setError('Không thể tải thông tin gói.'))
@@ -100,9 +117,9 @@ export default function UpgradePage() {
   const handleCheckout = async (provider: PaymentProvider) => {
     setPaying(provider);
     setError('');
-    track('checkout_started', { months: selectedMonths, provider });
+    track('checkout_started', { months: selectedMonths, provider, plan });
     try {
-      const res = await checkout(selectedMonths, provider);
+      const res = await checkout(selectedMonths, provider, plan);
       window.location.href = res.pay_url;
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -133,9 +150,9 @@ export default function UpgradePage() {
   const handleUpgrade = async () => {
     setUpgrading(true);
     setError('');
-    track('upgrade_clicked', { months: selectedMonths });
+    track('upgrade_clicked', { months: selectedMonths, plan });
     try {
-      const updated = await upgradeToPremium(selectedMonths);
+      const updated = await upgradeToPremium(selectedMonths, plan);
       setSubscription(updated);
       setSuccess(true);
       track('upgrade_completed', { months: selectedMonths });
@@ -175,8 +192,8 @@ export default function UpgradePage() {
       <div className="container" style={{ padding: 0 }}>
 
         {/* Back */}
-        <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 32 }}>
-          <ArrowLeft size={16} /> Dashboard
+        <Link href={isParent ? '/parent' : '/dashboard'} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 32 }}>
+          <ArrowLeft size={16} /> {isParent ? 'Bảng phụ huynh' : 'Dashboard'}
         </Link>
 
         {/* Hero */}
@@ -186,12 +203,14 @@ export default function UpgradePage() {
           transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
           style={{ textAlign: 'center', marginBottom: 56 }}
         >
-          <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--agen-accent)', marginBottom: 10 }}>Premium</div>
+          <div style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--agen-accent)', marginBottom: 10 }}>{isParent ? 'Gói gia đình' : 'Premium'}</div>
           <h1 style={{ fontSize: 'clamp(2.4rem, 6vw, 3.75rem)', letterSpacing: '-0.04em', marginBottom: 14 }}>
-            Học không giới hạn.
+            {isParent ? 'Cả nhà cùng học.' : 'Học không giới hạn.'}
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1.15rem', maxWidth: 520, margin: '0 auto' }}>
-            Mở khóa toàn bộ tiềm năng học tiếng Anh với AI Coach cá nhân và bài học không giới hạn.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1.15rem', maxWidth: 560, margin: '0 auto' }}>
+            {isParent
+              ? `Một lần thanh toán, tối đa ${options?.family_max_children ?? 4} con đã liên kết đều được Premium: bài học không giới hạn, báo cáo tuần và lộ trình riêng.`
+              : 'Mở khóa toàn bộ tiềm năng học tiếng Anh với AI Coach cá nhân và bài học không giới hạn.'}
           </p>
         </motion.div>
 
@@ -208,7 +227,7 @@ export default function UpgradePage() {
           >
             <div>
               <div style={{ fontWeight: 600, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-                <CircleCheck size={18} color="var(--agen-success)" /> Bạn đang dùng AI AGENT ENGLISH Premium
+                <CircleCheck size={18} color="var(--agen-success)" /> {subscription?.plan === 'family' ? 'Gói gia đình đang hoạt động — các con đã liên kết đều là Premium' : subscription?.premium_source === 'family' ? 'Bạn đang là Premium qua gói gia đình của bố mẹ' : 'Bạn đang dùng AI AGENT ENGLISH Premium'}
               </div>
               {subscription?.current_period_end && (
                 <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>
@@ -216,14 +235,16 @@ export default function UpgradePage() {
                 </div>
               )}
             </div>
-            <button
-              className="btn btn-ghost btn-sm"
-              style={{ color: 'var(--agen-secondary)' }}
-              onClick={handleCancel}
-              disabled={canceling}
-            >
-              {canceling ? 'Đang hủy…' : 'Hủy gói'}
-            </button>
+            {subscription?.premium_source !== 'family' && (
+              <button
+                className="btn btn-ghost btn-sm"
+                style={{ color: 'var(--agen-secondary)' }}
+                onClick={handleCancel}
+                disabled={canceling}
+              >
+                {canceling ? 'Đang hủy…' : 'Hủy gói'}
+              </button>
+            )}
           </motion.div>
         )}
 
@@ -250,9 +271,9 @@ export default function UpgradePage() {
         {/* Pricing Cards */}
         {!isPremium && (
           <div style={{ marginBottom: 72 }}>
-            <h3 style={{ textAlign: 'center', marginBottom: 24 }}>Chọn gói phù hợp với bạn</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
-              {PLAN_PRICES.map((p) => {
+            <h3 style={{ textAlign: 'center', marginBottom: 24 }}>{isParent ? 'Chọn thời hạn gói gia đình' : 'Chọn gói phù hợp với bạn'}</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32, maxWidth: isParent ? 520 : undefined, marginLeft: 'auto', marginRight: 'auto' }}>
+              {prices.map((p) => {
                 const active = selectedMonths === p.months;
                 return (
                   <button
@@ -282,7 +303,7 @@ export default function UpgradePage() {
               })}
             </div>
 
-            {options?.trial_available && (
+            {options?.trial_available && !isParent && (
               <div className="card" style={{ marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', borderColor: 'color-mix(in srgb, var(--agen-success) 40%, transparent)' }}>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   <span className="icon-tile" style={{ background: 'color-mix(in srgb, var(--agen-success) 12%, transparent)', color: 'var(--agen-success)' }}><Gift size={20} /></span>
@@ -300,7 +321,7 @@ export default function UpgradePage() {
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               {options?.providers.includes('vnpay') && (
                 <button className="btn btn-primary btn-lg" onClick={() => handleCheckout('vnpay')} disabled={!!paying || upgrading} style={{ minWidth: 300 }}>
-                  {paying === 'vnpay' ? <LoaderCircle className="animate-spin" size={18} /> : <CreditCard size={18} />} Thanh toán qua VNPay · {PLAN_PRICES.find(p => p.months === selectedMonths)?.price}
+                  {paying === 'vnpay' ? <LoaderCircle className="animate-spin" size={18} /> : <CreditCard size={18} />} Thanh toán qua VNPay · {prices.find(p => p.months === selectedMonths)?.price}
                 </button>
               )}
               {options?.providers.includes('momo') && (
@@ -315,7 +336,7 @@ export default function UpgradePage() {
                   disabled={upgrading || !!paying}
                   style={{ minWidth: 300 }}
                 >
-                  {upgrading ? 'Đang xử lý…' : `${options.providers.length ? 'Kích hoạt demo' : 'Nâng cấp Premium'} · ${PLAN_PRICES.find(p => p.months === selectedMonths)?.price}`}
+                  {upgrading ? 'Đang xử lý…' : `${options.providers.length ? 'Kích hoạt demo' : isParent ? 'Kích hoạt gói gia đình' : 'Nâng cấp Premium'} · ${prices.find(p => p.months === selectedMonths)?.price}`}
                 </button>
               )}
               {options && !options.providers.length && !options.demo_enabled && (
@@ -338,13 +359,15 @@ export default function UpgradePage() {
         >
           <h2 style={{ textAlign: 'center', marginBottom: 32 }}>So sánh tính năng</h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
-            {[
+            {(isParent ? [
+              { name: 'Gói gia đình', price: 'từ 124K₫ / tháng cho cả nhà', features: FAMILY_FEATURES, highlight: true },
+            ] : [
               { name: 'Miễn phí', price: '0₫ / tháng', features: FREE_FEATURES, highlight: false },
               { name: 'Premium', price: 'từ 83K₫ / tháng', features: PREMIUM_FEATURES, highlight: true },
-            ].map(plan => (
+            ]).map(plan => (
               <div key={plan.name} className="card" style={{ padding: 'var(--spacing-xl)', border: plan.highlight ? '1.5px solid var(--agen-primary)' : undefined }}>
                 <div style={{ marginBottom: 24 }}>
-                  {plan.highlight && <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--agen-accent)', marginBottom: 4 }}>Khuyến nghị</div>}
+                  {plan.highlight && <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--agen-accent)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>{isParent ? <><Users size={12} /> Cho phụ huynh</> : 'Khuyến nghị'}</div>}
                   <div style={{ fontWeight: 600, fontSize: '1.5rem', letterSpacing: '-0.02em' }}>{plan.name}</div>
                   <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>{plan.price}</div>
                 </div>

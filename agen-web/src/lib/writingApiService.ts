@@ -25,6 +25,17 @@ export interface EvaluationScores {
   task_achievement: number;
 }
 
+/** G5 · exam-style band: IELTS 0–9 or TOEIC Writing 0–200. */
+export interface ExamBand {
+  exam: 'ielts' | 'toeic';
+  overall: number;
+  criteria: Record<string, number>;
+  next_band_tips: string[];
+}
+
+export type WritingGenre = 'opinion' | 'narrative' | 'descriptive' | 'email' | 'ielts_task2' | 'ielts_task1' | 'toeic_email' | 'toeic_essay';
+export const EXAM_GENRES: WritingGenre[] = ['ielts_task2', 'ielts_task1', 'toeic_email', 'toeic_essay'];
+
 export interface WritingEvaluationResponse {
   submission_id: string;
   overall_score: number;
@@ -39,6 +50,7 @@ export interface WritingEvaluationResponse {
   corrected_version: string;
   encouragement: string;
   xp_earned: number;
+  exam_band?: ExamBand | null;
 }
 
 export interface WritingHistoryItem {

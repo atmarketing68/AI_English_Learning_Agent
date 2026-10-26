@@ -1,19 +1,75 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  getWritingPrompt, submitWriting,
-  WritingPromptResponse, WritingEvaluationResponse
+  getWritingPrompt, submitWriting, EXAM_GENRES,
+  WritingPromptResponse, WritingEvaluationResponse, type ExamBand,
 } from '@/lib/writingApiService';
 import { notifyActivityCompleted } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
 import { getMyProfile } from '@/lib/services';
-import { ArrowLeft, BookText, CircleAlert, Feather, Lightbulb, LoaderCircle, Mail, MessageSquareQuote, Palette, Sparkles, Star } from 'lucide-react';
+import { ArrowLeft, Award, BookText, Briefcase, CircleAlert, Feather, GraduationCap, Lightbulb, LoaderCircle, Mail, MessageSquareQuote, Palette, Sparkles, Star, TrendingUp } from 'lucide-react';
 import { track } from '@/lib/analytics';
 
+interface GenreCard { id: string; label: string; sub?: string; icon: typeof Mail }
+const GENERAL_GENRES: GenreCard[] = [
+  { id: 'opinion', label: 'Ý kiến / Quan điểm', icon: MessageSquareQuote },
+  { id: 'narrative', label: 'Kể chuyện', icon: Feather },
+  { id: 'descriptive', label: 'Miêu tả', icon: Palette },
+  { id: 'email', label: 'Viết thư / Email', icon: Mail },
+];
+
+/** G5 · đề thi thật, chấm theo band. */
+const EXAM_CARDS: GenreCard[] = [
+  { id: 'ielts_task2', label: 'IELTS Task 2 · Essay 250 từ', sub: 'Chấm band 0–9 theo 4 tiêu chí', icon: GraduationCap },
+  { id: 'ielts_task1', label: 'IELTS Task 1 · Thư (General)', sub: 'Thư 150 từ, 3 ý bắt buộc', icon: Mail },
+  { id: 'toeic_email', label: 'TOEIC Writing · Trả lời email', sub: 'Câu 6–7, điểm 0–200', icon: Briefcase },
+  { id: 'toeic_essay', label: 'TOEIC Writing · Opinion essay', sub: 'Câu 8, 300 từ', icon: Award },
+];
+
+const IELTS_LABELS: Record<string, string> = {
+  task_response: 'Task Response', coherence_cohesion: 'Coherence & Cohesion', lexical_resource: 'Lexical Resource', grammatical_range: 'Grammar Range & Accuracy',
+};
+const TOEIC_LABELS: Record<string, string> = {
+  task_completion: 'Hoàn thành yêu cầu', organisation: 'Tổ chức ý', vocabulary: 'Từ vựng', grammar: 'Ngữ pháp',
+};
+
+function BandCard({ band }: { band: ExamBand }) {
+  const ielts = band.exam === 'ielts';
+  const labels = ielts ? IELTS_LABELS : TOEIC_LABELS;
+  const max = ielts ? 9 : 5;
+  return (
+    <div className="card band-card">
+      <div className="eyebrow" style={{ marginBottom: 6 }}>{ielts ? 'IELTS Writing · Band ước tính' : 'TOEIC Writing · Điểm ước tính'}</div>
+      <div className="band-score text-gradient">{ielts ? band.overall.toFixed(1) : Math.round(band.overall)}<small>{ielts ? '/9' : '/200'}</small></div>
+      <div className="band-criteria">
+        {Object.entries(band.criteria).map(([k, v]) => (
+          <div key={k}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', marginBottom: 4 }}>
+              <span style={{ color: 'var(--text-secondary)' }}>{labels[k] || k}</span><strong>{ielts ? v.toFixed(1) : v}</strong>
+            </div>
+            <div className="progress-bar"><div className="progress-fill" style={{ width: `${(v / max) * 100}%`, background: 'var(--agen-primary)' }} /></div>
+          </div>
+        ))}
+      </div>
+      {band.next_band_tips.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}><TrendingUp size={15} color="var(--agen-success)" /> Để lên {ielts ? 'band tiếp theo' : 'điểm cao hơn'}</div>
+          <ul style={{ paddingLeft: 18, fontSize: '0.88rem', color: 'var(--text-secondary)', display: 'grid', gap: 4 }}>
+            {band.next_band_tips.map((t, i) => <li key={i}>{t}</li>)}
+          </ul>
+        </div>
+      )}
+      <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 12 }}>Ước tính của AI theo thang điểm công bố; kết quả thi thật có thể khác.</p>
+    </div>
+  );
+}
+
 export default function WritingPracticePage() {
-  const { setLearner } = useAuthStore();
+  const { setLearner, learner } = useAuthStore();
+  const examFirst = learner?.learning_goal === 'luyen_thi' || learner?.learning_goal === 'cong_viec';
+  useEffect(() => { if (!learner) getMyProfile().then(setLearner).catch(() => undefined); }, [learner, setLearner]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -53,7 +109,7 @@ export default function WritingPracticePage() {
         userText
       );
       setEvaluation(res);
-      track('writing_submitted', { genre: promptData.genre, score: res.overall_score, words: wordCount });
+      track('writing_submitted', { genre: promptData.genre, score: res.overall_score, words: wordCount, band: res.exam_band?.overall });
 
       // Update streak + daily challenge + refresh profile
       await notifyActivityCompleted('writing');
@@ -78,25 +134,28 @@ export default function WritingPracticePage() {
           
           {error && <div className="alert-error" style={{ marginBottom: 16 }}><CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}</div>}
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            {[
-              { id: 'opinion', label: 'Ý kiến / Quan điểm', icon: MessageSquareQuote },
-              { id: 'narrative', label: 'Kể chuyện', icon: Feather },
-              { id: 'descriptive', label: 'Miêu tả', icon: Palette },
-              { id: 'email', label: 'Viết thư / Email', icon: Mail },
-            ].map(g => (
-              <button
-                key={g.id}
-                className="card card-hover"
-                style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 20, textAlign: 'left', fontFamily: 'inherit', fontSize: '1rem' }}
-                onClick={() => handleGetPrompt(g.id)}
-                disabled={loading}
-              >
-                <span className="icon-tile" style={{ background: 'color-mix(in srgb, var(--skill-writing) 12%, transparent)', color: 'var(--skill-writing)', width: 40, height: 40 }}><g.icon size={20} strokeWidth={1.8} /></span>
-                <span style={{ fontWeight: 500 }}>{g.label}</span>
-              </button>
-            ))}
-          </div>
+          {[examFirst ? 'exam' : 'general', examFirst ? 'general' : 'exam'].map(group => (
+            <div key={group} style={{ marginBottom: 24 }}>
+              <div className="section-head"><h3>{group === 'exam' ? 'Luyện thi · chấm theo band' : 'Viết tự do'}</h3></div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+                {(group === 'exam' ? EXAM_CARDS : GENERAL_GENRES).map(g => (
+                  <button
+                    key={g.id}
+                    className="card card-hover"
+                    style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 18, textAlign: 'left', fontFamily: 'inherit', fontSize: '1rem' }}
+                    onClick={() => handleGetPrompt(g.id)}
+                    disabled={loading}
+                  >
+                    <span className="icon-tile" style={{ background: group === 'exam' ? 'color-mix(in srgb, var(--agen-primary) 12%, transparent)' : 'color-mix(in srgb, var(--skill-writing) 12%, transparent)', color: group === 'exam' ? 'var(--agen-primary)' : 'var(--skill-writing)', width: 40, height: 40 }}><g.icon size={20} strokeWidth={1.8} /></span>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ display: 'block', fontWeight: 600, fontSize: '0.95rem' }}>{g.label}</span>
+                      {g.sub && <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted)' }}>{g.sub}</span>}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
           {loading && <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 24, color: 'var(--text-muted)', fontSize: '0.9rem' }}><LoaderCircle className="animate-spin" size={16} /> Đang chuẩn bị đề bài…</div>}
         </div>
       </main>
@@ -108,7 +167,10 @@ export default function WritingPracticePage() {
       <div className="container" style={{ padding: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <button className="btn btn-ghost btn-sm" onClick={() => setPromptData(null)}><ArrowLeft size={16} /> Đổi đề tài</button>
-          <div className="level-badge">{promptData.level}</div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {EXAM_GENRES.includes(promptData.genre as typeof EXAM_GENRES[number]) && <span className="skill-badge" style={{ background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><GraduationCap size={13} /> Đề thi {promptData.genre.startsWith('ielts') ? 'IELTS' : 'TOEIC'}</span>}
+            <div className="level-badge">{promptData.level}</div>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: evaluation ? 'repeat(auto-fit, minmax(340px, 1fr))' : '1fr', gap: 'var(--spacing-lg)' }}>
@@ -192,6 +254,8 @@ export default function WritingPracticePage() {
                 <span className="xp-badge"><Star size={13} fill="currentColor" /> +{evaluation.xp_earned} XP</span>
                 <p style={{ marginTop: 16, fontSize: '0.95rem' }}>“{evaluation.encouragement}”</p>
               </div>
+
+              {evaluation.exam_band && <BandCard band={evaluation.exam_band} />}
 
               {/* Sub-scores */}
               <div className="card" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

@@ -9,6 +9,8 @@ export interface ChildSummary {
   current_streak: number;
   total_lessons_completed: number;
   relationship_label: string | null;
+  /** G5 · 'own' | 'family' | null */
+  premium_source: 'own' | 'family' | null;
 }
 
 export interface SkillImprovement {
