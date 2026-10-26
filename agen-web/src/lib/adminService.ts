@@ -152,3 +152,30 @@ export async function getRevenueSummary(): Promise<RevenueSummary> {
   const res = await api.get('/admin/revenue/summary');
   return res.data;
 }
+
+// ── G8 · Đơn hàng & hoá đơn VAT ───────────────────────────────────────────────
+export interface AdminOrder {
+  order_id: string;
+  email: string | null;
+  role: string | null;
+  provider: string;
+  plan: string;
+  seats: number;
+  months: number;
+  amount_vnd: number;
+  status: 'pending' | 'paid' | 'failed';
+  invoice: { company_name: string; tax_code: string; address: string; email: string } | null;
+  invoice_issued_at: string | null;
+  created_at: string;
+  paid_at: string | null;
+}
+
+export async function listOrders(invoiceOnly = false, limit = 100): Promise<AdminOrder[]> {
+  const res = await api.get(`/admin/revenue/orders?invoice_only=${invoiceOnly}&limit=${limit}`);
+  return res.data;
+}
+
+export async function markInvoiceIssued(orderId: string, issued: boolean): Promise<AdminOrder> {
+  const res = await api.post(`/admin/revenue/orders/${orderId}/invoice-issued`, { issued });
+  return res.data;
+}

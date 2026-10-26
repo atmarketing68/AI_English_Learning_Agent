@@ -43,10 +43,19 @@ class QuotaOut(BaseModel):
     allowed: bool
 
 
+class InvoiceIn(BaseModel):
+    """G8 · Thông tin xuất hoá đơn VAT (doanh nghiệp / trường học)."""
+    company_name: str = Field(min_length=2, max_length=200)
+    tax_code: str = Field(min_length=8, max_length=20, pattern=r"^[0-9-]+$")
+    address: str = Field(min_length=5, max_length=300)
+    email: str = Field(min_length=5, max_length=120)
+
+
 class UpgradeRequest(BaseModel):
     months: int = Field(default=1, ge=1, le=12)
     plan: str = Field(default="premium", pattern="^(premium|family|team)$")
     seats: int = Field(default=1, ge=1, le=500)      # G7 · team plan only
+    invoice: InvoiceIn | None = None                 # G8
 
 
 class PriceOut(BaseModel):
@@ -77,6 +86,7 @@ class CheckoutRequest(BaseModel):
     provider: str = Field(pattern="^(vnpay|momo)$")
     plan: str = Field(default="premium", pattern="^(premium|family|team)$")
     seats: int = Field(default=1, ge=1, le=500)
+    invoice: InvoiceIn | None = None                 # G8 · VAT invoice request
 
 
 class CheckoutOut(BaseModel):
@@ -93,6 +103,17 @@ class OrderOut(BaseModel):
     months: int
     amount_vnd: int
     status: str
+    invoice: InvoiceIn | None = None
+    invoice_issued_at: datetime | None = None
+    created_at: datetime | None = None
+    paid_at: datetime | None = None
+
+
+def _order_out(order: PaymentOrder) -> OrderOut:
+    inv = order.invoice_info if isinstance(order.invoice_info, dict) else None
+    return OrderOut(order_id=order.id, provider=order.provider, plan=order.plan or "premium", seats=order.seats or 1, months=order.months,
+                    amount_vnd=order.amount_vnd, status=order.status, invoice=InvoiceIn(**inv) if inv else None,
+                    invoice_issued_at=order.invoice_issued_at, created_at=order.created_at, paid_at=order.paid_at)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -204,6 +225,8 @@ def checkout(
     _check_plan_for_user(current_user, payload.plan)
     try:
         order = payments.create_order(db, current_user.id, payload.provider, payload.months, plan=payload.plan, seats=payload.seats)
+        if payload.invoice:
+            order.invoice_info = payload.invoice.model_dump()
         base = _api_base(request)
         if payload.provider == "vnpay":
             pay_url = payments.vnpay_pay_url(order, client_ip(request), f"{base}/api/v1/billing/vnpay/return")
@@ -226,7 +249,27 @@ def get_order(
     order = db.query(PaymentOrder).filter(PaymentOrder.id == order_id, PaymentOrder.user_id == current_user.id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
-    return OrderOut(order_id=order.id, provider=order.provider, plan=order.plan or "premium", seats=order.seats or 1, months=order.months, amount_vnd=order.amount_vnd, status=order.status)
+    return _order_out(order)
+
+
+@router.get("/orders", response_model=list[OrderOut])
+def my_orders(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G8 · The account's orders (paid first), with any VAT invoice request."""
+    rows = db.query(PaymentOrder).filter(PaymentOrder.user_id == current_user.id).order_by(PaymentOrder.created_at.desc()).limit(50).all()
+    return [_order_out(o) for o in rows]
+
+
+@router.put("/orders/{order_id}/invoice", response_model=OrderOut)
+def request_invoice(order_id: str, payload: InvoiceIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G8 · Add or change the VAT invoice details of an order (until the invoice is issued)."""
+    order = db.query(PaymentOrder).filter(PaymentOrder.id == order_id, PaymentOrder.user_id == current_user.id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+    if order.invoice_issued_at:
+        raise HTTPException(status_code=400, detail="Hoá đơn của đơn này đã được xuất; liên hệ hỗ trợ để điều chỉnh.")
+    order.invoice_info = payload.model_dump()
+    db.commit()
+    return _order_out(order)
 
 
 # ── Gateway callbacks (no login) ──────────────────────────────────────────────
@@ -276,6 +319,13 @@ def upgrade(
     if payload.plan == "team" and not (payments.TEAM_MIN_SEATS <= payload.seats <= payments.TEAM_MAX_SEATS):
         raise HTTPException(status_code=400, detail=f"Gói theo ghế từ {payments.TEAM_MIN_SEATS} đến {payments.TEAM_MAX_SEATS} ghế.")
     subs.upgrade_to_premium(db, current_user.id, months=payload.months, plan=payload.plan, seats=payload.seats)
+    if payload.invoice:
+        # G8 · keep the invoice request even for the pilot's mock upgrade so admin can issue it
+        order = PaymentOrder(user_id=current_user.id, provider="demo", plan=payload.plan, months=payload.months, seats=payload.seats if payload.plan == "team" else 1,
+                             amount_vnd=payments.price_for(payload.plan, payload.months, payload.seats) or 0, status="paid",
+                             paid_at=datetime.utcnow(), invoice_info=payload.invoice.model_dump())
+        db.add(order)
+        db.commit()
     return _sub_out(db, current_user.id)
 
 

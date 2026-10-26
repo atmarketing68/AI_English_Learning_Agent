@@ -70,7 +70,13 @@ export type AnalyticsEvent =
   | 'group_joined'
   | 'assignment_created'
   | 'assignment_started'
-  | 'parent_push_enabled';
+  | 'parent_push_enabled'
+  // G8
+  | 'exam_started'
+  | 'exam_completed'
+  | 'tutor_asked'
+  | 'group_report_exported'
+  | 'invoice_requested';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

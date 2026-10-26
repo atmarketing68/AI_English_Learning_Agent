@@ -7,11 +7,11 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getSubscription, upgradeToPremium, cancelSubscription, getBillingOptions, startPremiumTrial, checkout, getOrder,
-  type SubscriptionInfo, type BillingOptions, type PaymentProvider,
+  type SubscriptionInfo, type BillingOptions, type PaymentProvider, type InvoiceInfo,
 } from '@/lib/billingService';
 import { playSound } from '@/lib/soundEffects';
 import confetti from 'canvas-confetti';
-import { ArrowLeft, Check, CircleAlert, CircleCheck, CreditCard, Gift, LoaderCircle, Minus, Users, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, CircleAlert, CircleCheck, CreditCard, FileText, Gift, LoaderCircle, Minus, Users, Wallet } from 'lucide-react';
 import { track } from '@/lib/analytics';
 
 const FREE_FEATURES = [
@@ -89,6 +89,11 @@ export default function UpgradePage() {
   const isTeacher = userRole === 'teacher';
   const plan = isParent ? 'family' : isTeacher ? 'team' : 'premium';
   const [seats, setSeats] = useState(10);
+  // G8 · hoá đơn VAT (doanh nghiệp / trường học)
+  const [wantInvoice, setWantInvoice] = useState(false);
+  const [invoice, setInvoice] = useState<InvoiceInfo>({ company_name: '', tax_code: '', address: '', email: '' });
+  const invoiceValid = !wantInvoice || (invoice.company_name.trim().length >= 2 && /^[0-9-]{8,20}$/.test(invoice.tax_code.trim()) && invoice.address.trim().length >= 5 && invoice.email.includes('@'));
+  const invoicePayload = wantInvoice && invoiceValid ? { ...invoice, company_name: invoice.company_name.trim(), tax_code: invoice.tax_code.trim(), address: invoice.address.trim(), email: invoice.email.trim() } : null;
   const fmt = (n: number) => n.toLocaleString('vi-VN') + '₫';
   const prices = isParent ? FAMILY_PRICES : isTeacher
     ? TEAM_PRICES.map(p => ({ ...p, price: fmt(p.unit * seats), badge: p.badge }))
@@ -135,8 +140,9 @@ export default function UpgradePage() {
     setPaying(provider);
     setError('');
     track('checkout_started', { months: selectedMonths, provider, plan });
+    if (invoicePayload) track('invoice_requested', { plan });
     try {
-      const res = await checkout(selectedMonths, provider, plan, seats);
+      const res = await checkout(selectedMonths, provider, plan, seats, invoicePayload);
       window.location.href = res.pay_url;
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
@@ -169,7 +175,8 @@ export default function UpgradePage() {
     setError('');
     track('upgrade_clicked', { months: selectedMonths, plan });
     try {
-      const updated = await upgradeToPremium(selectedMonths, plan, seats);
+      if (invoicePayload) track('invoice_requested', { plan });
+      const updated = await upgradeToPremium(selectedMonths, plan, seats, invoicePayload);
       setSubscription(updated);
       setSuccess(true);
       track('upgrade_completed', { months: selectedMonths });
@@ -344,14 +351,35 @@ export default function UpgradePage() {
               </div>
             )}
 
+            {isTeacher && (
+              <div className="card" style={{ maxWidth: 520, margin: '0 auto 20px', display: 'grid', gap: 10 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontWeight: 600 }}>
+                  <input type="checkbox" checked={wantInvoice} onChange={e => setWantInvoice(e.target.checked)} />
+                  <FileText size={16} /> Xuất hoá đơn VAT cho doanh nghiệp / trường học
+                </label>
+                {wantInvoice && (
+                  <>
+                    <input className="form-input" placeholder="Tên đơn vị (theo đăng ký kinh doanh)" value={invoice.company_name} onChange={e => setInvoice(v => ({ ...v, company_name: e.target.value }))} maxLength={200} />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                      <input className="form-input" placeholder="Mã số thuế" value={invoice.tax_code} onChange={e => setInvoice(v => ({ ...v, tax_code: e.target.value }))} maxLength={20} inputMode="numeric" />
+                      <input className="form-input" type="email" placeholder="Email nhận hoá đơn" value={invoice.email} onChange={e => setInvoice(v => ({ ...v, email: e.target.value }))} maxLength={120} />
+                    </div>
+                    <input className="form-input" placeholder="Địa chỉ" value={invoice.address} onChange={e => setInvoice(v => ({ ...v, address: e.target.value }))} maxLength={300} />
+                    <div style={{ fontSize: '0.78rem', color: invoiceValid ? 'var(--text-muted)' : 'var(--agen-secondary)' }}>
+                      {invoiceValid ? 'Hoá đơn điện tử được gửi về email trên trong 3 ngày làm việc sau khi thanh toán.' : 'Điền đủ tên đơn vị, mã số thuế (8–20 chữ số), địa chỉ và email.'}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
               {options?.providers.includes('vnpay') && (
-                <button className="btn btn-primary btn-lg" onClick={() => handleCheckout('vnpay')} disabled={!!paying || upgrading} style={{ minWidth: 300 }}>
+                <button className="btn btn-primary btn-lg" onClick={() => handleCheckout('vnpay')} disabled={!!paying || upgrading || !invoiceValid} style={{ minWidth: 300 }}>
                   {paying === 'vnpay' ? <LoaderCircle className="animate-spin" size={18} /> : <CreditCard size={18} />} Thanh toán qua VNPay · {prices.find(p => p.months === selectedMonths)?.price}
                 </button>
               )}
               {options?.providers.includes('momo') && (
-                <button className="btn btn-lg" onClick={() => handleCheckout('momo')} disabled={!!paying || upgrading} style={{ minWidth: 300, background: '#A50064', color: '#fff' }}>
+                <button className="btn btn-lg" onClick={() => handleCheckout('momo')} disabled={!!paying || upgrading || !invoiceValid} style={{ minWidth: 300, background: '#A50064', color: '#fff' }}>
                   {paying === 'momo' ? <LoaderCircle className="animate-spin" size={18} /> : <Wallet size={18} />} Thanh toán qua Ví MoMo
                 </button>
               )}
@@ -359,7 +387,7 @@ export default function UpgradePage() {
                 <button
                   className={`btn btn-lg ${options.providers.length ? 'btn-outline' : 'btn-primary'}`}
                   onClick={handleUpgrade}
-                  disabled={upgrading || !!paying}
+                  disabled={upgrading || !!paying || !invoiceValid}
                   style={{ minWidth: 300 }}
                 >
                   {upgrading ? 'Đang xử lý…' : `${options.providers.length ? 'Kích hoạt demo' : isParent ? 'Kích hoạt gói gia đình' : isTeacher ? 'Kích hoạt gói theo ghế' : 'Nâng cấp Premium'} · ${prices.find(p => p.months === selectedMonths)?.price}`}

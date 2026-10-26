@@ -4,6 +4,8 @@ weekly assignments and their completion.
 """
 from __future__ import annotations
 
+import csv
+import io
 import secrets
 from dataclasses import dataclass, field
 from datetime import date, datetime, timezone
@@ -250,3 +252,27 @@ def pending_assignments(db: Session, learner_id: str) -> list[tuple[Group, Assig
                 out.append((group, view))
     out.sort(key=lambda gv: (gv[1].due_on or date.max, gv[1].created_at))
     return out
+
+
+# ── G8 · Báo cáo nhóm (CSV) ──────────────────────────────────────────────────
+def report_csv(db: Session, group: Group) -> str:
+    """One row per member with this week's XP, streak, lessons and assignment completion."""
+    assignments = group_assignments(db, group.id)
+    done_by: dict[str, set[str]] = {}
+    if assignments:
+        rows = db.query(GroupAssignmentDone).filter(GroupAssignmentDone.assignment_id.in_([a.id for a in assignments]), GroupAssignmentDone.done_at.isnot(None)).all()
+        for r in rows:
+            done_by.setdefault(r.learner_id, set()).add(r.assignment_id)
+    buf = io.StringIO()
+    w = csv.writer(buf, lineterminator="\n")
+    w.writerow(["Nhóm", group.name, "Mã", group.code, "Xuất ngày", local_today().isoformat()])
+    w.writerow([])
+    w.writerow(["Học viên", "Trình độ", "XP tuần này", "Tổng XP", "Chuỗi ngày", "Bài đã học", "Bài tập đã xong", "Tổng bài tập", "Học hôm nay", "Gói", "Tham gia"]
+               + [a.title for a in assignments])
+    for m in member_views(db, group):
+        done = done_by.get(m.learner_id, set())
+        w.writerow([
+            m.display_name, m.level, m.weekly_xp, m.total_xp, m.streak, m.lessons, m.assignments_done, len(assignments),
+            "Có" if m.active_today else "Không", "Premium" if m.premium_source else "Miễn phí", m.joined_at.date().isoformat(),
+        ] + ["x" if a.id in done else "" for a in assignments])
+    return buf.getvalue()

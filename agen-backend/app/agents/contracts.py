@@ -146,3 +146,18 @@ class WordLookupOutput(BaseModel):
     meaning_vi: str = Field(min_length=1)
     definition_en: str = ""
     example: str = ""
+
+
+class TutorExampleOutput(BaseModel):
+    en: str = Field(min_length=1)
+    vi: str = ""
+
+
+class TutorAnswerOutput(BaseModel):
+    """G8 · Bo's answer to a grammar / usage question, in Vietnamese."""
+    answer_vi: str = Field(min_length=1)
+    rule: str = ""
+    examples: list[TutorExampleOutput] = Field(default_factory=list, max_length=5)
+    common_mistake: str = ""
+    follow_ups: list[str] = Field(default_factory=list, max_length=4)
+    on_topic: bool = True

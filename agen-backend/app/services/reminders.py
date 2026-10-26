@@ -102,18 +102,25 @@ def send_push(db: Session, sub: PushSubscription, message: ReminderMessage, tag:
 
 
 def push_to_learner(db: Session, learner: LearnerProfile, message: ReminderMessage) -> int:
+    """Web push (VAPID) + G8 native push (FCM) — each channel only when configured."""
+    from app.services import fcm  # local import: keeps the reminders module light
+
+    sent = fcm.send_to_learner(db, learner.id, message.title, message.body, message.url, "daily-reminder")
     if not settings.push_enabled:
-        return 0
+        return sent
     subs = db.query(PushSubscription).filter(PushSubscription.learner_id == learner.id).all()
-    return sum(send_push(db, sub, message) for sub in subs)
+    return sent + sum(send_push(db, sub, message) for sub in subs)
 
 
 def push_to_user(db: Session, user_id: str, message: ReminderMessage, tag: str = "parent-alert") -> int:
-    """G7 · Push to a non-learner account's devices (parents)."""
+    """G7 · Push to a non-learner account's devices (parents): web push + G8 FCM."""
+    from app.services import fcm
+
+    sent = fcm.send_to_user(db, user_id, message.title, message.body, message.url, tag)
     if not settings.push_enabled:
-        return 0
+        return sent
     subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
-    return sum(send_push(db, sub, message, tag) for sub in subs)
+    return sent + sum(send_push(db, sub, message, tag) for sub in subs)
 
 
 # ── Email ────────────────────────────────────────────────────────────────────
