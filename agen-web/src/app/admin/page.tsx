@@ -7,7 +7,7 @@ import {
   getAdminMe, getEvaluationSummary, listEvaluations,
   listContent, setContentStatus, batchGenerateContent,
   getPilotSummary, getRevenueSummary, listOrders, markInvoiceIssued,
-  getAiUsageSummary, type AiUsageSummary, refundOrder,
+  getAiUsageSummary, type AiUsageSummary, refundOrder, getEInvoiceStatus, issueEInvoice, type EInvoiceStatus,
   deleteGeneratedPodcast, generatePodcast, getGeneratedPodcast, listGeneratedPodcasts, setGeneratedPodcastStatus, setGeneratedPodcastVideo,
   type GeneratedEpisode, type GeneratedEpisodeFull,
   deleteGeneratedExam, generateExam, getGeneratedExam, listGeneratedExams, setGeneratedExamStatus,
@@ -133,8 +133,14 @@ function AiUsagePanel() {
     ['Giới hạn/ngày', u.limits.free_usd || u.limits.premium_usd ? `${u.limits.free_usd ? usd(u.limits.free_usd) : '∞'} / ${u.limits.premium_usd ? usd(u.limits.premium_usd) : '∞'}` : 'Tắt', 'miễn phí / Premium'],
   ];
   const al = u.alerts;
+  const eco = u.economy;
   return (
     <div className="card">
+      {eco?.active && (
+        <div className="review-feedback" style={{ marginBottom: 12, fontSize: '0.88rem' }}>
+          💡 Chế độ tiết kiệm đang bật (chi phí hôm nay ≥ {usd(eco.threshold_usd)}): Gemini dùng <b>{eco.models.gemini?.economy}</b>, OpenAI dùng <b>{eco.models.openai?.economy}</b>. Tự tắt sang ngày mới.
+        </div>
+      )}
       {al && (al.total_over || al.users_over.length > 0) && (
         <div className="alert-error" style={{ marginBottom: 16, display: 'grid', gap: 4 }}>
           {al.total_over && <div>⚠️ Chi phí AI hôm nay {usd(al.today_usd)} đã vượt ngưỡng {usd(al.total_threshold_usd)}.</div>}
@@ -203,7 +209,21 @@ function OrdersPanel() {
   const [orders, setOrders] = useState<AdminOrder[] | null>(null);
   const [invoiceOnly, setInvoiceOnly] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [einv, setEinv] = useState<EInvoiceStatus | null>(null);
   useEffect(() => { listOrders(invoiceOnly, 200).then(setOrders).catch(() => setOrders([])); }, [invoiceOnly]);
+  useEffect(() => { getEInvoiceStatus().then(setEinv).catch(() => setEinv(null)); }, []);
+
+  const issue = async (o: AdminOrder) => {
+    if (!confirm(`Xuất hoá đơn điện tử Viettel cho đơn ${vnd(o.amount_vnd)} của ${o.email}${o.invoice ? ` (${o.invoice.company_name})` : ''}?`)) return;
+    setBusy(o.order_id);
+    try {
+      const updated = await issueEInvoice(o.order_id);
+      setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
+    } catch (err: unknown) {
+      alert((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không xuất được hoá đơn.');
+      listOrders(invoiceOnly, 200).then(setOrders).catch(() => undefined);
+    } finally { setBusy(null); }
+  };
 
   const toggle = async (o: AdminOrder) => {
     setBusy(o.order_id);
@@ -214,6 +234,7 @@ function OrdersPanel() {
   };
   const refund = async (o: AdminOrder) => {
     const stripe = o.provider === 'stripe';
+    if (o.einvoice_no && !confirm(`Đơn này đã có hoá đơn điện tử số ${o.einvoice_no}. Sau khi hoàn tiền, nhớ lập hoá đơn điều chỉnh/huỷ trên trang Viettel S-Invoice. Tiếp tục?`)) return;
     const ok = confirm(stripe
       ? `Hoàn ${o.amount_foreign != null ? '$' + (o.amount_foreign / 100).toFixed(2) : vnd(o.amount_vnd)} cho ${o.email} qua Stripe? Thời hạn Premium của đơn này sẽ bị trừ lại.`
       : `Đơn ${o.provider.toUpperCase()}: hãy hoàn tiền trên cổng ${o.provider.toUpperCase()} trước. Đã hoàn xong và muốn ghi nhận cho ${o.email}? Thời hạn Premium của đơn này sẽ bị trừ lại.`);
@@ -245,7 +266,7 @@ function OrdersPanel() {
   return (
     <div className="card" style={{ marginTop: 'var(--spacing-lg)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-        <div style={{ fontWeight: 600, flex: 1 }}>Đơn hàng & hoá đơn VAT</div>
+        <div style={{ fontWeight: 600, flex: 1 }}>Đơn hàng & hoá đơn VAT{einv && <span style={{ fontWeight: 400, fontSize: '0.8rem', color: 'var(--text-muted)', marginLeft: 8 }}>{einv.enabled ? `HĐĐT Viettel: ${einv.template ?? ''} ${einv.series ?? ''} · tự động: ${einv.auto === 'all' ? 'mọi đơn' : einv.auto === 'business' ? 'đơn doanh nghiệp' : 'tắt'}` : 'HĐĐT chưa cấu hình'}</span>}</div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
           <input type="checkbox" checked={invoiceOnly} onChange={e => setInvoiceOnly(e.target.checked)} /> Chỉ đơn yêu cầu hoá đơn
         </label>
@@ -254,7 +275,7 @@ function OrdersPanel() {
       {!orders ? <div style={{ color: 'var(--text-muted)' }}>Đang tải…</div> : orders.length === 0 ? <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có đơn nào.</div> : (
         <div style={{ overflowX: 'auto', margin: '0 calc(-1 * var(--spacing-lg, 24px))', padding: '0 var(--spacing-lg, 24px)' }}>
           <table className="teacher-table" style={{ minWidth: 980 }}>
-            <thead><tr><th>Ngày</th><th>Khách</th><th>Gói</th><th>Số tiền</th><th>Trạng thái</th><th>Đơn vị · MST</th><th>Email HĐ</th><th>Hoá đơn</th><th>Biên nhận · hoàn tiền</th></tr></thead>
+            <thead><tr><th>Ngày</th><th>Khách</th><th>Gói</th><th>Số tiền</th><th>Trạng thái</th><th>Đơn vị · MST</th><th>Email HĐ</th><th>Hoá đơn</th><th>HĐ điện tử</th><th>Biên nhận · hoàn tiền</th></tr></thead>
             <tbody>
               {orders.map(o => (
                 <tr key={o.order_id}>
@@ -266,6 +287,14 @@ function OrdersPanel() {
                   <td style={{ whiteSpace: 'normal', minWidth: 200 }}>{o.invoice ? <>{o.invoice.company_name}<div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>MST {o.invoice.tax_code} · {o.invoice.address}</div></> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                   <td>{o.invoice?.email ?? '—'}</td>
                   <td>{o.invoice ? <button type="button" className={`btn btn-sm ${o.invoice_issued_at ? 'btn-ghost' : 'btn-primary'}`} disabled={busy === o.order_id || o.status !== 'paid'} onClick={() => toggle(o)} title={o.status !== 'paid' ? 'Chỉ xuất khi đơn đã thanh toán' : ''}>{o.invoice_issued_at ? <><Check size={13} /> Đã xuất</> : 'Đánh dấu đã xuất'}</button> : '—'}</td>
+                  <td style={{ whiteSpace: 'normal', minWidth: 140 }}>
+                    {o.einvoice_no
+                      ? <span title={o.einvoice_lookup_code ? `Mã tra cứu ${o.einvoice_lookup_code}` : undefined}><Check size={13} color="var(--agen-success)" /> {o.einvoice_no}</span>
+                      : einv?.enabled && o.status === 'paid' && o.provider !== 'demo'
+                        ? <button type="button" className="btn btn-outline btn-sm" disabled={busy === o.order_id} onClick={() => issue(o)}>Xuất HĐĐT</button>
+                        : '—'}
+                    {o.einvoice_error && !o.einvoice_no && <div style={{ fontSize: '0.72rem', color: 'var(--agen-secondary)' }}>{o.einvoice_error}</div>}
+                  </td>
                   <td>
                     {(o.status === 'paid' || o.status === 'refunded') ? (
                       <span style={{ display: 'inline-flex', gap: 6 }}>
@@ -344,7 +373,7 @@ function PodcastsPanel() {
               <tbody>
                 {items.map(x => (
                   <tr key={x.id}>
-                    <td style={{ whiteSpace: 'normal', minWidth: 200 }}><button type="button" className="btn btn-ghost btn-sm" style={{ padding: 0, textAlign: 'left' }} onClick={() => open(x.id)}>{x.title}</button><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{x.title_vi}</div></td>
+                    <td style={{ whiteSpace: 'normal', minWidth: 200 }}><button type="button" className="btn btn-ghost btn-sm" style={{ padding: 0, textAlign: 'left' }} onClick={() => open(x.id)}>{x.title}</button><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{x.title_vi}{x.auto && <span className="plan-chip" style={{ marginLeft: 6 }}>Tự động</span>}</div></td>
                     <td>{x.level}</td>
                     <td>{x.lines} · {x.questions}</td>
                     <td>{x.youtube_id ? '▶︎ có' : '—'}</td>

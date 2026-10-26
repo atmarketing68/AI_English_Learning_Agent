@@ -3134,3 +3134,11 @@ a.member-cert:hover { color: var(--agen-primary); }
 .writing-grade { display: grid; gap: 8px; margin-top: 14px; padding: 12px 14px; border-radius: var(--radius-md); background: var(--bg-elevated); }
 .writing-grade-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
 .teacher-score { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: color-mix(in srgb, var(--agen-success) 14%, transparent); color: var(--agen-success); }
+
+/* G12 — lịch câu lạc bộ nói của lớp, rubric chấm viết */
+.club-schedule-form { display: grid; grid-template-columns: minmax(110px, 1fr) minmax(100px, 0.8fr) minmax(160px, 2fr) auto; gap: 8px; margin-top: 12px; align-items: center; }
+@media (max-width: 640px) { .club-schedule-form { grid-template-columns: 1fr 1fr; } .club-schedule-form > :nth-child(3), .club-schedule-form > button { grid-column: 1 / -1; } }
+.rubric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.rubric-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.rubric-chips span { font-size: 0.72rem; padding: 2px 8px; border-radius: 999px; background: var(--bg-tint); color: var(--text-secondary); }
+.club-group-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: color-mix(in srgb, var(--agen-primary) 12%, transparent); color: var(--agen-primary); }

@@ -97,7 +97,11 @@ export type AnalyticsEvent =
   | 'club_room_scheduled'
   | 'writing_regraded'
   | 'order_refunded'
-  | 'receipt_opened';
+  | 'receipt_opened'
+  // G12
+  | 'club_schedule_created'
+  | 'writing_rubric_graded'
+  | 'einvoice_issued';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

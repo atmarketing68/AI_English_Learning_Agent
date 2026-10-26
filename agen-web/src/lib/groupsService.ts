@@ -148,10 +148,18 @@ export interface WritingDetail {
   teacher_band?: number | null;
   teacher_comment?: string | null;
   teacher_scored_at?: string | null;
+  /** G12 · IELTS criteria */
+  teacher_rubric?: IeltsRubric | null;
 }
 
+export type IeltsRubric = { task: number; coherence: number; lexical: number; grammar: number };
+export const IELTS_CRITERIA: { key: keyof IeltsRubric; label: string }[] = [
+  { key: 'task', label: 'Đáp ứng đề' }, { key: 'coherence', label: 'Mạch lạc & liên kết' },
+  { key: 'lexical', label: 'Từ vựng' }, { key: 'grammar', label: 'Ngữ pháp' },
+];
+
 /** G11 · Teacher re-grade of a writing piece; score null clears it. */
-export const gradeMemberWriting = async (groupId: string, learnerId: string, submissionId: string, payload: { score: number | null; band?: number | null; comment?: string | null }): Promise<WritingDetail> =>
+export const gradeMemberWriting = async (groupId: string, learnerId: string, submissionId: string, payload: { score: number | null; band?: number | null; comment?: string | null; rubric?: IeltsRubric | null }): Promise<WritingDetail> =>
   (await api.post(`/groups/${groupId}/members/${learnerId}/writing/${submissionId}/grade`, payload)).data;
 
 export interface LearnerFeedback {
@@ -175,3 +183,25 @@ export const issueCertificate = async (groupId: string, learnerId: string, title
   (await api.post(`/groups/${groupId}/members/${learnerId}/certificate`, { title, note: note || null })).data;
 export const getMyFeedback = async (): Promise<LearnerFeedback[]> => (await api.get('/groups/learner/feedback')).data;
 export const markFeedbackRead = async (): Promise<void> => { await api.post('/groups/learner/feedback/read'); };
+
+// ── G12 · Câu lạc bộ nói hằng tuần của lớp ───────────────────────────────────
+export interface ClubSchedule {
+  id: string;
+  weekday: number;
+  time: string;
+  label: string;
+  topic_id: string | null;
+  topic_title: string;
+  next: { room_id: string; code: string; scheduled_at: string; status: string; registered: number; topic_title: string } | null;
+}
+
+export interface ClubSchedules {
+  schedules: ClubSchedule[];
+  topics: { id: string; title_vi: string; level: string; emoji: string }[];
+  weekdays: string[];
+}
+
+export const getClubSchedules = async (groupId: string): Promise<ClubSchedules> => (await api.get(`/groups/${groupId}/club-schedules`)).data;
+export const addClubSchedule = async (groupId: string, payload: { weekday: number; time: string; topic_id?: string | null }): Promise<ClubSchedule> =>
+  (await api.post(`/groups/${groupId}/club-schedules`, payload)).data;
+export const deleteClubSchedule = async (groupId: string, scheduleId: string): Promise<void> => { await api.delete(`/groups/${groupId}/club-schedules/${scheduleId}`); };

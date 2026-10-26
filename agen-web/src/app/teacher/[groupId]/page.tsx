@@ -11,6 +11,7 @@ import {
   type AssignmentSkill, type GroupDetail,
 } from '@/lib/groupsService';
 import Avatar from '@/components/ui/Avatar';
+import ClubSchedulesCard from '@/components/teacher/ClubSchedulesCard';
 import { track } from '@/lib/analytics';
 
 const SKILLS: AssignmentSkill[] = ['vocabulary', 'grammar', 'reading', 'listening'];
@@ -108,6 +109,8 @@ export default function TeacherGroupPage() {
             ))}
           </div>
         )}
+
+        <ClubSchedulesCard groupId={groupId} />
 
         <h3 style={{ margin: '0 0 10px' }}>Thành viên ({members.length})</h3>
         {members.length === 0 ? (

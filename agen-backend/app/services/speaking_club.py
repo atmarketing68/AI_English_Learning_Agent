@@ -16,7 +16,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.learner_profile import LearnerProfile
-from app.models.speaking_club import ROOM_ACTIVE, ROOM_FINISHED, ROOM_WAITING, RoomMember, RoomMessage, SpeakingRoom
+from app.models.speaking_club import ROOM_ACTIVE, ROOM_FINISHED, ROOM_WAITING, GroupClubSchedule, RoomMember, RoomMessage, SpeakingRoom
 
 MAX_MEMBERS = 4
 TURNS_PER_MEMBER = 3
@@ -144,6 +144,10 @@ def join_room(db: Session, learner: LearnerProfile, code: str) -> SpeakingRoom:
         raise ClubError("Không tìm thấy phòng hoặc phòng đã kết thúc.")
     if membership(db, room.id, learner.id):
         return room
+    if room.group_id:
+        from app.models.group import GroupMember
+        if not db.query(GroupMember).filter(GroupMember.group_id == room.group_id, GroupMember.learner_id == learner.id).first():
+            raise ClubError("Phòng này dành cho thành viên của lớp.")
     if room.status != ROOM_WAITING:
         raise ClubError("Phòng đã bắt đầu, hãy chờ phòng sau hoặc tạo phòng mới.")
     if len(active_members(db, room.id)) >= MAX_MEMBERS:
@@ -154,6 +158,8 @@ def join_room(db: Session, learner: LearnerProfile, code: str) -> SpeakingRoom:
         old.joined_at = _now()
     else:
         db.add(RoomMember(room_id=room.id, learner_id=learner.id))
+    if room.host_learner_id is None:        # G12 · first person in a class session hosts it
+        room.host_learner_id = learner.id
     add_message(db, room, "system", f"{learner.display_name} đã vào phòng.")
     return room
 
@@ -230,6 +236,9 @@ def leave_room(db: Session, room: SpeakingRoom, learner: LearnerProfile) -> None
     add_message(db, room, "system", f"{learner.display_name} đã rời phòng.")
     remaining = active_members(db, room.id)
     if not remaining:
+        if room.group_id and room.status == ROOM_WAITING:
+            room.host_learner_id = None     # a class session stays open for the rest of the class
+            return
         room.status = ROOM_FINISHED
         room.finished_at = _now()
         return
@@ -272,7 +281,13 @@ def run_reminders(db: Session, now: datetime | None = None) -> dict:
     from app.services.reminders import ReminderMessage, push_to_learner, zalo_to_user
 
     now = now or _now()
-    stats = {"rooms": 0, "reminded": 0, "push": 0, "expired": 0}
+    stats = {"rooms": 0, "reminded": 0, "push": 0, "expired": 0, "class_rooms": 0, "class_reminded": 0}
+    try:
+        stats["class_rooms"] = ensure_group_rooms(db, now)
+    except Exception:
+        import logging
+        logging.getLogger("agen.club").exception("Creating class speaking-club rooms failed")
+        db.rollback()
     soon = (db.query(SpeakingRoom).filter(SpeakingRoom.status == ROOM_WAITING, SpeakingRoom.scheduled_at.isnot(None),
                                           SpeakingRoom.scheduled_at > now - timedelta(minutes=5),
                                           SpeakingRoom.scheduled_at <= now + timedelta(minutes=REMIND_WINDOW_MIN)).all())
@@ -300,6 +315,15 @@ def run_reminders(db: Session, now: datetime | None = None) -> dict:
                 logging.getLogger("agen.club").warning("Club reminder push failed", exc_info=True)
             m.reminded_at = now
             stats["reminded"] += 1
+        if room.group_id and room.group_reminded_at is None:
+            # G12 · class session: also nudge classmates who have not registered yet (in-app only)
+            joined = {m.learner_id for m in active_members(db, room.id)}
+            from app.models.group import GroupMember
+            for (lid,) in db.query(GroupMember.learner_id).filter(GroupMember.group_id == room.group_id).all():
+                if lid not in joined:
+                    create_notification(db, lid, type="club_reminder", title=message.title, body=message.body, icon="🎙️")
+                    stats["class_reminded"] += 1
+            room.group_reminded_at = now
     stale = (db.query(SpeakingRoom).filter(SpeakingRoom.status == ROOM_WAITING, SpeakingRoom.scheduled_at.isnot(None),
                                            SpeakingRoom.scheduled_at < now - timedelta(minutes=SCHEDULED_EXPIRE_MIN)).all())
     for room in stale:
@@ -314,3 +338,110 @@ def fallback_reply(transcript: str) -> dict:
     words = len(transcript.split())
     tip = "Câu trả lời khá đầy đủ, thử thêm một ví dụ cụ thể nhé." if words >= 15 else "Hãy nói dài hơn một chút: nêu ý kiến + lý do + ví dụ."
     return {"feedback_vi": tip, "corrected": "", "reply": ""}
+
+
+
+# ── G12 · Lịch câu lạc bộ nói hằng tuần của lớp ──────────────────────────────
+WEEKDAYS_VI = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ nhật"]
+SCHEDULE_MIN_LEAD_FOR_ROOM_MIN = 15      # inside this window the next occurrence is the one a week later
+
+
+def parse_time(value: str) -> tuple[int, int]:
+    try:
+        hh, mm = value.strip().split(":")
+        h, m = int(hh), int(mm)
+    except (ValueError, AttributeError):
+        raise ClubError("Giờ phải có dạng HH:MM.")
+    if not (0 <= h <= 23 and 0 <= m <= 59):
+        raise ClubError("Giờ phải có dạng HH:MM.")
+    return h, m
+
+
+def next_occurrence(schedule: GroupClubSchedule, now: datetime | None = None) -> datetime:
+    """Next weekly slot (UTC naive) at least SCHEDULE_MIN_LEAD_FOR_ROOM_MIN minutes away."""
+    from app.core.timeutil import LEARNER_TZ
+
+    now = now or _now()
+    h, m = parse_time(schedule.time_local)
+    local_now = now.replace(tzinfo=timezone.utc).astimezone(LEARNER_TZ)
+    days = (schedule.weekday - local_now.weekday()) % 7
+    candidate = (local_now + timedelta(days=days)).replace(hour=h, minute=m, second=0, microsecond=0)
+    if candidate <= local_now + timedelta(minutes=SCHEDULE_MIN_LEAD_FOR_ROOM_MIN):
+        candidate += timedelta(days=7)
+    return candidate.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def schedule_label(schedule: GroupClubSchedule) -> str:
+    return f"{WEEKDAYS_VI[schedule.weekday]} {schedule.time_local}"
+
+
+def _topic_for(db: Session, schedule: GroupClubSchedule) -> str:
+    if schedule.topic_id and get_topic(schedule.topic_id):
+        return schedule.topic_id
+    held = db.query(SpeakingRoom).filter(SpeakingRoom.schedule_id == schedule.id).count()
+    return TOPICS[held % len(TOPICS)]["id"]
+
+
+def ensure_group_rooms(db: Session, now: datetime | None = None) -> int:
+    """Make sure every active weekly slot has a room for its next occurrence; tell the class when one opens."""
+    from app.models.group import Group, GroupMember
+    from app.services.notification_service import create_notification
+
+    now = now or _now()
+    created = 0
+    for sch in db.query(GroupClubSchedule).filter(GroupClubSchedule.is_active == 1).all():
+        when = next_occurrence(sch, now)
+        exists = db.query(SpeakingRoom).filter(SpeakingRoom.schedule_id == sch.id, SpeakingRoom.scheduled_at == when).first()
+        if exists:
+            continue
+        group = db.query(Group).filter(Group.id == sch.group_id).first()
+        if not group:
+            continue
+        topic_id = _topic_for(db, sch)
+        room = SpeakingRoom(code=_new_code(db), topic_id=topic_id, host_learner_id=None, is_public=0, scheduled_at=when,
+                            group_id=group.id, schedule_id=sch.id)
+        db.add(room)
+        db.flush()
+        topic = get_topic(topic_id) or TOPICS[0]
+        add_message(db, room, "system", f"Buổi nói hằng tuần của {group.name} · hẹn lúc {local_label(when)}.")
+        for (lid,) in db.query(GroupMember.learner_id).filter(GroupMember.group_id == group.id).all():
+            create_notification(db, lid, type="club_scheduled", title=f"{group.name}: câu lạc bộ nói {local_label(when)}",
+                                body=f"{topic['emoji']} {topic['title_vi']}. Mở Câu lạc bộ nói để đăng ký, bạn sẽ được nhắc trước 15 phút.", icon="🎙️")
+        created += 1
+    if created:
+        db.commit()
+    return created
+
+
+def create_schedule(db: Session, group, user, weekday: int, time_local: str, topic_id: str | None = None) -> GroupClubSchedule:
+    if not 0 <= weekday <= 6:
+        raise ClubError("Ngày trong tuần không hợp lệ.")
+    h, m = parse_time(time_local)
+    if topic_id and not get_topic(topic_id):
+        raise ClubError("Chủ đề không tồn tại.")
+    if db.query(GroupClubSchedule).filter(GroupClubSchedule.group_id == group.id, GroupClubSchedule.is_active == 1).count() >= 7:
+        raise ClubError("Mỗi lớp tối đa 7 buổi nói mỗi tuần.")
+    sch = GroupClubSchedule(group_id=group.id, weekday=weekday, time_local=f"{h:02d}:{m:02d}", topic_id=topic_id or None, created_by_user_id=user.id)
+    db.add(sch)
+    db.flush()
+    return sch
+
+
+def cancel_schedule(db: Session, sch: GroupClubSchedule) -> int:
+    """Stop a weekly slot and close its upcoming rooms that nobody has started."""
+    sch.is_active = 0
+    closed = 0
+    for room in db.query(SpeakingRoom).filter(SpeakingRoom.schedule_id == sch.id, SpeakingRoom.status == ROOM_WAITING).all():
+        add_message(db, room, "system", "Giáo viên đã huỷ lịch buổi nói này.")
+        room.status = ROOM_FINISHED
+        room.finished_at = _now()
+        closed += 1
+    return closed
+
+
+def group_upcoming_rooms(db: Session, group_ids: list[str]) -> list[SpeakingRoom]:
+    if not group_ids:
+        return []
+    return (db.query(SpeakingRoom).filter(SpeakingRoom.group_id.in_(group_ids), SpeakingRoom.status == ROOM_WAITING,
+                                          SpeakingRoom.scheduled_at >= _now() - timedelta(minutes=SCHEDULED_EXPIRE_MIN))
+            .order_by(SpeakingRoom.scheduled_at).limit(20).all())

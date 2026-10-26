@@ -73,6 +73,14 @@ export default function ReceiptPage() {
             {o.invoice_issued_at ? ' — hoá đơn điện tử đã được gửi.' : ' — hoá đơn điện tử sẽ được gửi qua email.'}
           </div>
         )}
+        {r.einvoice ? (
+          <div className="receipt-note" style={{ color: '#1D1D1F' }}>
+            Hoá đơn điện tử đã xuất: số <b>{r.einvoice.number}</b>{r.einvoice.series ? ` · ký hiệu ${r.einvoice.series}` : ''}
+            {r.einvoice.lookup_code && <> · mã tra cứu <b>{r.einvoice.lookup_code}</b></>}
+            {r.einvoice.lookup_url && <> · tra cứu tại <a href={r.einvoice.lookup_url} target="_blank" rel="noreferrer">{r.einvoice.lookup_url}</a></>}
+            {r.einvoice.seller_tax_code && <> (MST người bán {r.einvoice.seller_tax_code})</>}.
+          </div>
+        ) : null}
         <p className="receipt-note">Biên nhận này xác nhận khoản thanh toán, không thay thế hoá đơn giá trị gia tăng.</p>
       </article>
     </main>

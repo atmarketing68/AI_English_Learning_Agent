@@ -40,5 +40,6 @@ class WritingSubmission(Base):
     teacher_score     = Column(Float, nullable=True)        # 0–100
     teacher_band      = Column(Float, nullable=True)        # IELTS band / TOEIC score for exam genres
     teacher_comment   = Column(Text, nullable=True)
+    teacher_rubric    = Column(JSON, nullable=True)         # G12 · IELTS criteria {task, coherence, lexical, grammar} 0–9
     teacher_user_id   = Column(String(36), nullable=True)
     teacher_scored_at = Column(DateTime, nullable=True)

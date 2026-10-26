@@ -4,10 +4,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, Check, CircleAlert, LoaderCircle, LogOut, MessageSquareText, School } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarClock, Check, CircleAlert, LoaderCircle, LogOut, MessageSquareText, MessagesSquare, School } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import { SKILL_LABELS, getMyFeedback, getMyGroups, joinGroup, leaveGroup, markFeedbackRead, type LearnerFeedback, type LearnerGroup } from '@/lib/groupsService';
 import { PageSkeleton } from '@/components/Skeleton';
+import { formatSlot, getClubLobby, joinRoom, type RoomCard } from '@/lib/clubService';
 import Mascot from '@/components/ui/Mascot';
 import { track } from '@/lib/analytics';
 
@@ -20,12 +21,16 @@ export default function ClassesPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [feedback, setFeedback] = useState<LearnerFeedback[]>([]);
+  const [classClub, setClassClub] = useState<RoomCard[]>([]);
 
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     getMyGroups().then(r => setGroups(r.groups)).catch(() => setError('Không tải được lớp học.'));
     // G10 · teachers' comments; opening this page marks them read
+    // G12 · weekly speaking-club sessions of my classes
+    getClubLobby().then(l => setClassClub([...l.open_rooms, ...(l.upcoming_rooms ?? []), ...l.my_rooms].filter((r, i, a) => r.group_name && a.findIndex(x => x.id === r.id) === i)))
+      .catch(() => undefined);
     getMyFeedback().then(f => { setFeedback(f); if (f.some(x => !x.read_at)) void markFeedbackRead().catch(() => undefined); }).catch(() => undefined);
   }, [hydrated, isAuthenticated, router]);
 
@@ -63,6 +68,24 @@ export default function ClassesPage() {
           <button type="submit" className="btn btn-primary" disabled={busy || !code.trim()}>{busy ? <LoaderCircle className="animate-spin" size={16} /> : 'Tham gia'}</button>
           {error && <div className="alert-error" style={{ flexBasis: '100%' }}><CircleAlert size={16} /> {error}</div>}
         </form>
+
+        {classClub.length > 0 && (
+          <section className="card" style={{ marginTop: 16 }}>
+            <div className="section-head"><h3><MessagesSquare size={16} /> Câu lạc bộ nói của lớp</h3></div>
+            {classClub.map(r => (
+              <div key={r.id} className="club-room-row">
+                <span className="club-topic-emoji" aria-hidden>{r.topic.emoji}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{r.topic.title_vi}</div>
+                  <div className="club-when"><CalendarClock size={12} /> {r.scheduled_at ? formatSlot(r.scheduled_at) : 'Đang mở'} · Lớp {r.group_name} · {r.members} người đã đăng ký</div>
+                </div>
+                <button type="button" className={`btn btn-sm ${r.registered ? 'btn-outline' : 'btn-primary'}`} onClick={async () => {
+                  try { const st = await joinRoom(r.code); router.push(`/club/${st.id}`); } catch { setError('Không vào được buổi nói này.'); }
+                }}>{r.registered ? 'Vào phòng' : 'Đăng ký'} <ArrowRight size={14} /></button>
+              </div>
+            ))}
+          </section>
+        )}
 
         {feedback.length > 0 && (
           <section className="card" style={{ marginTop: 16 }}>

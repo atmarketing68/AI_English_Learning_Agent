@@ -40,6 +40,8 @@ class RoomCard(BaseModel):
     host_name: str
     created_at: datetime
     scheduled_at: Optional[datetime] = None     # G11 · booked session (UTC)
+    group_name: Optional[str] = None            # G12 · weekly class session
+    registered: bool = False                    # the current learner already joined
 
 
 class LobbyOut(BaseModel):
@@ -116,11 +118,16 @@ def _topic_out(topic_id: str) -> TopicOut:
     return TopicOut(id=t["id"], title=t["title"], title_vi=t["title_vi"], level=t["level"], emoji=t["emoji"])
 
 
-def _card(db: Session, room: SpeakingRoom) -> RoomCard:
-    host = db.query(LearnerProfile).filter(LearnerProfile.id == room.host_learner_id).first()
+def _card(db: Session, room: SpeakingRoom, learner_id: str | None = None) -> RoomCard:
+    host = db.query(LearnerProfile).filter(LearnerProfile.id == room.host_learner_id).first() if room.host_learner_id else None
+    group_name = None
+    if room.group_id:
+        from app.models.group import Group
+        group_name = db.query(Group.name).filter(Group.id == room.group_id).scalar()
     return RoomCard(id=room.id, code=room.code, topic=_topic_out(room.topic_id), status=room.status, members=len(club.active_members(db, room.id)),
-                    host_name=(host.display_name if host else None) or "Học viên", created_at=room.created_at,
-                    scheduled_at=room.scheduled_at)
+                    host_name=(host.display_name if host else None) or group_name or "Học viên", created_at=room.created_at,
+                    scheduled_at=room.scheduled_at, group_name=group_name,
+                    registered=bool(learner_id and club.membership(db, room.id, learner_id)))
 
 
 def _room_or_404(db: Session, room_id: str) -> SpeakingRoom:
@@ -161,10 +168,16 @@ def lobby(current_user: User = Depends(get_current_user), db: Session = Depends(
             .filter(RoomMember.learner_id == learner.id, RoomMember.left_at.is_(None), SpeakingRoom.status != ROOM_FINISHED)
             .order_by(SpeakingRoom.created_at.desc()).limit(8).all())
     mine_ids = {r.id for r in mine}
-    return LobbyOut(topics=[_topic_out(t["id"]) for t in club.TOPICS],
-                    open_rooms=[_card(db, r) for r in club.lobby(db) if r.id not in mine_ids],
-                    my_rooms=[_card(db, r) for r in mine], max_members=club.MAX_MEMBERS,
-                    upcoming_rooms=[_card(db, r) for r in club.upcoming(db) if r.id not in mine_ids])
+    # G12 · weekly sessions of the learner's classes (private rooms, listed only to classmates)
+    from app.services.groups import learner_groups
+    near = club._now() + timedelta(minutes=club.EARLY_START_MIN)
+    class_rooms = [r for r in club.group_upcoming_rooms(db, [g.id for g in learner_groups(db, learner.id)]) if r.id not in mine_ids]
+    open_rooms = [_card(db, r, learner.id) for r in club.lobby(db) if r.id not in mine_ids]
+    open_rooms = [_card(db, r, learner.id) for r in class_rooms if r.scheduled_at <= near] + open_rooms
+    upcoming = [_card(db, r, learner.id) for r in class_rooms if r.scheduled_at > near] + [_card(db, r, learner.id) for r in club.upcoming(db) if r.id not in mine_ids]
+    upcoming.sort(key=lambda c: c.scheduled_at or c.created_at)
+    return LobbyOut(topics=[_topic_out(t["id"]) for t in club.TOPICS], open_rooms=open_rooms,
+                    my_rooms=[_card(db, r, learner.id) for r in mine], max_members=club.MAX_MEMBERS, upcoming_rooms=upcoming)
 
 
 @router.post("/rooms", response_model=RoomState)

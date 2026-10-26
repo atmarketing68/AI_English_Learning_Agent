@@ -352,15 +352,48 @@ def add_feedback(db: Session, group: Group, teacher: User, learner: LearnerProfi
 
 
 
+IELTS_CRITERIA = {"task": "Task Response", "coherence": "Coherence & Cohesion", "lexical": "Lexical Resource", "grammar": "Grammatical Range & Accuracy"}
+IELTS_CRITERIA_VI = {"task": "Đáp ứng đề", "coherence": "Mạch lạc & liên kết", "lexical": "Từ vựng", "grammar": "Ngữ pháp"}
+
+
+def ielts_overall(scores: list[float]) -> float:
+    """IELTS rounding of the mean: .25 rounds up to .5, .75 rounds up to the next whole band."""
+    import math
+    avg = sum(scores) / len(scores)
+    base = math.floor(avg)
+    frac = avg - base
+    return base + (0.0 if frac < 0.25 else 0.5 if frac < 0.75 else 1.0)
+
+
 def grade_writing(db: Session, group: Group, teacher: User, learner: LearnerProfile, submission, score: float | None,
-                  band: float | None = None, comment: str | None = None):
-    """G11 · Teacher re-grade of one writing piece; score None clears it. Notifies the learner through a feedback row."""
+                  band: float | None = None, comment: str | None = None, rubric: dict | None = None):
+    """G11 · Teacher re-grade of one writing piece; score None (and no rubric) clears it.
+    G12 · an IELTS rubric (4 criteria, 0–9 in steps of 0.5) sets the band; the /100 score defaults to band/9.
+    Notifies the learner through a feedback row."""
     from app.agents.writing_agent import EXAM_GENRES
 
     exam = (EXAM_GENRES.get(submission.genre or "") or {}).get("exam")
+    if rubric:
+        if exam != "ielts":
+            raise GroupError("Rubric 4 tiêu chí chỉ dùng cho bài IELTS.")
+        clean = {}
+        for key in IELTS_CRITERIA:
+            try:
+                v = float(rubric[key])
+            except (KeyError, TypeError, ValueError):
+                raise GroupError("Cần đủ 4 tiêu chí: đáp ứng đề, mạch lạc, từ vựng, ngữ pháp.")
+            if not (0 <= v <= 9 and v * 2 == int(v * 2)):
+                raise GroupError("Mỗi tiêu chí từ 0 đến 9, bước 0,5.")
+            clean[key] = v
+        band = ielts_overall(list(clean.values()))
+        if score is None:
+            score = round(band / 9 * 100)
+        submission.teacher_rubric = clean
+    elif score is not None:
+        submission.teacher_rubric = None
     if score is None:
         submission.teacher_score = submission.teacher_band = submission.teacher_comment = None
-        submission.teacher_user_id = submission.teacher_scored_at = None
+        submission.teacher_user_id = submission.teacher_scored_at = submission.teacher_rubric = None
         return None
     if not 0 <= score <= 100:
         raise GroupError("Điểm phải từ 0 đến 100.")
@@ -379,5 +412,7 @@ def grade_writing(db: Session, group: Group, teacher: User, learner: LearnerProf
     parts = [f"Điểm giáo viên chấm lại: {submission.teacher_score:g}/100"]
     if band is not None:
         parts.append(f"band {band:g}" if exam == "ielts" else f"TOEIC Writing {band:g}/200")
+    if submission.teacher_rubric:
+        parts.append(", ".join(f"{IELTS_CRITERIA_VI[k]} {v:g}" for k, v in submission.teacher_rubric.items()))
     text = " · ".join(parts) + (f"\n{submission.teacher_comment}" if submission.teacher_comment else "")
     return add_feedback(db, group, teacher, learner, text, "writing", submission.id, submission.prompt_title)

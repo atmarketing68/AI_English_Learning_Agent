@@ -7,8 +7,8 @@ import Link from 'next/link';
 import { ArrowLeft, Award, BookOpen, CircleAlert, ClipboardCheck, Flame, LoaderCircle, MessageSquarePlus, Mic, PenLine, Send, Star, Trash2, X } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import {
-  SKILL_LABELS, addMemberFeedback, deleteFeedback, getMemberDetail, getMemberWriting, gradeMemberWriting, issueCertificate,
-  type AssignmentSkill, type FeedbackTarget, type MemberDetail, type WritingDetail,
+  IELTS_CRITERIA, SKILL_LABELS, addMemberFeedback, deleteFeedback, getMemberDetail, getMemberWriting, gradeMemberWriting, issueCertificate,
+  type AssignmentSkill, type IeltsRubric, type FeedbackTarget, type MemberDetail, type WritingDetail,
 } from '@/lib/groupsService';
 import { formatEstimate, type ExamKind } from '@/lib/examsService';
 import { formatSpeakingEstimate } from '@/lib/speakingExamsService';
@@ -23,15 +23,39 @@ const TARGET_VI: Record<FeedbackTarget, string> = { general: 'Chung', lesson: 'B
 const day = (s: string | null) => (s ? new Date(s.endsWith('Z') ? s : `${s}Z`).toLocaleDateString('vi-VN') : '—');
 const errText = (err: unknown, fallback: string) => (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback;
 
-function WritingView({ w, onClose, onComment, onGrade }: { w: WritingDetail; onClose: () => void; onComment: () => void; onGrade: (score: number | null, band: number | null, comment: string) => Promise<void> }) {
+const BANDS = Array.from({ length: 19 }, (_, i) => i * 0.5);
+/** IELTS rounding of the mean (.25 → .5, .75 → next band) — same rule as the server. */
+function ieltsOverall(r: IeltsRubric): number {
+  const avg = (r.task + r.coherence + r.lexical + r.grammar) / 4;
+  const base = Math.floor(avg);
+  const frac = avg - base;
+  return base + (frac < 0.25 ? 0 : frac < 0.75 ? 0.5 : 1);
+}
+
+function WritingView({ w, onClose, onComment, onGrade }: { w: WritingDetail; onClose: () => void; onComment: () => void; onGrade: (score: number | null, band: number | null, comment: string, rubric?: IeltsRubric | null) => Promise<void> }) {
   const ev = w.evaluation as { strengths?: string[]; improvements?: string[]; grammar_errors?: { original?: string; corrected?: string; explanation_vi?: string }[]; corrected_version?: string; exam_band?: { overall?: number } };
   const [score, setScore] = useState(w.teacher_score != null ? String(w.teacher_score) : w.overall_score != null ? String(Math.round(w.overall_score)) : '');
   const [band, setBand] = useState(w.teacher_band != null ? String(w.teacher_band) : ev.exam_band?.overall != null ? String(ev.exam_band.overall) : '');
   const [comment, setComment] = useState(w.teacher_comment ?? '');
   const [saving, setSaving] = useState(false);
+  // G12 · IELTS: grade the 4 official criteria; the band follows, the /100 score defaults to band / 9
+  const isIelts = w.exam === 'ielts';
+  const aiCrit = (ev as { exam_band?: { criteria?: Record<string, number> } }).exam_band?.criteria ?? {};
+  const seed = (k: keyof IeltsRubric, aiKey: string) => w.teacher_rubric?.[k] ?? (typeof aiCrit[aiKey] === 'number' ? Math.round(aiCrit[aiKey] * 2) / 2 : 6);
+  const [useRubric, setUseRubric] = useState(isIelts);
+  const [rubric, setRubric] = useState<IeltsRubric>({
+    task: seed('task', 'task_response'), coherence: seed('coherence', 'coherence_cohesion'),
+    lexical: seed('lexical', 'lexical_resource'), grammar: seed('grammar', 'grammatical_range'),
+  });
+  const [scoreTouched, setScoreTouched] = useState(false);
+  const rubricBand = ieltsOverall(rubric);
   const save = async (clear = false) => {
     setSaving(true);
-    try { await onGrade(clear ? null : Number(score), clear || !w.exam || band === '' ? null : Number(band), clear ? '' : comment); } finally { setSaving(false); }
+    try {
+      if (clear) await onGrade(null, null, '');
+      else if (isIelts && useRubric) await onGrade(scoreTouched && score !== '' ? Number(score) : null, null, comment, rubric);
+      else await onGrade(Number(score), !w.exam || band === '' ? null : Number(band), comment);
+    } finally { setSaving(false); }
   };
   return (
     <section className="card member-writing">
@@ -47,6 +71,7 @@ function WritingView({ w, onClose, onComment, onGrade }: { w: WritingDetail; onC
         {w.overall_score != null && <span className="xp-badge">Điểm AI {Math.round(w.overall_score)}{w.grade ? ` · ${w.grade}` : ''}</span>}
         {ev.exam_band?.overall != null && <span className="xp-badge">Band AI {ev.exam_band.overall}</span>}
         {w.teacher_score != null && <span className="teacher-score">Giáo viên {w.teacher_score}{w.teacher_band != null ? ` · ${w.exam === 'ielts' ? 'band' : 'TOEIC'} ${w.teacher_band}` : ''}</span>}
+        {w.teacher_rubric && <span className="rubric-chips">{IELTS_CRITERIA.map(c => <span key={c.key}>{c.label} {w.teacher_rubric![c.key]}</span>)}</span>}
       </div>
       <div className="member-essay">{w.user_text}</div>
       {!!ev.grammar_errors?.length && (
@@ -61,11 +86,31 @@ function WritingView({ w, onClose, onComment, onGrade }: { w: WritingDetail; onC
 
       <form className="writing-grade" onSubmit={e => { e.preventDefault(); void save(); }}>
         <div style={{ fontWeight: 600, fontSize: '0.92rem' }}>Chấm lại (thay điểm AI khi học viên xem)</div>
-        <div className="writing-grade-row">
-          <label style={{ display: 'grid', gap: 4, fontSize: '0.8rem' }}>Điểm /100
-            <input className="form-input" type="number" min={0} max={100} step={0.5} value={score} onChange={e => setScore(e.target.value)} required aria-label="Điểm giáo viên" />
+        {isIelts && (
+          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
+            <input type="checkbox" checked={useRubric} onChange={e => setUseRubric(e.target.checked)} /> Chấm theo 4 tiêu chí IELTS
           </label>
-          {w.exam && (
+        )}
+        {isIelts && useRubric && (
+          <>
+            <div className="rubric-grid">
+              {IELTS_CRITERIA.map(c => (
+                <label key={c.key} style={{ display: 'grid', gap: 4, fontSize: '0.8rem' }}>{c.label}
+                  <select className="form-input" value={rubric[c.key]} onChange={e => setRubric(r => ({ ...r, [c.key]: Number(e.target.value) }))} aria-label={c.label}>
+                    {BANDS.map(b => <option key={b} value={b}>{b.toFixed(1)}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+            <div style={{ fontSize: '0.85rem' }}>Band tổng: <b>{rubricBand.toFixed(1)}</b> · điểm /100 mặc định {Math.round(rubricBand / 9 * 100)}</div>
+          </>
+        )}
+        <div className="writing-grade-row">
+          <label style={{ display: 'grid', gap: 4, fontSize: '0.8rem' }}>Điểm /100{isIelts && useRubric ? ' (tuỳ chọn)' : ''}
+            <input className="form-input" type="number" min={0} max={100} step={0.5} value={isIelts && useRubric && !scoreTouched ? String(Math.round(rubricBand / 9 * 100)) : score}
+              onChange={e => { setScore(e.target.value); setScoreTouched(true); }} required={!(isIelts && useRubric)} aria-label="Điểm giáo viên" />
+          </label>
+          {w.exam && !(isIelts && useRubric) && (
             <label style={{ display: 'grid', gap: 4, fontSize: '0.8rem' }}>{w.exam === 'ielts' ? 'Band IELTS (0–9)' : 'TOEIC Writing (0–200)'}
               <input className="form-input" type="number" min={0} max={w.exam === 'ielts' ? 9 : 200} step={w.exam === 'ielts' ? 0.5 : 10} value={band} onChange={e => setBand(e.target.value)} aria-label="Band giáo viên" />
             </label>
@@ -73,7 +118,7 @@ function WritingView({ w, onClose, onComment, onGrade }: { w: WritingDetail; onC
         </div>
         <textarea className="form-input" rows={2} maxLength={2000} value={comment} onChange={e => setComment(e.target.value)} placeholder="Nhận xét kèm điểm (tuỳ chọn)" aria-label="Nhận xét khi chấm" />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="submit" className="btn btn-primary btn-sm" disabled={saving || score === ''}>{saving ? <LoaderCircle className="animate-spin" size={14} /> : <Star size={14} />} Lưu điểm & báo học viên</button>
+          <button type="submit" className="btn btn-primary btn-sm" disabled={saving || (score === '' && !(isIelts && useRubric))}>{saving ? <LoaderCircle className="animate-spin" size={14} /> : <Star size={14} />} Lưu điểm & báo học viên</button>
           {w.teacher_score != null && <button type="button" className="btn btn-ghost btn-sm" disabled={saving} onClick={() => save(true)}>Bỏ điểm giáo viên</button>}
           <button type="button" className="btn btn-ghost btn-sm" onClick={onComment}><MessageSquarePlus size={14} /> Chỉ nhận xét</button>
         </div>
@@ -131,13 +176,13 @@ export default function MemberDetailPage() {
       await load();
     } catch (err) { setCertMsg(errText(err, 'Chưa cấp được chứng nhận.')); } finally { setBusy(false); }
   };
-  const gradeWriting = async (score: number | null, band: number | null, note: string) => {
+  const gradeWriting = async (score: number | null, band: number | null, note: string, rubric?: IeltsRubric | null) => {
     if (!writing) return;
     setError('');
     try {
-      const updated = await gradeMemberWriting(groupId, learnerId, writing.id, { score, band, comment: note || null });
+      const updated = await gradeMemberWriting(groupId, learnerId, writing.id, { score, band, comment: note || null, rubric: rubric ?? null });
       setWriting(updated);
-      track('writing_regraded', { cleared: score == null, exam: updated.exam ?? null });
+      track(rubric ? 'writing_rubric_graded' : 'writing_regraded', { cleared: score == null && !rubric, exam: updated.exam ?? null });
       await load();
     } catch (err) { setError(errText(err, 'Chưa lưu được điểm.')); }
   };

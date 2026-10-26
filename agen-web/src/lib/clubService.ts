@@ -14,6 +14,9 @@ export interface RoomCard {
   created_at: string;
   /** G11 · booked session time (UTC, no zone suffix) */
   scheduled_at?: string | null;
+  /** G12 · weekly class session */
+  group_name?: string | null;
+  registered?: boolean;
 }
 
 export interface ClubLobby {
@@ -69,7 +72,8 @@ export const createRoom = async (topic_id: string, is_public = true, scheduled_a
 
 /** API times are UTC without a zone suffix. */
 export const utcDate = (s: string) => new Date(/(?:[zZ]|[+-]\d\d:\d\d)$/.test(s) ? s : `${s}Z`);
-export const formatSlot = (s: string) => utcDate(s).toLocaleString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+/** Club sessions are planned in Vietnam time (like the weekly class slots), so show them in that zone everywhere. */
+export const formatSlot = (s: string) => utcDate(s).toLocaleString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
 export const joinRoom = async (code: string): Promise<RoomState> => (await api.post('/club/rooms/join', { code })).data;
 export const getRoom = async (roomId: string, after = 0): Promise<RoomState> => (await api.get(`/club/rooms/${roomId}`, { params: { after } })).data;
 export const startRoom = async (roomId: string): Promise<RoomState> => (await api.post(`/club/rooms/${roomId}/start`)).data;

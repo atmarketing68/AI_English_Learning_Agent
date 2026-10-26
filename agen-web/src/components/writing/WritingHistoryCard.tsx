@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { GraduationCap, PenLine } from 'lucide-react';
 import { getWritingHistory, type WritingHistoryItem } from '@/lib/writingApiService';
 
+const RUBRIC = [['task', 'Đáp ứng đề'], ['coherence', 'Mạch lạc'], ['lexical', 'Từ vựng'], ['grammar', 'Ngữ pháp']] as const;
 const day = (s: string) => new Date(/(?:[zZ]|[+-]\d\d:\d\d)$/.test(s) ? s : `${s}Z`).toLocaleDateString('vi-VN');
 
 export default function WritingHistoryCard() {
@@ -21,6 +22,11 @@ export default function WritingHistoryCard() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600 }}>{w.prompt_title}</div>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{day(w.created_at)} · {w.word_count} từ · AI: {w.band != null ? `band ${w.band}` : w.overall_score != null ? Math.round(w.overall_score) : '—'}</div>
+              {w.teacher_rubric && (
+                <div className="rubric-chips">
+                  {RUBRIC.map(([k, label]) => <span key={k}>{label} {w.teacher_rubric![k]}</span>)}
+                </div>
+              )}
               {w.teacher_comment && <div style={{ fontSize: '0.85rem', marginTop: 4, whiteSpace: 'pre-line' }}>“{w.teacher_comment}”</div>}
             </div>
             {w.teacher_score != null

@@ -189,6 +189,9 @@ def scheduled_content_factory(
 
     summary = generate_missing_content(db, limit=limit)
     summary["coverage"] = content_coverage(db)
+    # G12 · keep a few AI podcast drafts waiting for review (off unless PODCAST_AUTO_DRAFTS > 0)
+    from app.services.podcast_generator import run_auto_drafts
+    summary["podcasts"] = run_auto_drafts(db)
     return summary
 
 
@@ -516,13 +519,18 @@ class AdminOrder(BaseModel):
     amount_foreign: Optional[int] = None
     refunded_at: Optional[datetime] = None
     refund_note: Optional[str] = None
+    # G12 · e-invoice
+    einvoice_no: Optional[str] = None
+    einvoice_lookup_code: Optional[str] = None
+    einvoice_error: Optional[str] = None
 
 
 def _admin_order(o: PaymentOrder, email, role) -> AdminOrder:
     return AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
                       amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
                       invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at, currency=o.currency or "VND",
-                      amount_foreign=o.amount_foreign, refunded_at=o.refunded_at, refund_note=o.refund_note)
+                      amount_foreign=o.amount_foreign, refunded_at=o.refunded_at, refund_note=o.refund_note,
+                      einvoice_no=o.einvoice_no, einvoice_lookup_code=o.einvoice_lookup_code, einvoice_error=o.einvoice_error)
 
 
 @router.get("/revenue/orders", response_model=list[AdminOrder])
@@ -559,6 +567,34 @@ def mark_invoice_issued(
         raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
     o, email, role = row
     o.invoice_issued_at = datetime.utcnow() if payload.issued else None
+    db.commit()
+    return _admin_order(o, email, role)
+
+
+@router.get("/einvoice/status")
+def einvoice_status(current_user: User = Depends(get_current_user)):
+    """G12 · Whether e-invoices can be issued from the orders table."""
+    _require_admin(current_user)
+    from app.services import einvoice
+    return {"enabled": einvoice.enabled(), "provider": settings.EINVOICE_PROVIDER or None, "auto": settings.EINVOICE_AUTO,
+            "tax_percent": settings.EINVOICE_TAX_PERCENT, "template": settings.VIETTEL_SINVOICE_TEMPLATE_CODE or None,
+            "series": settings.VIETTEL_SINVOICE_SERIES or None}
+
+
+@router.post("/revenue/orders/{order_id}/einvoice", response_model=AdminOrder)
+def issue_einvoice(order_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G12 · Issue the electronic invoice of a paid order on Viettel S-Invoice."""
+    _require_admin(current_user)
+    from app.services import einvoice
+    row = db.query(PaymentOrder, User.email, User.role).join(User, User.id == PaymentOrder.user_id).filter(PaymentOrder.id == order_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
+    o, email, role = row
+    try:
+        einvoice.issue(db, o)
+    except einvoice.EInvoiceError as exc:
+        db.commit()                        # keep the error on the order
+        raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
     return _admin_order(o, email, role)
 
@@ -707,6 +743,7 @@ class GeneratedEpisodeOut(BaseModel):
     eval_flagged: Optional[bool]
     created_at: datetime
     approved_at: Optional[datetime]
+    auto: bool = False
 
 
 class GeneratePodcastIn(BaseModel):
@@ -728,7 +765,7 @@ def _ep_out(r) -> GeneratedEpisodeOut:
     return GeneratedEpisodeOut(id=r.id, public_id=public_id(r), level=r.level, topic=r.topic, title=r.title, title_vi=c.get("title_vi", ""),
                                status=r.status, lines=len(c.get("lines", [])), questions=len(c.get("questions", [])), youtube_id=r.youtube_id,
                                video_start=r.video_start, video_end=r.video_end, eval_score=r.eval_score, eval_flagged=r.eval_flagged,
-                               created_at=r.created_at, approved_at=r.approved_at)
+                               created_at=r.created_at, approved_at=r.approved_at, auto=bool(r.auto))
 
 
 def _episode_row(db: Session, episode_id: str):
