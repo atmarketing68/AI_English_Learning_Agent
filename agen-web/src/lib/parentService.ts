@@ -65,6 +65,11 @@ export interface ParentSettings {
   email_available: boolean;
   email_address: string;
   last_weekly_report_week: string | null;
+  // G7 · web push to the parent's devices
+  push_alerts: boolean;
+  push_available: boolean;
+  push_public_key: string | null;
+  push_devices: number;
 }
 
 export async function getParentSettings(): Promise<ParentSettings> {
@@ -72,7 +77,43 @@ export async function getParentSettings(): Promise<ParentSettings> {
   return res.data;
 }
 
-export async function updateParentSettings(payload: { weekly_report_email: boolean }): Promise<ParentSettings> {
+export async function updateParentSettings(payload: { weekly_report_email?: boolean; push_alerts?: boolean }): Promise<ParentSettings> {
   const res = await api.put('/parent/settings', payload);
   return res.data;
+}
+
+// ── G7 · push on this device (parents) ───────────────────────────────────────
+function keyToBytes(base64url: string): Uint8Array<ArrayBuffer> {
+  const padded = (base64url + '='.repeat((4 - (base64url.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(padded);
+  const bytes = new Uint8Array(new ArrayBuffer(raw.length));
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  return bytes;
+}
+
+export class ParentPushDeniedError extends Error {}
+
+export function parentPushSupported(): boolean {
+  return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+export async function enableParentPush(publicKey: string): Promise<ParentSettings> {
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') throw new ParentPushDeniedError('denied');
+  const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  await navigator.serviceWorker.ready;
+  const sub = (await reg.pushManager.getSubscription())
+    ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(publicKey) }));
+  const json = sub.toJSON();
+  const { data } = await api.post('/parent/push-subscriptions', { endpoint: json.endpoint, keys: json.keys });
+  return data;
+}
+
+export async function disableParentPush(): Promise<ParentSettings | null> {
+  const reg = await navigator.serviceWorker.getRegistration('/');
+  const sub = await reg?.pushManager.getSubscription();
+  if (!sub) return null;
+  const { data } = await api.delete('/parent/push-subscriptions', { data: { endpoint: sub.endpoint } });
+  await sub.unsubscribe();
+  return data;
 }

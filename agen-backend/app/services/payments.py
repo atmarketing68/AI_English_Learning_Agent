@@ -29,7 +29,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.payment_order import STATUS_FAILED, STATUS_PAID, STATUS_PENDING, PaymentOrder
-from app.models.subscription import PLAN_FAMILY, PLAN_PREMIUM, Subscription
+from app.models.subscription import PLAN_FAMILY, PLAN_PREMIUM, PLAN_TEAM, Subscription
 from app.services import subscription_service as subs
 
 logger = logging.getLogger("agen.payments")
@@ -39,10 +39,19 @@ PRICES_VND: dict[int, int] = {1: 99_000, 3: 249_000, 12: 799_000}
 # G5 · Gói gia đình: one parent pays, up to FAMILY_MAX_CHILDREN linked children are Premium.
 FAMILY_PRICES_VND: dict[int, int] = {1: 179_000, 12: 1_490_000}
 FAMILY_MAX_CHILDREN = 4
+# G7 · Gói doanh nghiệp / lớp học: per seat; group members of the owner are Premium.
+TEAM_PRICES_VND: dict[int, int] = {1: 79_000, 12: 690_000}
+TEAM_MIN_SEATS = 5
+TEAM_MAX_SEATS = 500
 TRIAL_DAYS = 7
 
 
-def price_for(plan: str, months: int) -> int | None:
+def price_for(plan: str, months: int, seats: int = 1) -> int | None:
+    if plan == PLAN_TEAM:
+        unit = TEAM_PRICES_VND.get(months)
+        if unit is None or not (TEAM_MIN_SEATS <= seats <= TEAM_MAX_SEATS):
+            return None
+        return unit * seats
     table = FAMILY_PRICES_VND if plan == PLAN_FAMILY else PRICES_VND
     return table.get(months)
 
@@ -69,14 +78,23 @@ def providers() -> list[str]:
     return out
 
 
+def _plan_label(order: PaymentOrder) -> str:
+    if order.plan == PLAN_FAMILY:
+        return "Gia dinh"
+    if order.plan == PLAN_TEAM:
+        return f"Doanh nghiep {order.seats} ghe"
+    return "Premium"
+
+
 # ── Orders ───────────────────────────────────────────────────────────────────
-def create_order(db: Session, user_id: str, provider: str, months: int, plan: str = PLAN_PREMIUM) -> PaymentOrder:
-    amount = price_for(plan, months)
+def create_order(db: Session, user_id: str, provider: str, months: int, plan: str = PLAN_PREMIUM, seats: int = 1) -> PaymentOrder:
+    seats = seats if plan == PLAN_TEAM else 1
+    amount = price_for(plan, months, seats)
     if amount is None:
         raise PaymentError("Gói không hợp lệ.")
     if provider not in providers():
         raise PaymentError("Cổng thanh toán này chưa được bật.")
-    order = PaymentOrder(user_id=user_id, provider=provider, plan=plan, months=months, amount_vnd=amount)
+    order = PaymentOrder(user_id=user_id, provider=provider, plan=plan, months=months, seats=seats, amount_vnd=amount)
     db.add(order)
     db.flush()
     return order
@@ -90,7 +108,7 @@ def mark_paid(db: Session, order: PaymentOrder, provider_txn: str | None, callba
     order.provider_txn = (provider_txn or "")[:120] or None
     order.callback = callback
     order.paid_at = datetime.now(timezone.utc).replace(tzinfo=None)
-    sub = subs.upgrade_to_premium(db, order.user_id, months=order.months, plan=order.plan or PLAN_PREMIUM)
+    sub = subs.upgrade_to_premium(db, order.user_id, months=order.months, plan=order.plan or PLAN_PREMIUM, seats=order.seats or 1)
     sub.provider = order.provider
     sub.provider_ref = order.id
     db.commit()
@@ -142,7 +160,7 @@ def vnpay_pay_url(order: PaymentOrder, client_ip: str, return_url: str, now: dat
         "vnp_Amount": str(order.amount_vnd * 100),
         "vnp_CurrCode": "VND",
         "vnp_TxnRef": order.id,
-        "vnp_OrderInfo": f"AGEN {'Gia dinh' if order.plan == PLAN_FAMILY else 'Premium'} {order.months} thang",
+        "vnp_OrderInfo": f"AGEN {_plan_label(order)} {order.months} thang",
         "vnp_OrderType": "other",
         "vnp_Locale": "vn",
         "vnp_ReturnUrl": return_url,
@@ -193,7 +211,7 @@ def _momo_sign(raw: str) -> str:
 
 def momo_create_request(order: PaymentOrder, redirect_url: str, ipn_url: str) -> dict:
     request_id = order.id
-    order_info = f"AGEN {'Gia dinh' if order.plan == PLAN_FAMILY else 'Premium'} {order.months} thang"
+    order_info = f"AGEN {_plan_label(order)} {order.months} thang"
     extra = ""
     raw = (
         f"accessKey={settings.MOMO_ACCESS_KEY}&amount={order.amount_vnd}&extraData={extra}"
@@ -272,7 +290,7 @@ def new_id() -> str:
 
 
 __all__ = [
-    "PRICES_VND", "FAMILY_PRICES_VND", "FAMILY_MAX_CHILDREN", "price_for", "TRIAL_DAYS", "PaymentError", "providers", "vnpay_enabled", "momo_enabled",
+    "PRICES_VND", "FAMILY_PRICES_VND", "FAMILY_MAX_CHILDREN", "TEAM_PRICES_VND", "TEAM_MIN_SEATS", "TEAM_MAX_SEATS", "price_for", "TRIAL_DAYS", "PaymentError", "providers", "vnpay_enabled", "momo_enabled",
     "create_order", "mark_paid", "mark_failed", "trial_available", "start_trial",
     "vnpay_pay_url", "vnpay_verify", "handle_vnpay_callback",
     "momo_create_request", "momo_pay_url", "momo_verify", "handle_momo_ipn", "status_of", "new_id", "json",

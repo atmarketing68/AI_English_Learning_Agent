@@ -30,7 +30,8 @@ class SubscriptionOut(BaseModel):
     is_premium: bool
     current_period_end: datetime | None
     provider: str | None = None
-    premium_source: str | None = None     # G5 · "own" | "family" | None
+    premium_source: str | None = None     # G5 · "own" | "family" | "team" | None
+    seats: int = 1                        # G7 · team plan seats
 
 
 class QuotaOut(BaseModel):
@@ -44,7 +45,8 @@ class QuotaOut(BaseModel):
 
 class UpgradeRequest(BaseModel):
     months: int = Field(default=1, ge=1, le=12)
-    plan: str = Field(default="premium", pattern="^(premium|family)$")
+    plan: str = Field(default="premium", pattern="^(premium|family|team)$")
+    seats: int = Field(default=1, ge=1, le=500)      # G7 · team plan only
 
 
 class PriceOut(BaseModel):
@@ -62,12 +64,19 @@ class BillingOptions(BaseModel):
     family_prices: list[PriceOut] = []
     family_max_children: int = 4
     can_buy_family: bool = False      # only parent accounts
+    # G7 · gói doanh nghiệp / lớp học (tính theo ghế)
+    team_prices: list[PriceOut] = []
+    team_min_seats: int = 5
+    team_max_seats: int = 500
+    can_buy_team: bool = False        # only teacher accounts
+    seats: int = 1
 
 
 class CheckoutRequest(BaseModel):
     months: int = Field(ge=1, le=12)
     provider: str = Field(pattern="^(vnpay|momo)$")
-    plan: str = Field(default="premium", pattern="^(premium|family)$")
+    plan: str = Field(default="premium", pattern="^(premium|family|team)$")
+    seats: int = Field(default=1, ge=1, le=500)
 
 
 class CheckoutOut(BaseModel):
@@ -80,6 +89,7 @@ class OrderOut(BaseModel):
     order_id: str
     provider: str
     plan: str = "premium"
+    seats: int = 1
     months: int
     amount_vnd: int
     status: str
@@ -95,6 +105,7 @@ def _sub_out(db: Session, user_id: str) -> SubscriptionOut:
         current_period_end=sub.current_period_end,
         provider=sub.provider,
         premium_source=source,
+        seats=sub.seats or 1,
     )
 
 
@@ -110,6 +121,10 @@ def _check_plan_for_user(user: User, plan: str) -> None:
         raise HTTPException(status_code=400, detail="Gói gia đình dành cho tài khoản phụ huynh.")
     if plan == "premium" and user.role == "parent":
         raise HTTPException(status_code=400, detail="Tài khoản phụ huynh mua gói gia đình để các con được Premium.")
+    if plan == "team" and user.role != "teacher":
+        raise HTTPException(status_code=400, detail="Gói doanh nghiệp / lớp học dành cho tài khoản giáo viên hoặc doanh nghiệp.")
+    if plan == "premium" and user.role == "teacher":
+        raise HTTPException(status_code=400, detail="Tài khoản giáo viên / doanh nghiệp mua gói theo ghế để thành viên nhóm được Premium.")
 
 
 def _app_redirect(status: str, order_id: str) -> RedirectResponse:
@@ -153,6 +168,11 @@ def billing_options(
         family_prices=[PriceOut(months=m, amount_vnd=a) for m, a in payments.FAMILY_PRICES_VND.items()],
         family_max_children=payments.FAMILY_MAX_CHILDREN,
         can_buy_family=current_user.role == "parent",
+        team_prices=[PriceOut(months=m, amount_vnd=a) for m, a in payments.TEAM_PRICES_VND.items()],
+        team_min_seats=payments.TEAM_MIN_SEATS,
+        team_max_seats=payments.TEAM_MAX_SEATS,
+        can_buy_team=current_user.role == "teacher",
+        seats=subs.get_or_create_subscription(db, current_user.id).seats or 1,
     )
 
 
@@ -183,7 +203,7 @@ def checkout(
         raise HTTPException(status_code=403, detail="Hãy lưu tài khoản trước khi thanh toán.")
     _check_plan_for_user(current_user, payload.plan)
     try:
-        order = payments.create_order(db, current_user.id, payload.provider, payload.months, plan=payload.plan)
+        order = payments.create_order(db, current_user.id, payload.provider, payload.months, plan=payload.plan, seats=payload.seats)
         base = _api_base(request)
         if payload.provider == "vnpay":
             pay_url = payments.vnpay_pay_url(order, client_ip(request), f"{base}/api/v1/billing/vnpay/return")
@@ -206,7 +226,7 @@ def get_order(
     order = db.query(PaymentOrder).filter(PaymentOrder.id == order_id, PaymentOrder.user_id == current_user.id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
-    return OrderOut(order_id=order.id, provider=order.provider, plan=order.plan or "premium", months=order.months, amount_vnd=order.amount_vnd, status=order.status)
+    return OrderOut(order_id=order.id, provider=order.provider, plan=order.plan or "premium", seats=order.seats or 1, months=order.months, amount_vnd=order.amount_vnd, status=order.status)
 
 
 # ── Gateway callbacks (no login) ──────────────────────────────────────────────
@@ -253,7 +273,9 @@ def upgrade(
             detail="Thanh toán trực tuyến đang được tích hợp. Vui lòng quay lại sau.",
         )
     _check_plan_for_user(current_user, payload.plan)
-    subs.upgrade_to_premium(db, current_user.id, months=payload.months, plan=payload.plan)
+    if payload.plan == "team" and not (payments.TEAM_MIN_SEATS <= payload.seats <= payments.TEAM_MAX_SEATS):
+        raise HTTPException(status_code=400, detail=f"Gói theo ghế từ {payments.TEAM_MIN_SEATS} đến {payments.TEAM_MAX_SEATS} ghế.")
+    subs.upgrade_to_premium(db, current_user.id, months=payload.months, plan=payload.plan, seats=payload.seats)
     return _sub_out(db, current_user.id)
 
 

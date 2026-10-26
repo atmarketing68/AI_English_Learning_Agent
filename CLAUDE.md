@@ -43,6 +43,11 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
 - G6: bạn học `services/friends.py` (1 dòng/cặp, `a_id < b_id`, thử thách đôi tính từ `league.weekly_xp`); giọng Bo
   `/audio/tts?lang=vi` → web `playVietnamese()` trong `lib/speechService.ts`; báo cáo in `app/parent/report/[learnerId]`
   (CSS `@media print` ở cuối `globals.css`); gói gia đình chỉ phủ `subscription_service.covered_children()` (4 con đầu).
+- G7: vai trò `teacher` (không có learner/parent profile) sở hữu `Group` (`services/groups.py`); bài tập hoàn thành khi
+  `lessons.finish_lesson` gọi `groups.mark_done_on_finish` (bài tập đã start, cùng kỹ năng, cũ nhất trước). Gói theo ghế
+  `plan=team` + `Subscription.seats`, phủ `subscription_service.team_covered_learners()`. Push phụ huynh:
+  `PushSubscription.user_id` (learner_id có thể null), gửi trong `parent_digest.run_parent_digests` qua `reminders.push_to_user`.
+  Web: trang chủ nhóm `app/teacher`, học viên `app/classes`, `/learn?assignment=<id>`.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

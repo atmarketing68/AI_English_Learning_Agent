@@ -167,3 +167,36 @@ def claim(db: Session, learner: LearnerProfile, friend_id: str, today: date | No
 def next_week_starts(today: date | None = None) -> date:
     today = today or local_today()
     return week_bounds(today)[1] + timedelta(days=1)
+
+
+@dataclass
+class LeaderRow:
+    learner_id: str
+    display_name: str
+    avatar: dict
+    level: str
+    weekly_xp: int
+    streak: int
+    is_me: bool
+    rank: int = 0
+
+
+def leaderboard(db: Session, learner: LearnerProfile, today: date | None = None) -> list[LeaderRow]:
+    """G7 · Me and my friends ranked by this week's XP (ties: longer streak first)."""
+    from app.services.shop import avatar_of
+
+    today = today or local_today()
+    monday, sunday = week_bounds(today)
+    rows = _rows(db, learner.id)
+    ids = {learner.id} | {r.a_id for r in rows} | {r.b_id for r in rows}
+    xp = weekly_xp(db, monday, sunday, list(ids))
+    profiles = db.query(LearnerProfile).filter(LearnerProfile.id.in_(list(ids))).all()
+    out = [
+        LeaderRow(learner_id=p.id, display_name=p.display_name or "Bạn học", avatar=avatar_of(p), level=p.overall_level or "A1",
+                  weekly_xp=xp.get(p.id, 0), streak=effective_streak(p), is_me=p.id == learner.id)
+        for p in profiles
+    ]
+    out.sort(key=lambda r: (-r.weekly_xp, -r.streak, r.display_name))
+    for i, r in enumerate(out, start=1):
+        r.rank = i
+    return out

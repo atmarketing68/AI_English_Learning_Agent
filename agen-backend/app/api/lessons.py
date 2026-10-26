@@ -922,6 +922,9 @@ def finish_lesson(
     # ── Update curriculum progress if this lesson maps to a curriculum node ──
     _update_curriculum_progress(db, learner.id, lesson, result["score"])
     _update_track_progress(db, learner.id, lesson, result["score"])
+    # G7 · group assignment of this skill that the learner had started
+    from app.services.groups import mark_done_on_finish
+    mark_done_on_finish(db, learner.id, lesson.skill, lesson.id, result["score"])
 
     # Words from this lesson go into the learner's notebook for spaced review
     words_saved = collect_lesson_vocabulary(db, learner.id, lesson, datetime.utcnow())

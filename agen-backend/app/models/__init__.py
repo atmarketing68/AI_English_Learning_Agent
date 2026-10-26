@@ -23,6 +23,7 @@ from app.models.payment_order import PaymentOrder
 from app.models.goal_track import GoalTrackProgress
 from app.models.league_membership import LeagueMembership
 from app.models.friendship import Friendship
+from app.models.group import Group, GroupMember, GroupAssignment, GroupAssignmentDone
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -43,4 +44,5 @@ __all__ = [
     "GoalTrackProgress",
     "LeagueMembership",
     "Friendship",
+    "Group", "GroupMember", "GroupAssignment", "GroupAssignmentDone",
 ]

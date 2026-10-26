@@ -45,6 +45,17 @@ class FriendsOut(BaseModel):
     friends: list[FriendOut]
 
 
+class LeaderRowOut(BaseModel):
+    rank: int
+    learner_id: str
+    display_name: str
+    avatar: dict
+    level: str
+    weekly_xp: int
+    streak: int
+    is_me: bool
+
+
 class AddFriendIn(BaseModel):
     code: str = Field(min_length=3, max_length=20)
 
@@ -75,6 +86,12 @@ def _out(db: Session, learner: LearnerProfile) -> FriendsOut:
 @router.get("", response_model=FriendsOut)
 def list_friends(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _out(db, _learner(db, current_user))
+
+
+@router.get("/leaderboard", response_model=list[LeaderRowOut])
+def friends_leaderboard(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G7 · Bảng xếp hạng bạn bè: XP tuần này của tôi và các bạn học."""
+    return [LeaderRowOut(**r.__dict__) for r in svc.leaderboard(db, _learner(db, current_user))]
 
 
 @router.post("", response_model=FriendsOut)

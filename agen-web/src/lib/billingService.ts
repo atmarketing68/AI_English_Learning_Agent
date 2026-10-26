@@ -5,16 +5,18 @@
 import api from './api';
 
 export interface SubscriptionInfo {
-  plan: 'free' | 'premium' | 'family';
+  plan: 'free' | 'premium' | 'family' | 'team';
   status: 'active' | 'canceled' | 'expired';
   is_premium: boolean;
   current_period_end: string | null;
   provider?: string | null;
   /** G5 · 'own' (paid/trial on this account), 'family' (via a parent's family plan) or null. */
-  premium_source?: 'own' | 'family' | null;
+  premium_source?: 'own' | 'family' | 'team' | null;
+  /** G7 · team plan seats */
+  seats?: number;
 }
 
-export type PlanKind = 'premium' | 'family';
+export type PlanKind = 'premium' | 'family' | 'team';
 
 // G3 · real checkout + trial
 export type PaymentProvider = 'vnpay' | 'momo';
@@ -29,6 +31,12 @@ export interface BillingOptions {
   family_prices: { months: number; amount_vnd: number }[];
   family_max_children: number;
   can_buy_family: boolean;
+  // G7 · gói theo ghế cho lớp học / doanh nghiệp
+  team_prices: { months: number; amount_vnd: number }[];
+  team_min_seats: number;
+  team_max_seats: number;
+  can_buy_team: boolean;
+  seats: number;
 }
 
 export interface CheckoutResult {
@@ -41,6 +49,7 @@ export interface OrderInfo {
   order_id: string;
   provider: PaymentProvider;
   plan: PlanKind;
+  seats: number;
   months: number;
   amount_vnd: number;
   status: 'pending' | 'paid' | 'failed';
@@ -48,8 +57,8 @@ export interface OrderInfo {
 
 export const getBillingOptions = async (): Promise<BillingOptions> => (await api.get('/billing/options')).data;
 export const startPremiumTrial = async (): Promise<SubscriptionInfo> => (await api.post('/billing/trial')).data;
-export const checkout = async (months: number, provider: PaymentProvider, plan: PlanKind = 'premium'): Promise<CheckoutResult> =>
-  (await api.post('/billing/checkout', { months, provider, plan })).data;
+export const checkout = async (months: number, provider: PaymentProvider, plan: PlanKind = 'premium', seats = 1): Promise<CheckoutResult> =>
+  (await api.post('/billing/checkout', { months, provider, plan, seats })).data;
 export const getOrder = async (orderId: string): Promise<OrderInfo> => (await api.get(`/billing/orders/${orderId}`)).data;
 
 export interface QuotaInfo {
@@ -71,8 +80,8 @@ export const getQuota = async (): Promise<QuotaInfo> => {
   return res.data;
 };
 
-export const upgradeToPremium = async (months: number = 1, plan: PlanKind = 'premium'): Promise<SubscriptionInfo> => {
-  const res = await api.post('/billing/upgrade', { months, plan });
+export const upgradeToPremium = async (months: number = 1, plan: PlanKind = 'premium', seats = 1): Promise<SubscriptionInfo> => {
+  const res = await api.post('/billing/upgrade', { months, plan, seats });
   return res.data;
 };
 

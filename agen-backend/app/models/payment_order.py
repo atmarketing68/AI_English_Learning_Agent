@@ -20,6 +20,7 @@ class PaymentOrder(Base):
     provider = Column(String(20), nullable=False)            # vnpay | momo
     plan = Column(String(20), nullable=False, default="premium", server_default="premium")   # premium | family (G5)
     months = Column(Integer, nullable=False)
+    seats = Column(Integer, nullable=False, default=1, server_default="1")      # G7 · team plan seats
     amount_vnd = Column(Integer, nullable=False)
     status = Column(String(20), nullable=False, default=STATUS_PENDING)
 

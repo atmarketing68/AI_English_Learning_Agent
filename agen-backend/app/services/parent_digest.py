@@ -24,13 +24,18 @@ from app.models.parent import ParentChildLink, ParentProfile
 from app.models.user import User
 from app.services.engagement import week_key
 from app.services.parent_reports import build_child_report
-from app.services.reminders import deliver_email
+from app.services.reminders import ReminderMessage, deliver_email, push_to_user
+from app.services.streak_service import effective_streak
 
 logger = logging.getLogger("agen.parent_digest")
 
 WEEKLY_SEND_WEEKDAY = 6      # Sunday
 WEEKLY_SEND_HOUR = 18        # from 18:00 local; the hourly job catches it the same evening
 INACTIVE_AFTER_DAYS = 2
+# G7 · "streak at risk" push window (local hours): the child has a streak but has not studied today.
+STREAK_ALERT_FROM_HOUR = 19
+STREAK_ALERT_TO_HOUR = 21
+STREAK_ALERT_MIN_STREAK = 3
 
 
 def _report_html(report: dict) -> str:
@@ -97,13 +102,31 @@ def send_inactivity_alert(db: Session, parent: ParentProfile, user: User, learne
     return deliver_email(user.email, title, _wrap(title, body, "Xem tiến bộ của con"), text)
 
 
+def push_weekly_ready(db: Session, parent: ParentProfile, user: User, names: str) -> int:
+    if not parent.push_alerts:
+        return 0
+    return push_to_user(db, user.id, ReminderMessage(title=f"📊 Báo cáo tuần của {names} đã sẵn sàng", body="Xem con tiến bộ gì, cần hỗ trợ gì và bố mẹ nên làm gì tuần tới.", url="/parent"), tag="parent-weekly")
+
+
+def push_inactivity(db: Session, parent: ParentProfile, user: User, learner: LearnerProfile, days: int) -> int:
+    if not parent.push_alerts:
+        return 0
+    return push_to_user(db, user.id, ReminderMessage(title=f"😴 {learner.display_name} đã nghỉ học {days} ngày", body="Một bài 10 phút hôm nay là đủ để quay lại nhịp. Nhắc con nhé!", url="/parent"), tag="parent-inactive")
+
+
+def push_streak_at_risk(db: Session, parent: ParentProfile, user: User, learner: LearnerProfile, streak: int) -> int:
+    if not parent.push_alerts:
+        return 0
+    return push_to_user(db, user.id, ReminderMessage(title=f"🔥 Chuỗi {streak} ngày của {learner.display_name} sắp mất", body="Con chưa học hôm nay. Một bài ngắn trước khi đi ngủ là giữ được chuỗi.", url="/parent"), tag="parent-streak")
+
+
 def run_parent_digests(db: Session, now: datetime | None = None) -> dict:
-    """Send what is due right now. Returns counters for the scheduler log."""
+    """Send what is due right now (e-mail and/or push). Returns counters for the scheduler log."""
     now = now or datetime.now(timezone.utc)
     now_local = now.astimezone(LEARNER_TZ)
     today: date = now_local.date()
-    stats = {"email_enabled": settings.email_enabled, "parents": 0, "weekly_sent": 0, "alerts_sent": 0}
-    if not settings.email_enabled:
+    stats = {"email_enabled": settings.email_enabled, "push_enabled": settings.push_enabled, "parents": 0, "weekly_sent": 0, "alerts_sent": 0, "push_sent": 0}
+    if not settings.email_enabled and not settings.push_enabled:
         return stats
 
     parents = (
@@ -113,18 +136,34 @@ def run_parent_digests(db: Session, now: datetime | None = None) -> dict:
         .all()
     )
     weekly_window = now_local.weekday() == WEEKLY_SEND_WEEKDAY and now_local.hour >= WEEKLY_SEND_HOUR
+    streak_window = STREAK_ALERT_FROM_HOUR <= now_local.hour < STREAK_ALERT_TO_HOUR
     this_week = week_key(today)
 
     for parent, user in parents:
         stats["parents"] += 1
-        if parent.weekly_report_email and weekly_window and parent.last_weekly_report_week != this_week:
-            if send_weekly_report(db, parent, user, now):
+        children = _children(db, parent)
+        if weekly_window and parent.last_weekly_report_week != this_week and children:
+            sent_email = settings.email_enabled and parent.weekly_report_email and send_weekly_report(db, parent, user, now)
+            pushed = push_weekly_ready(db, parent, user, ", ".join(l.display_name for _, l in children)) if settings.push_enabled else 0
+            if sent_email or pushed:
                 parent.last_weekly_report_week = this_week
-                stats["weekly_sent"] += 1
+                stats["weekly_sent"] += 1 if sent_email else 0
+                stats["push_sent"] += pushed
                 db.commit()
 
-        for link, learner in _children(db, parent):
-            if not learner.last_active_at or not parent.weekly_report_email:
+        for link, learner in children:
+            # Streak at risk tonight (push only, once per day per child).
+            if settings.push_enabled and streak_window and parent.push_alerts and link.last_streak_alert_on != today.isoformat():
+                active_today = learner.last_active_at is not None and local_date(learner.last_active_at) >= today
+                streak = effective_streak(learner)
+                if not active_today and streak >= STREAK_ALERT_MIN_STREAK:
+                    pushed = push_streak_at_risk(db, parent, user, learner, streak)
+                    if pushed:
+                        link.last_streak_alert_on = today.isoformat()
+                        stats["push_sent"] += pushed
+                        db.commit()
+
+            if not learner.last_active_at:
                 continue
             last_active = local_date(learner.last_active_at)
             idle_days = (today - last_active).days
@@ -133,8 +172,11 @@ def run_parent_digests(db: Session, now: datetime | None = None) -> dict:
             already = link.last_inactivity_alert_on
             if already and date.fromisoformat(already) >= last_active:
                 continue            # alerted once for this quiet spell
-            if send_inactivity_alert(db, parent, user, learner, idle_days):
+            sent_email = settings.email_enabled and parent.weekly_report_email and send_inactivity_alert(db, parent, user, learner, idle_days)
+            pushed = push_inactivity(db, parent, user, learner, idle_days) if settings.push_enabled else 0
+            if sent_email or pushed:
                 link.last_inactivity_alert_on = today.isoformat()
-                stats["alerts_sent"] += 1
+                stats["alerts_sent"] += 1 if sent_email else 0
+                stats["push_sent"] += pushed
                 db.commit()
     return stats

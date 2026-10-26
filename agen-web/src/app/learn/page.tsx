@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import { generateLesson, getDailyRecommendations, getMyLessons, LessonQuotaError, DailyRecommendation, LessonSummary } from '@/lib/lessonService';
+import { startAssignment } from '@/lib/groupsService';
 import { startCurriculumLesson, startTrackLesson } from '@/lib/curriculumService';
 import { PageSkeleton } from '@/components/Skeleton';
 import LessonGeneratingOverlay from '@/components/LessonGeneratingOverlay';
@@ -34,6 +35,8 @@ function LearnHubContent() {
   // G3 · goal tracks: /learn?track=<trackId>&lesson=<code>
   const trackId = searchParams.get('track');
   const trackLesson = searchParams.get('lesson');
+  // G7 · class/company assignment: /learn?assignment=<id>
+  const assignmentId = searchParams.get('assignment');
   const { isAuthenticated, learner } = useAuthStore();
   const hydrated = useAuthHydrated();
 
@@ -42,7 +45,7 @@ function LearnHubContent() {
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string>(''); // skill being generated
   // Initialize to true when arriving with a curriculum code so we don't setState in the effect body
-  const [curriculumStarting, setCurriculumStarting] = useState(!!curriculumCode || !!(trackId && trackLesson));
+  const [curriculumStarting, setCurriculumStarting] = useState(!!curriculumCode || !!(trackId && trackLesson) || !!assignmentId);
   const [error, setError] = useState('');
   const [skillFilter, setSkillFilter] = useState<string>('all');
 
@@ -66,6 +69,23 @@ function LearnHubContent() {
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
+
+    // G7 · assignment from a class/company: record the start, then generate its lesson
+    if (assignmentId) {
+      startAssignment(assignmentId)
+        .then((spec) => generateLesson(spec.skill, spec.topic))
+        .then((lesson) => router.push(`/learn/${lesson.id}`))
+        .catch((err: unknown) => {
+          if (err instanceof LessonQuotaError) {
+            setError(err.message);
+          } else {
+            const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+            setError(detail || 'Không thể bắt đầu bài tập.');
+          }
+          setCurriculumStarting(false);
+        });
+      return;
+    }
 
     // Goal track lesson: mark it started, then generate at the track's level
     if (trackId && trackLesson) {

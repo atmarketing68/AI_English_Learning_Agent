@@ -1,6 +1,6 @@
 /** Shared navigation for the learner app shell (desktop sidebar + mobile tab bar). */
 import {
-  BookMarked, BookOpen, Brain, ChartColumn, House, Map as MapIcon, Mic, PenLine, ShoppingBag, Sparkles, Target, Trophy, UserRound, Users, Zap, type LucideIcon,
+  BookMarked, BookOpen, Brain, ChartColumn, House, Map as MapIcon, Mic, PenLine, School, ShoppingBag, Sparkles, Target, Trophy, UserRound, Users, Zap, type LucideIcon,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -26,6 +26,7 @@ export const SIDEBAR_ITEMS: NavItem[][] = [
     { href: '/tracks', label: 'Mục tiêu', icon: Target, match: ['/tracks'] },
     { href: '/league', label: 'Giải đấu', icon: Trophy, match: ['/league'] },
     { href: '/friends', label: 'Bạn học', icon: Users, match: ['/friends'] },
+    { href: '/classes', label: 'Lớp học', icon: School, match: ['/classes'] },
     { href: '/progress', label: 'Tiến bộ', icon: ChartColumn, match: ['/progress'] },
   ],
   [
@@ -39,11 +40,11 @@ export const TAB_ITEMS: NavItem[] = [
   { href: '/dashboard', label: 'Học', icon: House, match: ['/dashboard', '/learn', '/curriculum'] },
   { href: '/review', label: 'Ôn tập', icon: Brain, match: ['/review', '/vocabulary', '/blitz'] },
   { href: '/practice/speaking', label: 'Luyện tập', icon: Mic, match: ['/practice'] },
-  { href: '/progress', label: 'Tiến bộ', icon: ChartColumn, match: ['/progress', '/league', '/tracks', '/friends'] },
+  { href: '/progress', label: 'Tiến bộ', icon: ChartColumn, match: ['/progress', '/league', '/tracks', '/friends', '/classes'] },
   { href: '/profile', label: 'Hồ sơ', icon: UserRound, match: ['/profile', '/upgrade', '/shop'] },
 ];
 
-const SHELL_PREFIXES = ['/dashboard', '/curriculum', '/learn', '/vocabulary', '/practice', '/progress', '/profile', '/upgrade', '/league', '/tracks', '/shop', '/blitz', '/friends'];
+const SHELL_PREFIXES = ['/dashboard', '/curriculum', '/learn', '/vocabulary', '/practice', '/progress', '/profile', '/upgrade', '/league', '/tracks', '/shop', '/blitz', '/friends', '/classes'];
 
 /**
  * Pages that show the app navigation. Focus modes keep the whole screen:
