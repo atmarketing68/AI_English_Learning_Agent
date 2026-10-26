@@ -15,7 +15,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const hydrated = useAuthHydrated();
   const { isAuthenticated, userRole, learner } = useAuthStore();
-  const shell = hydrated && isAuthenticated && userRole !== 'parent' && showsAppShell(pathname);
+  const shell = hydrated && isAuthenticated && userRole !== 'parent' && userRole !== 'teacher' && showsAppShell(pathname);
 
   return (
     <>

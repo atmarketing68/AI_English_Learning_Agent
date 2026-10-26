@@ -60,7 +60,29 @@ export type AnalyticsEvent =
   | 'shop_item_equipped'
   | 'blitz_started'
   | 'blitz_completed'
-  | 'ui_skin_changed';
+  | 'ui_skin_changed'
+  // G6
+  | 'friend_added'
+  | 'duo_quest_claimed'
+  | 'parent_report_printed'
+  // G7
+  | 'group_created'
+  | 'group_joined'
+  | 'assignment_created'
+  | 'assignment_started'
+  | 'parent_push_enabled'
+  // G8
+  | 'exam_started'
+  | 'exam_completed'
+  | 'tutor_asked'
+  | 'group_report_exported'
+  | 'invoice_requested'
+  // G9
+  | 'speaking_exam_started'
+  | 'speaking_exam_completed'
+  | 'study_plan_set'
+  | 'zalo_unlinked'
+  | 'exam_generated';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

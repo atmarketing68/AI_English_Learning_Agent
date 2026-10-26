@@ -9,13 +9,13 @@ interface AuthState {
   refreshToken: string | null;
   learner: LearnerProfile | null;
   isAuthenticated: boolean;
-  userRole: 'learner' | 'parent' | null;
+  userRole: 'learner' | 'parent' | 'teacher' | null;
   /** G3 · guest trial account (no email yet). */
   isGuest: boolean;
   setAuth: (accessToken: string, refreshToken: string | null) => void;
   setGuest: (isGuest: boolean) => void;
   setLearner: (learner: LearnerProfile) => void;
-  setUserRole: (role: 'learner' | 'parent' | null) => void;
+  setUserRole: (role: 'learner' | 'parent' | 'teacher' | null) => void;
   logout: () => void;
 }
 

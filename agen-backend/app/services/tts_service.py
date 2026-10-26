@@ -84,8 +84,16 @@ def _cache_dir() -> Path:
     return path
 
 
-def _cache_key(provider: str, model: str, voice: str, text: str) -> str:
-    return hashlib.sha1(f"{provider}|{model}|{voice}|{text.lower()}".encode("utf-8")).hexdigest()
+LANGS = ("en", "vi")
+
+
+def normalize_lang(lang: Optional[str]) -> str:
+    return "vi" if (lang or "").lower().startswith("vi") else "en"
+
+
+def _cache_key(provider: str, model: str, voice: str, text: str, lang: str = "en") -> str:
+    suffix = "" if lang == "en" else f"|{lang}"
+    return hashlib.sha1(f"{provider}|{model}|{voice}|{text.lower()}{suffix}".encode("utf-8")).hexdigest()
 
 
 def _cache_get(key: str) -> Optional[tuple[bytes, str]]:
@@ -157,7 +165,13 @@ def _pcm_to_wav(pcm: bytes, rate: int = 24000) -> bytes:
     return buf.getvalue()
 
 
-def _call_gemini(text: str, voice: str) -> tuple[bytes, str]:
+_READ_PROMPT = {
+    "en": "Read this aloud clearly, at a natural pace, as an English teacher: ",
+    "vi": "Đọc đoạn sau bằng tiếng Việt, giọng vui tươi, thân thiện như một người bạn robot nhỏ: ",
+}
+
+
+def _call_gemini(text: str, voice: str, lang: str = "en") -> tuple[bytes, str]:
     from google import genai
     from google.genai import types
 
@@ -167,7 +181,7 @@ def _call_gemini(text: str, voice: str) -> tuple[bytes, str]:
     )
     response = client.models.generate_content(
         model=settings.GEMINI_TTS_MODEL,
-        contents=f"Read this aloud clearly, at a natural pace, as an English teacher: {text}",
+        contents=f"{_READ_PROMPT[lang]}{text}",
         config=types.GenerateContentConfig(
             response_modalities=["AUDIO"],
             speech_config=types.SpeechConfig(
@@ -194,7 +208,7 @@ def _call_gemini(text: str, voice: str) -> tuple[bytes, str]:
     return _pcm_to_wav(data), "audio/wav"
 
 
-def _call_openai(text: str, voice: str) -> tuple[bytes, str]:
+def _call_openai(text: str, voice: str, lang: str = "en") -> tuple[bytes, str]:
     from openai import OpenAI
 
     client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=30, max_retries=0)
@@ -207,7 +221,7 @@ def _call_openai(text: str, voice: str) -> tuple[bytes, str]:
     return response.content, "audio/mpeg"
 
 
-def _call_voicebox(text: str, voice: str) -> tuple[bytes, str]:
+def _call_voicebox(text: str, voice: str, lang: str = "en") -> tuple[bytes, str]:
     """Voicebox REST: POST /generate → {id, audio_path…}; GET /audio/{id} → wav bytes."""
     import httpx
 
@@ -217,7 +231,7 @@ def _call_voicebox(text: str, voice: str) -> tuple[bytes, str]:
     if voice == "male" and settings.VOICEBOX_PROFILE_ID_MALE:
         profile = settings.VOICEBOX_PROFILE_ID_MALE
     with httpx.Client(timeout=90, headers=headers) as client:
-        created = client.post(f"{base}/generate", json={"profile_id": profile, "text": text, "language": "en"})
+        created = client.post(f"{base}/generate", json={"profile_id": profile, "text": text, "language": lang})
         created.raise_for_status()
         generation_id = created.json().get("id")
         if not generation_id:
@@ -233,17 +247,21 @@ def _call_voicebox(text: str, voice: str) -> tuple[bytes, str]:
 _CALLERS = {"gemini": _call_gemini, "openai": _call_openai, "voicebox": _call_voicebox}
 
 
-def synthesize(text: str, voice: str = "female") -> Optional[TTSResult]:
-    """Audio for `text`, from cache or a provider. None → let the client fall back."""
+def synthesize(text: str, voice: str = "female", lang: str = "en") -> Optional[TTSResult]:
+    """Audio for `text`, from cache or a provider. None → let the client fall back.
+
+    `lang` is "en" (lessons) or "vi" (G6 · the mascot Bo speaking Vietnamese).
+    """
     text = normalize_text(text)
     voice = normalize_voice(voice)
+    lang = normalize_lang(lang)
     chain = providers()
     if not text or not chain:
         return None
 
     # Any provider's cached file is fine — the voice is consistent per provider.
     for provider in chain:
-        hit = _cache_get(_cache_key(provider, _model_for(provider), voice, text))
+        hit = _cache_get(_cache_key(provider, _model_for(provider), voice, text, lang))
         if hit:
             return TTSResult(hit[0], hit[1], provider, cached=True)
 
@@ -253,10 +271,11 @@ def synthesize(text: str, voice: str = "female") -> Optional[TTSResult]:
 
     for provider in chain:
         try:
-            data, mime = _CALLERS[provider](text, voice)
+            # English keeps the two-argument call so custom/fake callers stay compatible.
+            data, mime = _CALLERS[provider](text, voice) if lang == "en" else _CALLERS[provider](text, voice, lang)
             if not data:
                 raise RuntimeError("empty audio")
-            _cache_put(_cache_key(provider, _model_for(provider), voice, text), data, mime)
+            _cache_put(_cache_key(provider, _model_for(provider), voice, text, lang), data, mime)
             return TTSResult(data, mime, provider, cached=False)
         except Exception as exc:  # provider down / model renamed / quota — try the next one
             logger.warning("TTS provider %s failed: %s", provider, exc)

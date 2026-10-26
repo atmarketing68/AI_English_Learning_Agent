@@ -22,6 +22,14 @@ from app.models.push_subscription import PushSubscription
 from app.models.payment_order import PaymentOrder
 from app.models.goal_track import GoalTrackProgress
 from app.models.league_membership import LeagueMembership
+from app.models.friendship import Friendship
+from app.models.group import Group, GroupMember, GroupAssignment, GroupAssignmentDone
+from app.models.exam_attempt import ExamAttempt
+from app.models.tutor_message import TutorMessage
+from app.models.device_token import DeviceToken
+from app.models.speaking_exam import SpeakingExamAttempt
+from app.models.generated_exam import GeneratedExam
+from app.models.app_config import AppConfig
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -41,4 +49,8 @@ __all__ = [
     "PaymentOrder",
     "GoalTrackProgress",
     "LeagueMembership",
+    "Friendship",
+    "Group", "GroupMember", "GroupAssignment", "GroupAssignmentDone",
+    "ExamAttempt", "TutorMessage", "DeviceToken",
+    "SpeakingExamAttempt", "GeneratedExam", "AppConfig",
 ]

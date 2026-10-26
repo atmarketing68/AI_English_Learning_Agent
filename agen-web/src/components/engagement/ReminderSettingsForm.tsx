@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BellRing, CircleCheck, Mail, Send, Smartphone } from 'lucide-react';
+import { BellRing, CircleCheck, Copy, Mail, MessageCircle, Send, Smartphone } from 'lucide-react';
 import {
   PushDeniedError, currentPushState, disablePush, enablePush, getReminderSettings,
-  saveReminderSettings, sendTestReminder, type PushState, type ReminderSettings,
+  saveReminderSettings, sendTestReminder, unlinkZalo, type PushState, type ReminderSettings,
 } from '@/lib/reminderService';
 import { track } from '@/lib/analytics';
 
@@ -148,7 +148,21 @@ export default function ReminderSettingsForm({ onSaved }: { onSaved?: (s: Remind
                   onClick={() => save(hour, !settings.email)} disabled={busy} aria-label="Email nhắc học" />
               </div>
             )}
-            {!settings.push_available && !settings.email_available && (
+            {settings.zalo_available && (
+              <div className="reminder-channel" style={{ alignItems: 'flex-start' }}>
+                <MessageCircle size={18} />
+                <div>
+                  <div className="reminder-channel-title">Nhắc qua Zalo</div>
+                  <div className="reminder-channel-sub">
+                    {settings.zalo_linked
+                      ? 'Đã kết nối. Lời nhắc sẽ gửi vào Zalo của bạn.'
+                      : <>Mở OA <a href={settings.zalo_oa_link ?? '#'} target="_blank" rel="noreferrer">AI AGENT ENGLISH trên Zalo</a>, bấm Quan tâm rồi gửi mã <button type="button" className="code-chip" style={{ padding: '2px 8px', fontSize: '0.8rem' }} onClick={() => navigator.clipboard?.writeText(settings.zalo_link_code ?? '')} aria-label="Sao chép mã"><b>{settings.zalo_link_code}</b> <Copy size={12} /></button></>}
+                  </div>
+                </div>
+                {settings.zalo_linked && <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { await unlinkZalo(); apply({ ...settings, zalo_linked: false }); track('zalo_unlinked'); }}>Ngắt</button>}
+              </div>
+            )}
+            {!settings.push_available && !settings.email_available && !settings.zalo_available && (
               <div className="reminder-channel-sub">
                 <BellRing size={14} /> Đã lưu giờ nhắc. Bạn sẽ thấy lời nhắc trong chuông thông báo khi mở ứng dụng.
               </div>

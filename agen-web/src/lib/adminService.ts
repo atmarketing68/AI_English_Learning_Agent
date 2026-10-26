@@ -152,3 +152,70 @@ export async function getRevenueSummary(): Promise<RevenueSummary> {
   const res = await api.get('/admin/revenue/summary');
   return res.data;
 }
+
+// ── G8 · Đơn hàng & hoá đơn VAT ───────────────────────────────────────────────
+export interface AdminOrder {
+  order_id: string;
+  email: string | null;
+  role: string | null;
+  provider: string;
+  plan: string;
+  seats: number;
+  months: number;
+  amount_vnd: number;
+  status: 'pending' | 'paid' | 'failed';
+  invoice: { company_name: string; tax_code: string; address: string; email: string } | null;
+  invoice_issued_at: string | null;
+  created_at: string;
+  paid_at: string | null;
+}
+
+export async function listOrders(invoiceOnly = false, limit = 100): Promise<AdminOrder[]> {
+  const res = await api.get(`/admin/revenue/orders?invoice_only=${invoiceOnly}&limit=${limit}`);
+  return res.data;
+}
+
+export async function markInvoiceIssued(orderId: string, issued: boolean): Promise<AdminOrder> {
+  const res = await api.post(`/admin/revenue/orders/${orderId}/invoice-issued`, { issued });
+  return res.data;
+}
+
+// ── G9 · Đề thi thử do AI sinh ────────────────────────────────────────────────
+export interface GeneratedExam {
+  id: string;
+  public_id: string;
+  exam: 'ielts' | 'toeic';
+  skill: 'listening' | 'reading';
+  title: string;
+  topic: string | null;
+  status: 'draft' | 'approved' | 'rejected';
+  questions: number;
+  eval_score: number | null;
+  eval_flagged: boolean | null;
+  created_at: string;
+  approved_at: string | null;
+}
+
+export async function listGeneratedExams(status?: string): Promise<GeneratedExam[]> {
+  const res = await api.get(`/admin/exams${status ? `?status=${status}` : ''}`);
+  return res.data;
+}
+
+export async function generateExam(payload: { exam: 'ielts' | 'toeic'; skill: 'listening' | 'reading'; topic?: string; level?: string; auto_approve?: boolean }): Promise<GeneratedExam> {
+  const res = await api.post('/admin/exams/generate', payload);
+  return res.data;
+}
+
+export async function getGeneratedExam(id: string): Promise<{ meta: GeneratedExam; paper: Record<string, unknown> & { sections: { title: string; instructions: string; passage?: string; audio?: { speaker: string; text: string }[]; questions: { id: string; type: string; prompt: string; options?: string[]; answer: number | string[]; explanation_vi: string }[] }[] } }> {
+  const res = await api.get(`/admin/exams/${id}`);
+  return res.data;
+}
+
+export async function setGeneratedExamStatus(id: string, status: 'draft' | 'approved' | 'rejected'): Promise<GeneratedExam> {
+  const res = await api.post(`/admin/exams/${id}/status`, { status });
+  return res.data;
+}
+
+export async function deleteGeneratedExam(id: string): Promise<void> {
+  await api.delete(`/admin/exams/${id}`);
+}

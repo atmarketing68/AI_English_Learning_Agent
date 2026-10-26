@@ -13,7 +13,9 @@ from pydantic import BaseModel, Field
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
-from app.services.subscription_service import premium_source
+from app.models.subscription import PLAN_FAMILY
+from app.services.payments import FAMILY_MAX_CHILDREN
+from app.services.subscription_service import get_or_create_subscription, premium_source
 from app.models.learner_profile import LearnerProfile
 from app.models.parent import ParentProfile, ParentChildLink
 from app.services.streak_service import effective_streak
@@ -110,6 +112,13 @@ def link_child(
     if existing:
         raise HTTPException(status_code=400, detail="Bạn đã liên kết với học viên này rồi.")
 
+    # G6 · a family plan covers at most FAMILY_MAX_CHILDREN children: refuse the next link
+    # while the plan is active, instead of silently leaving a child uncovered.
+    linked = db.query(ParentChildLink).filter(ParentChildLink.parent_id == parent.id).count()
+    sub = get_or_create_subscription(db, current_user.id)
+    if sub.plan == PLAN_FAMILY and premium_source(db, current_user.id) == "own" and linked >= FAMILY_MAX_CHILDREN:
+        raise HTTPException(status_code=400, detail=f"Gói gia đình bao gồm tối đa {FAMILY_MAX_CHILDREN} con. Hãy huỷ liên kết một con trước khi thêm con mới.")
+
     link = ParentChildLink(
         parent_id=parent.id,
         learner_id=learner.id,
@@ -198,22 +207,60 @@ class ParentSettingsOut(BaseModel):
     email_available: bool
     email_address: str
     last_weekly_report_week: str | None
+    # G7 · web push to the parent's devices
+    push_alerts: bool = True
+    push_available: bool = False
+    push_public_key: str | None = None
+    push_devices: int = 0
+    # G9 · Zalo OA
+    zalo_available: bool = False
+    zalo_oa_link: str | None = None
+    zalo_linked: bool = False
+    zalo_link_code: str | None = None
 
 
 class ParentSettingsIn(BaseModel):
-    weekly_report_email: bool
+    weekly_report_email: bool | None = None
+    push_alerts: bool | None = None
+
+
+class PushKeysIn(BaseModel):
+    p256dh: str
+    auth: str
+
+
+class ParentPushIn(BaseModel):
+    endpoint: str
+    keys: PushKeysIn
+
+
+class ParentPushOutIn(BaseModel):
+    endpoint: str
+
+
+def _parent_settings_out(db: Session, parent: ParentProfile, user: User) -> ParentSettingsOut:
+    from app.core.config import settings
+    from app.services import zalo
+    from app.models.push_subscription import PushSubscription
+    return ParentSettingsOut(
+        weekly_report_email=bool(parent.weekly_report_email),
+        email_available=settings.email_enabled,
+        email_address=user.email,
+        last_weekly_report_week=parent.last_weekly_report_week,
+        push_alerts=bool(parent.push_alerts),
+        push_available=settings.push_enabled,
+        push_public_key=settings.VAPID_PUBLIC_KEY or None,
+        push_devices=db.query(PushSubscription).filter(PushSubscription.user_id == user.id).count(),
+        zalo_available=zalo.enabled(),
+        zalo_oa_link=zalo.oa_link(),
+        zalo_linked=bool(user.zalo_user_id),
+        zalo_link_code=zalo.link_code_for(db, user) if zalo.enabled() else None,
+    )
 
 
 @router.get("/settings", response_model=ParentSettingsOut)
 def get_parent_settings(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    from app.core.config import settings
-    parent = _get_parent(db, current_user)
-    return ParentSettingsOut(
-        weekly_report_email=bool(parent.weekly_report_email),
-        email_available=settings.email_enabled,
-        email_address=current_user.email,
-        last_weekly_report_week=parent.last_weekly_report_week,
-    )
+    return _parent_settings_out(db, _get_parent(db, current_user), current_user)
 
 
 @router.put("/settings", response_model=ParentSettingsOut)
@@ -222,13 +269,39 @@ def update_parent_settings(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    from app.core.config import settings
     parent = _get_parent(db, current_user)
-    parent.weekly_report_email = payload.weekly_report_email
+    if payload.weekly_report_email is not None:
+        parent.weekly_report_email = payload.weekly_report_email
+    if payload.push_alerts is not None:
+        parent.push_alerts = payload.push_alerts
     db.commit()
-    return ParentSettingsOut(
-        weekly_report_email=bool(parent.weekly_report_email),
-        email_available=settings.email_enabled,
-        email_address=current_user.email,
-        last_weekly_report_week=parent.last_weekly_report_week,
-    )
+    return _parent_settings_out(db, parent, current_user)
+
+
+# ── G7 · web push to the parent's own devices ────────────────────────────────
+@router.post("/push-subscriptions", response_model=ParentSettingsOut)
+def add_parent_push(payload: ParentPushIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.models.push_subscription import PushSubscription
+    parent = _get_parent(db, current_user)
+    if not payload.endpoint.startswith("https://"):
+        raise HTTPException(status_code=422, detail="Push endpoint must be https.")
+    sub = db.query(PushSubscription).filter(PushSubscription.endpoint == payload.endpoint).first()
+    if sub is None:
+        sub = PushSubscription(endpoint=payload.endpoint, p256dh="", auth="")
+        db.add(sub)
+    sub.user_id = current_user.id
+    sub.learner_id = None
+    sub.p256dh = payload.keys.p256dh
+    sub.auth = payload.keys.auth
+    parent.push_alerts = True
+    db.commit()
+    return _parent_settings_out(db, parent, current_user)
+
+
+@router.delete("/push-subscriptions", response_model=ParentSettingsOut)
+def remove_parent_push(payload: ParentPushOutIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.models.push_subscription import PushSubscription
+    parent = _get_parent(db, current_user)
+    db.query(PushSubscription).filter(PushSubscription.endpoint == payload.endpoint, PushSubscription.user_id == current_user.id).delete(synchronize_session=False)
+    db.commit()
+    return _parent_settings_out(db, parent, current_user)

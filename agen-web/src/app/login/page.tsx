@@ -32,6 +32,8 @@ export default function LoginPage() {
       track('login_completed', { role: me.role });
       if (me.role === 'parent') {
         router.push('/parent');
+      } else if (me.role === 'teacher') {
+        router.push('/teacher');
       } else {
         const profile = await getMyProfile();
         setLearner(profile);

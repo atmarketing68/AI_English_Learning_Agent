@@ -1,6 +1,5 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
@@ -13,6 +12,7 @@ import {
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 import GuestTrialButton from '@/components/GuestTrialButton';
+import HeroScene3D from '@/components/landing/HeroScene3D';
 
 // ─── Palette for icon tiles ──────────────────────────────────────────────────
 const G = {
@@ -76,8 +76,12 @@ const PLANS = [
     features: ['3 bài học AI mỗi ngày', 'Luyện nói roleplay với AI', 'Luyện viết và chấm điểm AI', 'Bài kiểm tra đầu vào', 'XP, chuỗi ngày học, thành tựu'],
   },
   {
-    name: 'Premium', price: '67K₫', period: '/tháng · gói 12 tháng', highlight: true, cta: 'Dùng thử ngay',
-    features: ['Mọi thứ trong gói Miễn phí', 'Bài học không giới hạn', 'Báo cáo tiến bộ cho phụ huynh', 'Lộ trình học cá nhân hoá', 'Ưu tiên hỗ trợ'],
+    name: 'Premium', price: '67K₫', period: '/tháng · gói 12 tháng', highlight: true, cta: 'Dùng thử 7 ngày',
+    features: ['Mọi thứ trong gói Miễn phí', 'Bài học không giới hạn', 'Báo cáo tiến bộ cho phụ huynh', 'Lộ trình IELTS / TOEIC / phỏng vấn', 'Chấm viết theo band IELTS/TOEIC'],
+  },
+  {
+    name: 'Gia đình', price: '124K₫', period: '/tháng · gói 12 tháng · tối đa 4 con', highlight: false, cta: 'Tạo tài khoản phụ huynh',
+    features: ['Một lần thanh toán cho cả nhà', 'Mỗi con đều là Premium', 'Báo cáo tuần + cảnh báo nghỉ học qua email', 'Báo cáo PDF để in', 'Giao diện vui nhộn cho bé, chuyên nghiệp cho người lớn'],
   },
 ];
 
@@ -200,51 +204,55 @@ export default function HomePage() {
       </header>
 
       {/* ─── HERO ─────────────────────────────────────────────────────── */}
-      <section className="hero">
-        <div className="hero-media">
-          <Image
-            src="/hero-banner.webp"
-            alt="Robot AI Coach của AI AGENT ENGLISH đọc sách tiếng Anh, xung quanh là biểu tượng luyện nghe, nói, viết"
-            fill
-            priority
-            sizes="100vw"
-            style={{ objectFit: 'cover' }}
-          />
-        </div>
-        <motion.div
-          className="hero-content"
-          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: EASE }}
-        >
-          <span className="hero-badge"><Sparkles size={14} /> AI Coach tiếng Anh cá nhân cho người Việt</span>
-          <h1><span className="nowrap">Học tiếng Anh</span> <span className="nowrap">cùng AI.</span><br /><span className="nowrap">Theo cách của</span> <span className="nowrap">riêng bạn.</span></h1>
-          <p>
-            Người thầy, người bạn và huấn luyện viên tiếng Anh — đồng hành từ nền tảng đến nâng cao, theo đúng tốc độ của bạn.
-          </p>
-          <div className="hero-actions">
-            <Link href="/register" className="btn btn-primary btn-lg btn-shine">
-              Bắt đầu học miễn phí <ArrowRight size={18} />
-            </Link>
-            <GuestTrialButton className="btn btn-lg hero-guest-btn" />
-            <Link href="/login" className="hero-link">
-              Đăng nhập <ChevronRight size={18} />
-            </Link>
-          </div>
-          <div className="hero-trust">
-            <div className="avatar-stack" aria-hidden="true">
-              {(['pink', 'blue', 'green', 'orange'] as Tone[]).map((t, i) => (
-                <span key={t} style={{ background: `linear-gradient(135deg, ${G[t][0]}, ${G[t][1]})` }}>{'MLHT'[i]}</span>
-              ))}
+      <section className="lp-hero">
+        <span className="lp-hero-orb lp-hero-orb-a" aria-hidden="true" />
+        <span className="lp-hero-orb lp-hero-orb-b" aria-hidden="true" />
+        <span className="lp-hero-orb lp-hero-orb-c" aria-hidden="true" />
+        <div className="lp-hero-inner">
+          <motion.div
+            className="lp-hero-copy"
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: EASE }}
+          >
+            <span className="hero-badge"><Sparkles size={14} /> AI Coach tiếng Anh cá nhân cho người Việt</span>
+            <h1 className="lp-hero-title"><span className="lp-hero-title-main">Học tiếng Anh cùng AI</span><span className="lp-hero-title-sub">Theo cách của riêng bạn.</span></h1>
+            <p>
+              Người thầy, người bạn và huấn luyện viên tiếng Anh — đồng hành từ nền tảng đến nâng cao, theo đúng tốc độ của bạn.
+            </p>
+            <div className="hero-actions">
+              <Link href="/register" className="btn btn-primary btn-lg btn-shine">
+                Bắt đầu học miễn phí <ArrowRight size={18} />
+              </Link>
+              <GuestTrialButton className="btn btn-lg hero-guest-btn" label="Học thử ngay" />
+              <Link href="/login" className="hero-link">
+                Đăng nhập <ChevronRight size={18} />
+              </Link>
             </div>
-            <div>
-              <div className="stars" aria-label="4.9 trên 5 sao">
-                {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} fill="#F59E0B" color="#F59E0B" />)}
-                <b>4.9</b>
+            <div className="hero-trust">
+              <div className="avatar-stack" aria-hidden="true">
+                {(['pink', 'blue', 'green', 'orange'] as Tone[]).map((t, i) => (
+                  <span key={t} style={{ background: `linear-gradient(135deg, ${G[t][0]}, ${G[t][1]})` }}>{'MLHT'[i]}</span>
+                ))}
               </div>
-              <div className="hero-trust-text">1,247 học viên đang học cùng AI AGENT ENGLISH</div>
+              <div>
+                <div className="stars" aria-label="4.9 trên 5 sao">
+                  {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} fill="#F59E0B" color="#F59E0B" />)}
+                  <b>4.9</b>
+                </div>
+                <div className="hero-trust-text">1,247 học viên đang học cùng AI AGENT ENGLISH</div>
+              </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
+
+          {/* 3D "knowledge universe" scene */}
+          <motion.div
+            className="lp-hero-scene"
+            initial={{ opacity: 0, scale: 0.92 }} animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1.1, ease: EASE, delay: 0.1 }}
+          >
+            <HeroScene3D />
+          </motion.div>
+        </div>
       </section>
 
       {/* ─── STATS ────────────────────────────────────────────────────── */}

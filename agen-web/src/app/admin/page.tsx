@@ -6,10 +6,12 @@ import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getAdminMe, getEvaluationSummary, listEvaluations,
   listContent, setContentStatus, batchGenerateContent,
-  getPilotSummary, getRevenueSummary,
-  type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
+  getPilotSummary, getRevenueSummary, listOrders, markInvoiceIssued,
+  deleteGeneratedExam, generateExam, getGeneratedExam, listGeneratedExams, setGeneratedExamStatus,
+  type AdminOrder, type GeneratedExam, type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
 } from '@/lib/adminService';
 import { ArrowLeft, Check, Flag, LoaderCircle, Lock, Settings, ShieldCheck, X, Zap } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const AGENTS = [
   'lesson', 'placement_question', 'writing_prompt', 'writing_evaluation',
@@ -101,6 +103,163 @@ function RevenuePanel({ r }: { r: RevenueSummary }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── G8 · Đơn hàng & hoá đơn VAT ──────────────────────────────────────────────
+const PLAN_VI: Record<string, string> = { premium: 'Premium', family: 'Gia đình', team: 'Doanh nghiệp' };
+
+function OrdersPanel() {
+  const [orders, setOrders] = useState<AdminOrder[] | null>(null);
+  const [invoiceOnly, setInvoiceOnly] = useState(true);
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => { listOrders(invoiceOnly, 200).then(setOrders).catch(() => setOrders([])); }, [invoiceOnly]);
+
+  const toggle = async (o: AdminOrder) => {
+    setBusy(o.order_id);
+    try {
+      const updated = await markInvoiceIssued(o.order_id, !o.invoice_issued_at);
+      setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
+    } finally { setBusy(null); }
+  };
+  const exportCsv = () => {
+    if (!orders) return;
+    const head = ['Ngày', 'Email', 'Gói', 'Tháng', 'Ghế', 'Số tiền', 'Cổng', 'Trạng thái', 'Tên đơn vị', 'MST', 'Địa chỉ', 'Email HĐ', 'Đã xuất HĐ'];
+    const rows = orders.map(o => [new Date(o.created_at).toLocaleDateString('vi-VN'), o.email ?? '', PLAN_VI[o.plan] ?? o.plan, o.months, o.seats, o.amount_vnd, o.provider, o.status,
+      o.invoice?.company_name ?? '', o.invoice?.tax_code ?? '', o.invoice?.address ?? '', o.invoice?.email ?? '', o.invoice_issued_at ? 'x' : '']);
+    const csv = '\ufeff' + [head, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a'); a.href = url; a.download = 'don-hang-hoa-don.csv'; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  return (
+    <div className="card" style={{ marginTop: 'var(--spacing-lg)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ fontWeight: 600, flex: 1 }}>Đơn hàng & hoá đơn VAT</div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.85rem', cursor: 'pointer' }}>
+          <input type="checkbox" checked={invoiceOnly} onChange={e => setInvoiceOnly(e.target.checked)} /> Chỉ đơn yêu cầu hoá đơn
+        </label>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv} disabled={!orders?.length}>Tải CSV</button>
+      </div>
+      {!orders ? <div style={{ color: 'var(--text-muted)' }}>Đang tải…</div> : orders.length === 0 ? <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có đơn nào.</div> : (
+        <div style={{ overflowX: 'auto', margin: '0 calc(-1 * var(--spacing-lg, 24px))', padding: '0 var(--spacing-lg, 24px)' }}>
+          <table className="teacher-table" style={{ minWidth: 980 }}>
+            <thead><tr><th>Ngày</th><th>Khách</th><th>Gói</th><th>Số tiền</th><th>Trạng thái</th><th>Đơn vị · MST</th><th>Email HĐ</th><th>Hoá đơn</th></tr></thead>
+            <tbody>
+              {orders.map(o => (
+                <tr key={o.order_id}>
+                  <td>{new Date(o.created_at).toLocaleDateString('vi-VN')}</td>
+                  <td>{o.email}</td>
+                  <td>{PLAN_VI[o.plan] ?? o.plan} · {o.months} th{o.plan === 'team' ? ` · ${o.seats} ghế` : ''}</td>
+                  <td>{vnd(o.amount_vnd)}</td>
+                  <td><span className={`plan-chip${o.status === 'paid' ? ' is-premium' : ''}`}>{o.status === 'paid' ? 'Đã trả' : o.status === 'pending' ? 'Chờ' : 'Lỗi'}</span></td>
+                  <td style={{ whiteSpace: 'normal', minWidth: 200 }}>{o.invoice ? <>{o.invoice.company_name}<div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>MST {o.invoice.tax_code} · {o.invoice.address}</div></> : <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
+                  <td>{o.invoice?.email ?? '—'}</td>
+                  <td>{o.invoice ? <button type="button" className={`btn btn-sm ${o.invoice_issued_at ? 'btn-ghost' : 'btn-primary'}`} disabled={busy === o.order_id || o.status !== 'paid'} onClick={() => toggle(o)} title={o.status !== 'paid' ? 'Chỉ xuất khi đơn đã thanh toán' : ''}>{o.invoice_issued_at ? <><Check size={13} /> Đã xuất</> : 'Đánh dấu đã xuất'}</button> : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── G9 · Đề thi thử do AI sinh ────────────────────────────────────────────────
+function ExamsPanel() {
+  const [items, setItems] = useState<GeneratedExam[] | null>(null);
+  const [form, setForm] = useState({ exam: 'ielts' as 'ielts' | 'toeic', skill: 'reading' as 'listening' | 'reading', topic: '', level: 'B1' });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [preview, setPreview] = useState<Awaited<ReturnType<typeof getGeneratedExam>> | null>(null);
+  const load = () => listGeneratedExams().then(setItems).catch(() => setItems([]));
+  useEffect(() => { void load(); }, []);
+
+  const generate = async () => {
+    setBusy(true); setMsg('Đang sinh đề (1 lượt gọi AI, 30–60 giây)…');
+    try {
+      const r = await generateExam({ exam: form.exam, skill: form.skill, topic: form.topic || undefined, level: form.level });
+      setMsg(`Đã tạo bản nháp "${r.title}" (${r.questions} câu). Xem và duyệt bên dưới.`);
+      await load();
+    } catch (err: unknown) {
+      setMsg(apiErrorMessage(err, 'Không sinh được đề.'));
+    } finally { setBusy(false); }
+  };
+  const setStatus = async (id: string, status: 'draft' | 'approved' | 'rejected') => { await setGeneratedExamStatus(id, status); await load(); if (preview?.meta.id === id) setPreview(null); };
+  const STATUS_VI = { draft: 'Nháp', approved: 'Đã duyệt', rejected: 'Từ chối' } as const;
+
+  return (
+    <div style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
+      <div className="card" style={{ display: 'grid', gap: 10 }}>
+        <div style={{ fontWeight: 600 }}>Sinh đề thi thử mới bằng AI</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+          <select className="form-input" value={form.exam} onChange={e => setForm(f => ({ ...f, exam: e.target.value as 'ielts' | 'toeic' }))} aria-label="Kỳ thi"><option value="ielts">IELTS</option><option value="toeic">TOEIC</option></select>
+          <select className="form-input" value={form.skill} onChange={e => setForm(f => ({ ...f, skill: e.target.value as 'listening' | 'reading' }))} aria-label="Kỹ năng"><option value="reading">Reading</option><option value="listening">Listening</option></select>
+          <select className="form-input" value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} aria-label="Trình độ">{['A2', 'B1', 'B2', 'C1'].map(l => <option key={l} value={l}>{l}</option>)}</select>
+          <input className="form-input" placeholder="Chủ đề (tuỳ chọn)" value={form.topic} onChange={e => setForm(f => ({ ...f, topic: e.target.value }))} maxLength={120} />
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={generate} disabled={busy}>{busy ? <LoaderCircle className="animate-spin" size={14} /> : <Zap size={14} />} Sinh bản nháp</button>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{msg || 'Đề mới ở trạng thái nháp; học viên chỉ thấy đề đã duyệt.'}</span>
+        </div>
+      </div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {!items ? <div style={{ padding: 16, color: 'var(--text-muted)' }}>Đang tải…</div> : items.length === 0 ? <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: '0.88rem' }}>Chưa có đề nào do AI sinh.</div> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="teacher-table">
+              <thead><tr><th>Đề</th><th>Kỳ thi</th><th>Câu</th><th>Chất lượng AI</th><th>Trạng thái</th><th>Ngày</th><th /></tr></thead>
+              <tbody>
+                {items.map(x => (
+                  <tr key={x.id}>
+                    <td style={{ whiteSpace: 'normal', minWidth: 200 }}><button type="button" className="btn btn-ghost btn-sm" style={{ padding: 0 }} onClick={async () => setPreview(await getGeneratedExam(x.id))}>{x.title}</button></td>
+                    <td>{x.exam.toUpperCase()} {x.skill}</td>
+                    <td>{x.questions}</td>
+                    <td>{x.eval_score != null ? `${x.eval_score.toFixed(0)}${x.eval_flagged ? ' ⚑' : ''}` : '—'}</td>
+                    <td><span className={`plan-chip${x.status === 'approved' ? ' is-premium' : ''}`}>{STATUS_VI[x.status]}</span></td>
+                    <td>{new Date(x.created_at).toLocaleDateString('vi-VN')}</td>
+                    <td style={{ display: 'flex', gap: 6 }}>
+                      {x.status !== 'approved' && <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus(x.id, 'approved')}><Check size={13} /> Duyệt</button>}
+                      {x.status !== 'rejected' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStatus(x.id, 'rejected')}><X size={13} /> Từ chối</button>}
+                      <button type="button" className="icon-btn" aria-label="Xoá" onClick={async () => { if (confirm('Xoá đề này?')) { await deleteGeneratedExam(x.id); await load(); } }}><X size={14} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {preview && (
+        <div className="card" style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div><div className="eyebrow">Xem trước · có đáp án</div><h3 style={{ margin: 0 }}>{preview.meta.title}</h3></div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPreview(null)}>Đóng</button>
+          </div>
+          {preview.paper.sections.map((sec, si) => (
+            <div key={si} style={{ display: 'grid', gap: 8 }}>
+              <div style={{ fontWeight: 600 }}>{sec.title}</div>
+              <div style={{ fontSize: '0.85rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>{sec.instructions}</div>
+              {sec.passage && <div className="exam-passage" style={{ maxHeight: 260 }}>{sec.passage}</div>}
+              {sec.audio && <details className="exam-transcript"><summary>Lời thoại ({sec.audio.length} dòng)</summary>{sec.audio.map((l, i) => <p key={i}><b>{l.speaker}:</b> {l.text}</p>)}</details>}
+              {sec.questions.map(q => (
+                <div key={q.id} style={{ fontSize: '0.88rem', padding: '6px 10px', borderRadius: 10, background: 'var(--bg-elevated)' }}>
+                  <b>{q.id}.</b> {q.prompt}
+                  {q.options && <div style={{ color: 'var(--text-muted)' }}>{q.options.map((o, i) => <span key={i} style={{ marginRight: 10, fontWeight: i === q.answer ? 700 : 400, color: i === q.answer ? 'var(--agen-success)' : undefined }}>{String.fromCharCode(65 + i)}. {o}</span>)}</div>}
+                  {Array.isArray(q.answer) && <div style={{ color: 'var(--agen-success)' }}>Đáp án: {q.answer.join(' / ')}</div>}
+                  <div style={{ color: 'var(--text-muted)' }}>{q.explanation_vi}</div>
+                </div>
+              ))}
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {preview.meta.status !== 'approved' && <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus(preview.meta.id, 'approved')}><Check size={13} /> Duyệt và phát hành</button>}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStatus(preview.meta.id, 'rejected')}><X size={13} /> Từ chối</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -316,7 +475,7 @@ export default function AdminDashboardPage() {
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [agent, setAgent] = useState('');
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'pilot' | 'revenue' | 'quality' | 'content'>('pilot');
+  const [tab, setTab] = useState<'pilot' | 'revenue' | 'quality' | 'content' | 'exams'>('pilot');
   const [pilotSummary, setPilotSummary] = useState<PilotSummary | null>(null);
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
 
@@ -394,14 +553,17 @@ export default function AdminDashboardPage() {
           <button onClick={() => setTab('revenue')} aria-pressed={tab === 'revenue'}>Doanh thu</button>
           <button onClick={() => setTab('quality')} aria-pressed={tab === 'quality'}>Chất lượng AI</button>
           <button onClick={() => setTab('content')} aria-pressed={tab === 'content'}>Kho nội dung</button>
+          <button onClick={() => setTab('exams')} aria-pressed={tab === 'exams'}>Đề thi</button>
         </div>
 
         {tab === 'pilot' ? (
           pilotSummary ? <div className="card"><PilotPanel summary={pilotSummary} /></div> : <div className="card">Chưa có dữ liệu pilot.</div>
         ) : tab === 'revenue' ? (
-          revenue ? <RevenuePanel r={revenue} /> : <div className="card">Chưa có dữ liệu doanh thu.</div>
+          <>{revenue ? <RevenuePanel r={revenue} /> : <div className="card">Chưa có dữ liệu doanh thu.</div>}<OrdersPanel /></>
         ) : tab === 'content' ? (
           <ContentPanel />
+        ) : tab === 'exams' ? (
+          <ExamsPanel />
         ) : (
           <>
             {/* Filters */}

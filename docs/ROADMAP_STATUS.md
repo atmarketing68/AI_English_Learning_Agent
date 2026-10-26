@@ -4,7 +4,7 @@
 > Kế hoạch gốc (đã được chủ dự án duyệt): Claude Doc "Kế hoạch nâng cấp AGEN — Audit & Lộ trình"
 > https://claude.ai/artifact/7PHjES4CK5zB9i8rBxrCuT
 
-Cập nhật lần cuối: 2026-10-26 (G2 + G3).
+Cập nhật lần cuối: 2026-10-26 (G9).
 
 Web production: https://ai-english-learning-agent.atmarketing.vn · Backend: https://agen-api.onrender.com
 
@@ -52,7 +52,31 @@ Web production: https://ai-english-learning-agent.atmarketing.vn · Backend: htt
 | G5 | **Chấm viết theo band IELTS/TOEIC**: 4 dạng đề thi thật (IELTS Task 2, Task 1 thư, TOEIC trả lời email, TOEIC essay) ở `/practice/writing`; AI trả thêm `exam_band` (IELTS 0–9 theo 4 tiêu chí hoặc TOEIC 0–200) + mẹo lên band; nhóm "Luyện thi" hiện trước với người có mục tiêu thi/đi làm | — |
 | G5 | **Bo nói**: nút loa trên bong bóng mascot, đọc bằng giọng tiếng Việt của trình duyệt (tự ẩn nếu máy không có giọng vi-VN) | — |
 
-**G2, G3, G4 và G5 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
+| G6 | **Thử thách bạn bè** (`services/friends.py`, `/friends`, trang `/friends`, thẻ trên trang chủ): kết bạn bằng mã (cùng mã liên kết phụ huynh), mỗi tuần hai người cùng kiếm 200 XP (mỗi người ≥ 50) → mỗi bên nhận +30 XP, +10 đá quý; tối đa 10 bạn | — |
+| G6 | **Trang landing làm mới** theo giao diện cao cấp: hero gradient có quầng sáng, khối "xem trước ứng dụng" với vòng tròn kỹ năng, bảng giá thêm gói Gia đình | — |
+| G6 | **Bo nói bằng giọng neural**: `/audio/tts?lang=vi` (cache theo ngôn ngữ, prompt Gemini tiếng Việt, Voicebox `language=vi`); web `playVietnamese()` dùng giọng server trước, giọng vi-VN của trình duyệt khi không có | — |
+| G6 | **Báo cáo PDF cho phụ huynh**: trang `/parent/report/<learnerId>` kiểu tài liệu in, nút "Tải PDF / In" mở hộp thoại in của trình duyệt (Lưu thành PDF); không cần thư viện PDF | — |
+| G6 | **Gói gia đình tối đa 4 con**: chỉ 4 con liên kết sớm nhất được Premium; khi gói đang hoạt động, liên kết con thứ 5 bị từ chối với hướng dẫn huỷ liên kết | — |
+
+| G7 | **Nhóm học cho giáo viên / doanh nghiệp** (vai trò `teacher`, `services/groups.py`, `/groups`, trang `/teacher`, `/teacher/<id>`): tạo lớp hoặc nhóm công ty, mã tham gia `LOP-XXXX` / `CTY-XXXX`, bảng tiến độ (XP tuần, chuỗi, trình độ, hôm nay đã học), giao bài theo tuần (kỹ năng + chủ đề + hạn), đếm ai đã làm; học viên có trang `/classes` + thẻ "Bài tập được giao" trên trang chủ; làm xong bài học cùng kỹ năng là bài tập được tính xong | — |
+| G7 | **Gói doanh nghiệp / lớp học theo ghế** (`plan=team`, 79K/ghế/tháng, 690K/ghế/năm, 5–500 ghế): thành viên nhóm của chủ gói là Premium theo thứ tự tham gia (`premium_source=team`); `/upgrade` với tài khoản giáo viên chọn số ghế; mua qua VNPay/MoMo hoặc demo | — |
+| G7 | **Thông báo đẩy cho phụ huynh** (`/parent/push-subscriptions`, `push_alerts`): con nghỉ 2 ngày, chuỗi ngày sắp mất (19–21h, chuỗi ≥ 3, một lần/ngày), báo cáo tuần sẵn sàng; chạy trong cron nhắc học, không cần email | — |
+| G7 | **Bảng xếp hạng bạn bè** (`GET /friends/leaderboard`, trên trang `/friends`): XP tuần của tôi và các bạn học | — |
+| G7 | **Ứng dụng di động gốc**: hướng dẫn đóng gói PWA bằng Capacitor (`docs/MOBILE_APP.md`, `docs/mobile/capacitor.config.ts.example`) — chủ dự án chạy ở máy có Android Studio / Xcode | — |
+
+| G8 | **Thư viện đề thi thử IELTS / TOEIC** (`services/mock_exams.py`, `/exams`, trang `/exams`, `/exams/<id>` chế độ tập trung): 4 mini test đúng định dạng thật — IELTS Listening (điền form, trắc nghiệm, hội thoại học thuật), IELTS Reading (T/F/NG, hoàn thành câu, trắc nghiệm), TOEIC Listening (Part 2–4), TOEIC Reading (Part 5–7); đồng hồ đếm ngược, phần nghe phát **một lần** bằng giọng server, nộp bài → band IELTS / điểm TOEIC ước tính theo bảng quy đổi chính thức, lời giải tiếng Việt từng câu, +3 XP/câu (trần 40), +8 đá quý khi ≥ 70 %; miễn phí 1 đề/ngày, Premium không giới hạn; lưu `ExamAttempt`, ghi `LearningEvent` | — |
+| G8 | **Hỏi Bo — chatbot ngữ pháp tiếng Việt** (`agents/tutor_agent.py`, agent `tutor_answer`, `/tutor`, trang `/tutor`): trả lời bằng tiếng Việt kèm quy tắc, 2–3 ví dụ nghe được, lỗi người Việt hay mắc, gợi ý câu hỏi tiếp; nhớ 6 lượt gần nhất làm ngữ cảnh; miễn phí 5 câu/ngày (`TUTOR_FREE_DAILY_LIMIT`), Premium không giới hạn; LLM lỗi → câu trả lời dự phòng, không trừ lượt | — |
+| G8 | **Báo cáo nhóm cho giáo viên / HR**: `GET /groups/<id>/report.csv` (UTF-8 BOM mở Excel được, cột theo từng bài tập) + trang in `/teacher/<id>/report` (KPI nhóm, bảng xếp hạng XP tuần, bài tập) với nút Tải CSV / Tải PDF | — |
+| G8 | **Hoá đơn VAT cho doanh nghiệp**: tài khoản giáo viên / công ty điền tên đơn vị, MST, địa chỉ, email khi mua gói theo ghế (`PaymentOrder.invoice_info`, cả VNPay/MoMo lẫn demo); `GET /billing/orders`, `PUT /billing/orders/<id>/invoice`; admin xem danh sách đơn yêu cầu hoá đơn ở tab Doanh thu, đánh dấu "đã xuất", tải CSV (`GET /admin/revenue/orders`) | — |
+| G8 | **Hero 3D trang landing** (`components/landing/HeroScene3D.tsx`, CSS 3D thuần): lõi tri thức + 3 vành quỹ đạo, 6 thẻ từ vựng bay quanh luôn hướng về người xem, bậc thang A1→C1 có điểm sáng leo lên, sàn lưới trôi, chữ cái lơ lửng, +XP, chip thành tích; nghiêng theo chuột; thu nhỏ trên điện thoại; tắt khi "giảm chuyển động". Đổi từ/thẻ: mảng `WORDS` trong file | — |
+| G8 | **Kênh push gốc FCM cho app Capacitor** (`services/fcm.py`, `DeviceToken`, `POST/DELETE /notifications/device-tokens`, `GET /notifications/native-push`): FCM HTTP v1 với service account (token OAuth tự ký bằng python-jose, cache 55 phút), tự xoá token hết hiệu lực; nhắc học và cảnh báo phụ huynh gửi song song web push + FCM; tắt êm khi chưa có `FIREBASE_SERVICE_ACCOUNT_JSON` | — |
+
+| G9 | **Thi thử Speaking có giám khảo AI** (`services/speaking_exams.py`, `/speaking-exams`, trang `/exams/speaking/<id>`): IELTS Speaking Part 1–3 (cue card 1 phút chuẩn bị, nói 2 phút) và TOEIC Speaking (Q1–2 đọc to chấm phát âm, Q5–7 trả lời, Q11 nêu ý kiến); giám khảo AI đọc câu hỏi, đếm giờ chuẩn bị/trả lời, ghi âm qua micro (tự nối lại khi trình duyệt ngắt vì im lặng); nộp bài → agent `speaking_exam_evaluation` cho band IELTS 4 tiêu chí / điểm TOEIC 0–200, nhận xét từng phần, câu sửa nghe được; LLM lỗi → ước tính theo độ dài; +6 XP/phần (trần 40), +8 đá quý khi ≥ 6.0 / ≥ 130; miễn phí 1 lần/ngày | — |
+| G9 | **Ngân hàng đề thi thử sinh bằng AI, admin duyệt** (`agents/exam_agent.py`, `services/exam_generator.py`, `GeneratedExam`, `/admin/exams*`, tab "Đề thi" ở `/admin`): sinh IELTS/TOEIC Listening hoặc Reading đúng định dạng (`normalize_paper` kiểm tra đáp án, số câu, lời thoại), xem trước có đáp án, duyệt/từ chối/xoá; đề đã duyệt xuất hiện trong `/exams` với id `gen-…` và chấm như đề viết tay | — |
+| G9 | **Kế hoạch ôn thi theo ngày thi + mục tiêu** (`services/study_plan.py`, `/study-plan`, trang `/plan`, thẻ trên trang chủ): điểm hiện tại từng kỹ năng từ thi thử/band viết, khoảng cách tới mục tiêu, dự kiến ngày thi, lộ trình theo tuần (kỹ năng yếu trước, chỉ tiêu bài/đề/viết/nói theo phút học mỗi ngày), trạng thái đúng/chậm/vượt tiến độ tính từ `LearningEvent` tuần này, lời khuyên tiếng Việt | — |
+| G9 | **Nhắc học qua Zalo OA** (`services/zalo.py`, `/zalo/*`, khối Zalo trong Nhắc học và bảng Phụ huynh): học viên/phụ huynh quan tâm OA rồi gửi mã `ZL-XXXXX` (hoặc mã AGEN của học viên) → webhook liên kết; nhắc học hằng ngày, báo cáo tuần, cảnh báo nghỉ học, chuỗi sắp mất gửi thêm qua Zalo; gửi "TAT" để tắt; token OA tự làm mới và lưu trong `app_config`; tắt êm khi chưa có khoá | — |
+
+**G2 → G9 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
 
 **G1 hoàn tất.** Chưa làm trong G1: "sửa chuỗi trong 24 giờ" (streak repair) và mua bảo vệ chuỗi bằng XP —
 hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi người tặng sẵn 1, tối đa 2).
@@ -147,10 +171,54 @@ Chưa làm trong G4: âm thanh/giọng của Bo (hiện chỉ bong bóng chữ);
 
 Chưa làm trong G5: thử thách bạn bè (friend quest); giọng neural cho Bo (có thể nối vào `/audio/tts` khi muốn); chặn liên kết quá 4 con cho gói gia đình.
 
-## G6 — gợi ý tiếp theo
+## G6 — Bạn bè, landing mới, giọng Bo, PDF phụ huynh, giới hạn gia đình: hoàn tất trên code
 
-Thử thách bạn bè · Thông báo đẩy khi con xuống hạng/giữ chuỗi cho phụ huynh · Trang landing làm mới theo giao diện mới ·
-Bo nói bằng giọng neural · Báo cáo PDF cho phụ huynh.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Thử thách bạn bè | Không cần gì. Migration `v9e0f1a2b3c4` tự chạy. Đổi mục tiêu/thưởng: hằng số đầu `services/friends.py`. |
+| Landing mới | Không cần gì. Ảnh `public/hero-banner.webp` không còn dùng ở hero (có thể xoá hoặc giữ). |
+| Bo nói giọng neural | Cần giọng server đã bật ở G2 (`GEMINI_API_KEY`/`OPENAI_API_KEY`/`VOICEBOX_URL`); không có thì dùng giọng vi-VN của trình duyệt; không có cả hai thì nút loa tự ẩn. Tiếng Việt tính vào ngân sách ký tự TTS hằng ngày. |
+| Báo cáo PDF | Không cần gì; phụ huynh bấm "Tải PDF / In" → chọn "Lưu thành PDF" trong hộp thoại in. |
+| Giới hạn 4 con | Không cần gì; đổi số: `FAMILY_MAX_CHILDREN` trong `services/payments.py`. |
+
+## G7 — Lớp học / doanh nghiệp, push phụ huynh, bảng bạn bè, app di động: hoàn tất trên code
+
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Nhóm học + bài tập | Không cần gì. Migration `w0f1a2b3c4d5` tự chạy. Giáo viên/HR đăng ký với vai trò "Giáo viên / Công ty". |
+| Gói theo ghế | Cần cổng thanh toán đã bật (G3) hoặc demo. Giá ở `TEAM_PRICES_VND`, ghế tối thiểu/tối đa `TEAM_MIN_SEATS`/`TEAM_MAX_SEATS` trong `services/payments.py`. |
+| Push phụ huynh | Cần `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` (đã dùng cho nhắc học). Chạy trong cron hằng giờ sẵn có; cửa sổ "chuỗi sắp mất" 19–21h giờ VN. |
+| Bảng xếp hạng bạn bè | Không cần gì. |
+| App di động | Chủ dự án chạy các bước trong `docs/MOBILE_APP.md` ở máy có Android Studio (Android) / Xcode (iOS); cần tài khoản Google Play (25 USD) và Apple Developer (99 USD/năm). Push gốc trên iOS cần thêm kênh FCM/APNs (chưa làm). |
+
+Chưa làm trong G7: kênh FCM/APNs cho push trên app gốc; giáo viên xem chi tiết từng bài làm của học viên; xuất báo cáo nhóm ra PDF/CSV.
+
+## G8 — Thi thử, hỏi Bo, báo cáo nhóm, hoá đơn VAT, FCM: hoàn tất trên code
+
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Thi thử IELTS/TOEIC | Không cần gì (không dùng AI). Migration `x1a2b3c4d5e6` tự chạy. Phần nghe dùng giọng server đã bật ở G2 (không có thì trình duyệt tự đọc). Thêm đề: thêm phần tử vào `EXAMS` trong `services/mock_exams.py` (mỗi câu có `explanation_vi`). Đổi hạn mức miễn phí: `FREE_DAILY_ATTEMPTS`. |
+| Hỏi Bo | Cần `GEMINI_API_KEY`/`OPENAI_API_KEY` (đã có). Mỗi câu hỏi = 1 lượt gọi LLM. Đổi hạn mức miễn phí: `TUTOR_FREE_DAILY_LIMIT` trên Render (mặc định 5). |
+| Báo cáo nhóm | Không cần gì; giáo viên bấm "Báo cáo · PDF / CSV" ở trang nhóm. |
+| Hoá đơn VAT | App chỉ **thu thông tin** và để admin đánh dấu đã xuất; việc xuất hoá đơn điện tử thật làm trên phần mềm HĐĐT của chủ dự án (Viettel/MISA/…). Admin xem ở `/admin` → Doanh thu → "Đơn hàng & hoá đơn VAT". |
+| FCM | Firebase console → Project settings → Service accounts → Generate new private key → dán **nguyên file JSON** vào biến `FIREBASE_SERVICE_ACCOUNT_JSON` trên Render. App Capacitor đăng ký token theo `docs/MOBILE_APP.md` (mục Push gốc). Chưa có khoá thì web push vẫn chạy như cũ. |
+
+Chưa làm trong G8: ngân hàng đề lớn hơn (hiện 4 mini test, có thể thêm bằng tay hoặc sinh bằng Content Factory sau); Bo chưa đọc được ảnh/bài viết dài.
+
+## G9 — Thi thử Speaking, đề AI sinh, kế hoạch ôn thi, Zalo OA: hoàn tất trên code
+
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Thi thử Speaking | Cần khoá LLM (đã có). Mỗi lần nộp = 1 lượt gọi AI. Trình duyệt cần Chrome/Edge/Safari có nhận diện giọng nói; đọc to chấm phát âm theo từ (Azure chưa nối vào đề thi, có thể thêm sau). Migration `y2b3c4d5e6f7` tự chạy. Thêm đề: `EXAMS` trong `services/speaking_exams.py`. |
+| Đề thi AI sinh | Admin vào `/admin` → tab **Đề thi** → chọn kỳ thi/kỹ năng → "Sinh bản nháp" (30–60 giây, 1 lượt AI) → xem trước → **Duyệt**. Chỉ đề đã duyệt mới hiện với học viên. Nên đọc kỹ đáp án trước khi duyệt. |
+| Kế hoạch ôn thi | Không cần gì. Học viên vào `/plan` (hoặc thẻ "Kế hoạch ôn thi" trên trang chủ) đặt kỳ thi, mục tiêu, ngày thi. |
+| Zalo OA | 1) Tạo Zalo Official Account (loại Doanh nghiệp đã xác thực để gửi tin), 2) tạo ứng dụng tại developers.zalo.me, bật API OA, lấy **App ID**, **App Secret**; 3) cấp quyền OA cho app → lấy **refresh token** (công cụ OA → API → Lấy access token); 4) dán `ZALO_APP_ID`, `ZALO_APP_SECRET`, `ZALO_OA_ID`, `ZALO_OA_REFRESH_TOKEN`, `ZALO_OA_SECRET_KEY` (OA secret key, để xác thực webhook) lên Render; 5) khai báo webhook `https://<api>/api/v1/zalo/webhook` với các sự kiện `user_send_text`, `follow`, `unfollow`. Tin nhắn CS miễn phí trong cửa sổ 7 ngày sau khi người dùng nhắn OA; nhắc học hằng ngày giữ cửa sổ này mở. Chưa có khoá thì mục Zalo tự ẩn. |
+
+Chưa làm trong G9: chấm phát âm Speaking bằng Azure (hiện theo từ); đề Speaking/Writing do AI sinh; gửi ZNS (tin theo mẫu, tính phí) khi hết cửa sổ 7 ngày.
+
+## G10 — gợi ý tiếp theo
+
+Học qua video/podcast ngắn có transcript bấm từ · Câu lạc bộ nói nhóm 2–4 người với AI dẫn · Giáo viên xem chi tiết bài làm từng học viên + nhận xét · Stripe cho thẻ quốc tế + chứng nhận hoàn thành (PDF) cho doanh nghiệp · Theo dõi chi phí AI theo người dùng.
 
 ## Câu hỏi còn mở với chủ dự án
 

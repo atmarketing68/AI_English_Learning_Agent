@@ -1,0 +1,95 @@
+'use client';
+
+/** G7 · Lớp học của tôi: tham gia bằng mã, bài tập được giao. */
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft, ArrowRight, Check, CircleAlert, LoaderCircle, LogOut, School } from 'lucide-react';
+import { useAuthHydrated, useAuthStore } from '@/store/authStore';
+import { SKILL_LABELS, getMyGroups, joinGroup, leaveGroup, type LearnerGroup } from '@/lib/groupsService';
+import { PageSkeleton } from '@/components/Skeleton';
+import Mascot from '@/components/ui/Mascot';
+import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
+
+export default function ClassesPage() {
+  const router = useRouter();
+  const hydrated = useAuthHydrated();
+  const { isAuthenticated } = useAuthStore();
+  const [groups, setGroups] = useState<LearnerGroup[] | null>(null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!isAuthenticated) { router.push('/login'); return; }
+    getMyGroups().then(r => setGroups(r.groups)).catch(() => setError('Không tải được lớp học.'));
+  }, [hydrated, isAuthenticated, router]);
+
+  const join = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true); setError('');
+    try {
+      setGroups((await joinGroup(code)).groups);
+      setCode('');
+      track('group_joined');
+    } catch (err: unknown) {
+      setError(apiErrorMessage(err, 'Không tham gia được.'));
+    } finally { setBusy(false); }
+  };
+
+  if (!groups) return <main className="friends-page">{error ? <div className="alert-error"><CircleAlert size={16} /> {error}</div> : <PageSkeleton cards={2} />}</main>;
+  const pending = groups.flatMap(g => g.assignments.filter(a => !a.done).map(a => ({ g, a })));
+
+  return (
+    <main className="friends-page">
+      <div className="friends-column">
+        <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Trang chủ</Link>
+        <section className="card friends-hero">
+          <span className="icon-tile" style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><School size={28} strokeWidth={1.7} /></span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="eyebrow">Lớp học & nhóm</div>
+            <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', margin: '2px 0 4px' }}>{pending.length ? `${pending.length} bài tập đang chờ` : 'Lớp học của tôi'}</h1>
+            <p style={{ margin: 0, fontSize: '0.9rem' }}>Nhập mã từ giáo viên hoặc công ty để tham gia. Bài tập được giao sẽ hiện ở đây và trên trang chủ.</p>
+          </div>
+        </section>
+        <Mascot size={64} mood={pending.length ? 'think' : 'happy'} say={pending.length ? 'Có bài cô giao nè, làm ngay cho nhẹ đầu!' : 'Có mã lớp chưa? Nhập vào để cùng học với các bạn.'} className="league-mascot" />
+
+        <form onSubmit={join} className="card" style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <input className="form-input" placeholder="Mã lớp / nhóm (LOP-XXXX, CTY-XXXX)" value={code} onChange={e => setCode(e.target.value.toUpperCase())} style={{ flex: '1 1 200px', textTransform: 'uppercase', letterSpacing: 1 }} maxLength={20} aria-label="Mã nhóm" />
+          <button type="submit" className="btn btn-primary" disabled={busy || !code.trim()}>{busy ? <LoaderCircle className="animate-spin" size={16} /> : 'Tham gia'}</button>
+          {error && <div className="alert-error" style={{ flexBasis: '100%' }}><CircleAlert size={16} /> {error}</div>}
+        </form>
+
+        {groups.length === 0 && <div className="card" style={{ marginTop: 16, textAlign: 'center', color: 'var(--text-muted)', padding: 28 }}>Bạn chưa ở trong lớp hoặc nhóm nào.</div>}
+        {groups.map(({ group, owner_name, assignments }) => (
+          <section key={group.id} className="card" style={{ marginTop: 16, display: 'grid', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600 }}>{group.name}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{group.kind === 'company' ? 'Doanh nghiệp' : 'Lớp học'} · {owner_name} · {group.member_count} thành viên</div>
+              </div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { if (confirm(`Rời ${group.name}?`)) setGroups((await leaveGroup(group.id)).groups); }}><LogOut size={14} /> Rời nhóm</button>
+            </div>
+            {assignments.length === 0 && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có bài tập nào được giao.</div>}
+            {assignments.map(a => (
+              <div key={a.id} className="assignment-row" data-done={a.done} data-overdue={a.overdue}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {a.title} <span className="skill-badge" style={{ background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}>{SKILL_LABELS[a.skill]}</span>
+                    {a.overdue && <span className="skill-badge" style={{ background: 'color-mix(in srgb, var(--agen-secondary) 12%, transparent)', color: 'var(--agen-secondary)' }}>Quá hạn</span>}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{a.topic}{a.due_on ? ` · hạn ${new Date(a.due_on).toLocaleDateString('vi-VN')}` : ''}{a.note ? ` · ${a.note}` : ''}</div>
+                </div>
+                {a.done
+                  ? <span className="xp-badge"><Check size={13} /> Xong{a.score != null ? ` · ${a.score}%` : ''}</span>
+                  : <Link href={`/learn?assignment=${a.id}`} className="btn btn-primary btn-sm" onClick={() => track('assignment_started', { skill: a.skill })}>{a.started ? 'Làm tiếp' : 'Làm bài'} <ArrowRight size={14} /></Link>}
+              </div>
+            ))}
+          </section>
+        ))}
+      </div>
+    </main>
+  );
+}

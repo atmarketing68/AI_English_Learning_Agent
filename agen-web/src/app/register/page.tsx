@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { register, login, getMyProfile, claimGuestAccount } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
 import Logo from '@/components/ui/Logo';
-import { CircleAlert, GraduationCap, Users } from 'lucide-react';
+import { CircleAlert, GraduationCap, Users, School } from 'lucide-react';
 import { identifyUser, track } from '@/lib/analytics';
 import { apiErrorMessage } from '@/lib/apiError';
 
@@ -26,7 +26,7 @@ export default function RegisterPage() {
   // G3 · a guest arriving from the "Lưu tài khoản" banner keeps their progress.
   const [claimMode] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('claim') === '1');
   const claiming = claimMode && isAuthenticated && isGuest;
-  const [role, setRole] = useState<'learner' | 'parent'>('learner');
+  const [role, setRole] = useState<'learner' | 'parent' | 'teacher'>('learner');
   const [form, setForm] = useState({
     full_name: '', display_name: '', email: '', password: '', age: '', grade: '',
   });
@@ -70,6 +70,8 @@ export default function RegisterPage() {
       if (role === 'parent') {
         // Parents have no learner profile — go straight to parent dashboard
         router.push('/parent');
+      } else if (role === 'teacher') {
+        router.push('/teacher');
       } else {
         const profile = await getMyProfile();
         setLearner(profile);
@@ -98,10 +100,11 @@ export default function RegisterPage() {
             {/* Role selector */}
             {!claiming && <div className="form-group">
               <label className="form-label">Bạn là</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
                 {([
                   { value: 'learner', icon: GraduationCap, label: 'Học viên' },
                   { value: 'parent', icon: Users, label: 'Phụ huynh' },
+                  { value: 'teacher', icon: School, label: 'Giáo viên / Công ty' },
                 ] as const).map((r) => (
                   <button
                     key={r.value}
@@ -131,7 +134,7 @@ export default function RegisterPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Tên hiển thị</label>
-                <input className="form-input" name="display_name" placeholder={role === 'parent' ? 'Bố Minh' : 'Minh'} value={form.display_name} onChange={handleChange} required />
+                <input className="form-input" name="display_name" placeholder={role === 'parent' ? 'Bố Minh' : role === 'teacher' ? 'Cô Lan / Công ty ABC' : 'Minh'} value={form.display_name} onChange={handleChange} required />
               </div>
             </div>
 
@@ -168,7 +171,7 @@ export default function RegisterPage() {
             )}
 
             <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading} style={{ marginTop: 8 }}>
-              {loading ? (claiming ? 'Đang lưu…' : 'Đang tạo tài khoản…') : claiming ? 'Lưu tài khoản' : role === 'parent' ? 'Tạo tài khoản phụ huynh' : 'Bắt đầu học ngay'}
+              {loading ? (claiming ? 'Đang lưu…' : 'Đang tạo tài khoản…') : claiming ? 'Lưu tài khoản' : role === 'parent' ? 'Tạo tài khoản phụ huynh' : role === 'teacher' ? 'Tạo tài khoản giáo viên' : 'Bắt đầu học ngay'}
             </button>
           </form>
 

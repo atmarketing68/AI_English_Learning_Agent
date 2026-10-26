@@ -40,6 +40,27 @@ việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhậ
   doanh thu `GET /admin/revenue/summary`; band thi: `writing_agent.EXAM_GENRES` + `exam_band` chỉ với genre thi.
   Web: lớp "pro" cho skin classic ở cuối `globals.css` (`.pro-hero`, `.stat-card`, `.quick-tile`, `SkillRing`, `CountUp`) —
   mọi rule chỉ-classic dùng tiền tố `:root:not([data-skin="vivid"])`.
+- G6: bạn học `services/friends.py` (1 dòng/cặp, `a_id < b_id`, thử thách đôi tính từ `league.weekly_xp`); giọng Bo
+  `/audio/tts?lang=vi` → web `playVietnamese()` trong `lib/speechService.ts`; báo cáo in `app/parent/report/[learnerId]`
+  (CSS `@media print` ở cuối `globals.css`); gói gia đình chỉ phủ `subscription_service.covered_children()` (4 con đầu).
+- G7: vai trò `teacher` (không có learner/parent profile) sở hữu `Group` (`services/groups.py`); bài tập hoàn thành khi
+  `lessons.finish_lesson` gọi `groups.mark_done_on_finish` (bài tập đã start, cùng kỹ năng, cũ nhất trước). Gói theo ghế
+  `plan=team` + `Subscription.seats`, phủ `subscription_service.team_covered_learners()`. Push phụ huynh:
+  `PushSubscription.user_id` (learner_id có thể null), gửi trong `parent_digest.run_parent_digests` qua `reminders.push_to_user`.
+  Web: trang chủ nhóm `app/teacher`, học viên `app/classes`, `/learn?assignment=<id>`.
+- G8: đề thi thử tĩnh trong `services/mock_exams.py` (`grade()` chấm xác định, `estimate_score()` quy đổi band/điểm), lưu `ExamAttempt`;
+  Bo hỏi đáp `agents/tutor_agent.py` qua orchestrator `tutor_answer` + `TutorMessage` (fallback không trừ lượt miễn phí); CSV nhóm
+  `groups.report_csv`; hoá đơn VAT `PaymentOrder.invoice_info`/`invoice_issued_at`; FCM `services/fcm.py` (gọi trong
+  `reminders.push_to_learner/push_to_user`, tắt khi không có `FIREBASE_SERVICE_ACCOUNT_JSON`). Web: `/exams/<id>` là chế độ tập trung
+  (không shell), chat Bo dùng class `chat-*`, báo cáo nhóm in `app/teacher/[groupId]/report`. Hero 3D landing:
+  `components/landing/HeroScene3D.tsx` + CSS `.h3d-*` — vị trí chiều sâu phải dùng `transform`/`--z` trong keyframes, **không** dùng
+  thuộc tính `translate` 3 giá trị (trình nén CSS của Next bỏ mất).
+- G9: thi thử Speaking `services/speaking_exams.py` + `SpeakingExamAttempt` (start → answer từng task → finish gọi agent
+  `speaking_exam_evaluation`, fallback `heuristic_estimate`); đề AI sinh `agents/exam_agent.py` → `exam_generator.normalize_paper`
+  → `GeneratedExam` (chỉ `approved` mới vào `mock_exams.list_exams(db)`, id `gen-<uuid>`); kế hoạch ôn thi `services/study_plan.py`
+  (`LearnerProfile.exam_target/exam_target_score/exam_date`, không LLM); Zalo OA `services/zalo.py` (token trong `AppConfig`,
+  webhook `/zalo/webhook` liên kết bằng `User.zalo_link_code`, kênh gửi trong `reminders.zalo_to_user` + `parent_digest._alert`).
+  Web: `/exams/speaking/<id>` dùng `SpeechRecognizer` trực tiếp (gộp transcript, tự nối lại), `/plan`, tab "Đề thi" ở admin.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

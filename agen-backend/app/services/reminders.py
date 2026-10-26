@@ -73,11 +73,11 @@ def compose_message(db: Session, learner: LearnerProfile, now_local: datetime) -
 
 
 # ── Web push ─────────────────────────────────────────────────────────────────
-def send_push(db: Session, sub: PushSubscription, message: ReminderMessage) -> bool:
+def send_push(db: Session, sub: PushSubscription, message: ReminderMessage, tag: str = "daily-reminder") -> bool:
     """Deliver one push. Expired subscriptions are deleted. Returns success."""
     from pywebpush import WebPushException, webpush  # heavy import, only when sending
 
-    payload = {"title": message.title, "body": message.body, "url": message.url, "tag": "daily-reminder"}
+    payload = {"title": message.title, "body": message.body, "url": message.url, "tag": tag}
     try:
         webpush(
             subscription_info={"endpoint": sub.endpoint, "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
@@ -102,10 +102,25 @@ def send_push(db: Session, sub: PushSubscription, message: ReminderMessage) -> b
 
 
 def push_to_learner(db: Session, learner: LearnerProfile, message: ReminderMessage) -> int:
+    """Web push (VAPID) + G8 native push (FCM) — each channel only when configured."""
+    from app.services import fcm  # local import: keeps the reminders module light
+
+    sent = fcm.send_to_learner(db, learner.id, message.title, message.body, message.url, "daily-reminder")
     if not settings.push_enabled:
-        return 0
+        return sent
     subs = db.query(PushSubscription).filter(PushSubscription.learner_id == learner.id).all()
-    return sum(send_push(db, sub, message) for sub in subs)
+    return sent + sum(send_push(db, sub, message) for sub in subs)
+
+
+def push_to_user(db: Session, user_id: str, message: ReminderMessage, tag: str = "parent-alert") -> int:
+    """G7 · Push to a non-learner account's devices (parents): web push + G8 FCM."""
+    from app.services import fcm
+
+    sent = fcm.send_to_user(db, user_id, message.title, message.body, message.url, tag)
+    if not settings.push_enabled:
+        return sent
+    subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
+    return sent + sum(send_push(db, sub, message, tag) for sub in subs)
 
 
 # ── Email ────────────────────────────────────────────────────────────────────
@@ -173,8 +188,18 @@ def remind(db: Session, learner: LearnerProfile, user: User, now_local: datetime
     message = compose_message(db, learner, now_local)
     pushed = push_to_learner(db, learner, message)
     emailed = bool(learner.reminder_email and user.email and send_email(user.email, message, user.id))
+    zaloed = zalo_to_user(db, user, message)
     create_notification(db, learner.id, type="reminder", title=message.title, body=message.body, icon="⏰")
-    return {"push": pushed, "email": int(emailed)}
+    return {"push": pushed, "email": int(emailed), "zalo": zaloed}
+
+
+def zalo_to_user(db: Session, user: User, message: ReminderMessage) -> int:
+    """G9 · Zalo OA text to a linked account (learner or parent); 0 when not linked / not configured."""
+    from app.services import zalo
+
+    if not user.zalo_user_id or not zalo.enabled():
+        return 0
+    return zalo.send_to_user(db, user, f"{message.title}\n{message.body}\n{settings.app_url}{message.url}")
 
 
 def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
@@ -193,7 +218,7 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
         )
         .all()
     )
-    stats = {"checked": len(candidates), "reminded": 0, "skipped_studied": 0, "push": 0, "email": 0}
+    stats = {"checked": len(candidates), "reminded": 0, "skipped_studied": 0, "push": 0, "email": 0, "zalo": 0}
     for learner, user in candidates:
         if streak_state(learner, today).studied_today:
             stats["skipped_studied"] += 1
@@ -203,5 +228,6 @@ def run_due_reminders(db: Session, now: datetime | None = None) -> dict:
         stats["reminded"] += 1
         stats["push"] += sent["push"]
         stats["email"] += sent["email"]
+        stats["zalo"] += sent.get("zalo", 0)
         db.commit()
     return stats

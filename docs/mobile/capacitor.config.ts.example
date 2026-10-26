@@ -1,0 +1,20 @@
+import type { CapacitorConfig } from '@capacitor/cli';
+
+// Đóng gói web production thành app gốc (remote URL). Đổi server.url thành tên miền thật.
+const config: CapacitorConfig = {
+  appId: 'com.aiagentenglish.app',
+  appName: 'AI AGENT ENGLISH',
+  webDir: 'out',
+  server: {
+    url: 'https://app.aiagentenglish.com',
+    cleartext: false,
+  },
+  ios: { contentInset: 'automatic', backgroundColor: '#0B1530' },
+  android: { backgroundColor: '#0B1530', allowMixedContent: false },
+  plugins: {
+    SplashScreen: { launchShowDuration: 800, backgroundColor: '#0B1530', showSpinner: false },
+    PushNotifications: { presentationOptions: ['badge', 'sound', 'alert'] },
+  },
+};
+
+export default config;

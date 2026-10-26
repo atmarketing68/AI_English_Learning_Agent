@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, Integer, cast
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -459,7 +459,7 @@ def revenue_summary(
         prov.orders += 1
         plan = o.plan or PLAN_PREMIUM
         pk = f"{plan}·{o.months}"
-        label = f"{'Gia đình' if plan == PLAN_FAMILY else 'Premium'} {o.months} tháng"
+        label = f"{'Gia đình' if plan == PLAN_FAMILY else 'Doanh nghiệp' if plan == 'team' else 'Premium'} {o.months} tháng"
         bucket = by_plan.setdefault(pk, RevenueBucket(key=pk, label=label, revenue_vnd=0, orders=0))
         bucket.revenue_vnd += o.amount_vnd
         bucket.orders += 1
@@ -494,3 +494,155 @@ def revenue_summary(
         guests_claimed=guests_claimed,
         registered_learners=registered,
     )
+
+
+# ── G8 · Đơn hàng & hoá đơn VAT ──────────────────────────────────────────────
+class AdminOrder(BaseModel):
+    order_id: str
+    email: Optional[str]
+    role: Optional[str]
+    provider: str
+    plan: str
+    seats: int
+    months: int
+    amount_vnd: int
+    status: str
+    invoice: Optional[dict]
+    invoice_issued_at: Optional[datetime]
+    created_at: datetime
+    paid_at: Optional[datetime]
+
+
+@router.get("/revenue/orders", response_model=list[AdminOrder])
+def revenue_orders(
+    invoice_only: bool = False,
+    limit: int = Query(default=100, ge=1, le=500),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Recent orders, newest first; `invoice_only` lists the ones that asked for a VAT invoice."""
+    _require_admin(current_user)
+    q = db.query(PaymentOrder, User.email, User.role).join(User, User.id == PaymentOrder.user_id)
+    if invoice_only:
+        q = q.filter(PaymentOrder.invoice_info.isnot(None))
+    rows = q.order_by(PaymentOrder.created_at.desc()).limit(limit).all()
+    return [AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
+                       amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
+                       invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at) for o, email, role in rows]
+
+
+class InvoiceIssuedIn(BaseModel):
+    issued: bool = True
+
+
+@router.post("/revenue/orders/{order_id}/invoice-issued", response_model=AdminOrder)
+def mark_invoice_issued(
+    order_id: str,
+    payload: InvoiceIssuedIn,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark the e-invoice for an order as issued (or undo)."""
+    _require_admin(current_user)
+    row = db.query(PaymentOrder, User.email, User.role).join(User, User.id == PaymentOrder.user_id).filter(PaymentOrder.id == order_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
+    o, email, role = row
+    o.invoice_issued_at = datetime.utcnow() if payload.issued else None
+    db.commit()
+    return AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
+                      amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
+                      invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at)
+
+
+# ── G9 · Đề thi thử do AI sinh (duyệt trước khi phát hành) ────────────────────
+class GeneratedExamOut(BaseModel):
+    id: str
+    public_id: str
+    exam: str
+    skill: str
+    title: str
+    topic: Optional[str]
+    status: str
+    questions: int
+    eval_score: Optional[float]
+    eval_flagged: Optional[bool]
+    created_at: datetime
+    approved_at: Optional[datetime]
+
+
+class GenerateExamIn(BaseModel):
+    exam: str = Field(pattern="^(ielts|toeic)$")
+    skill: str = Field(pattern="^(listening|reading)$")
+    topic: str = Field(default="", max_length=120)
+    level: str = Field(default="B1", pattern="^(A2|B1|B2|C1)$")
+    auto_approve: bool = False
+
+
+class ExamStatusIn(BaseModel):
+    status: str = Field(pattern="^(draft|approved|rejected)$")
+
+
+def _gen_out(r) -> GeneratedExamOut:
+    from app.services.exam_generator import public_id
+    return GeneratedExamOut(id=r.id, public_id=public_id(r), exam=r.exam, skill=r.skill, title=r.title, topic=r.topic, status=r.status,
+                            questions=int(r.questions or 0), eval_score=r.eval_score, eval_flagged=r.eval_flagged, created_at=r.created_at, approved_at=r.approved_at)
+
+
+@router.get("/exams", response_model=list[GeneratedExamOut])
+def list_generated_exams(status: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedExam
+    q = db.query(GeneratedExam)
+    if status:
+        q = q.filter(GeneratedExam.status == status)
+    return [_gen_out(r) for r in q.order_by(GeneratedExam.created_at.desc()).limit(200).all()]
+
+
+@router.post("/exams/generate", response_model=GeneratedExamOut)
+def generate_exam(payload: GenerateExamIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """One AI call → one draft paper (or approved straight away with auto_approve)."""
+    _require_admin(current_user)
+    from app.services.exam_generator import ExamGenerationError, generate_exam_draft
+    try:
+        row = generate_exam_draft(db, payload.exam, payload.skill, payload.topic, payload.level, payload.auto_approve)
+    except ExamGenerationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(exc))
+    db.commit()
+    return _gen_out(row)
+
+
+@router.get("/exams/{exam_id}")
+def get_generated_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Full paper with answers, for review."""
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedExam
+    row = db.query(GeneratedExam).filter(GeneratedExam.id == exam_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    return {"meta": _gen_out(row).model_dump(), "paper": row.content}
+
+
+@router.post("/exams/{exam_id}/status", response_model=GeneratedExamOut)
+def set_generated_exam_status(exam_id: str, payload: ExamStatusIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedExam
+    from app.services.exam_generator import set_status
+    row = db.query(GeneratedExam).filter(GeneratedExam.id == exam_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    set_status(db, row, payload.status)
+    db.commit()
+    return _gen_out(row)
+
+
+@router.delete("/exams/{exam_id}", status_code=204)
+def delete_generated_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedExam
+    row = db.query(GeneratedExam).filter(GeneratedExam.id == exam_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    db.delete(row)
+    db.commit()

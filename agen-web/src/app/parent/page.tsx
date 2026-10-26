@@ -6,11 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getChildren, linkChild, unlinkChild, getChildReport, getParentSettings, updateParentSettings,
+  ParentPushDeniedError, disableParentPush, enableParentPush, parentPushSupported, unlinkParentZalo,
   type ChildSummary, type ChildReport, type ParentSettings,
 } from '@/lib/parentService';
 import Link from 'next/link';
 import { getSubscription, type SubscriptionInfo } from '@/lib/billingService';
-import { BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { track } from '@/lib/analytics';
+import { BellRing, BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, MessageCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/apiError';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
@@ -57,13 +59,62 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
 function ParentEmailCard() {
   const [prefs, setPrefs] = useState<ParentSettings | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState('');
   useEffect(() => { getParentSettings().then(setPrefs).catch(() => null); }, []);
   if (!prefs) return null;
   const toggle = async () => {
     setBusy(true);
     try { setPrefs(await updateParentSettings({ weekly_report_email: !prefs.weekly_report_email })); } finally { setBusy(false); }
   };
+  // G7 · push to this device
+  const togglePush = async () => {
+    if (!prefs.push_public_key) return;
+    setPushBusy(true); setPushError('');
+    try {
+      if (prefs.push_devices > 0 && prefs.push_alerts) {
+        const next = await disableParentPush();
+        setPrefs(next ?? await updateParentSettings({ push_alerts: false }));
+      } else {
+        setPrefs(await enableParentPush(prefs.push_public_key));
+        track('parent_push_enabled');
+      }
+    } catch (err) {
+      setPushError(err instanceof ParentPushDeniedError ? 'Trình duyệt đang chặn thông báo. Mở cài đặt trang web để cho phép rồi thử lại.' : 'Không bật được thông báo trên thiết bị này.');
+    } finally { setPushBusy(false); }
+  };
+  const pushOn = prefs.push_devices > 0 && prefs.push_alerts;
   return (
+    <>
+    {prefs.push_available && parentPushSupported() && (
+      <div className="card" style={{ marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <span className="icon-tile" style={{ flexShrink: 0, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><BellRing size={20} strokeWidth={1.8} /></span>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontWeight: 600 }}>Thông báo đẩy trên thiết bị này</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Báo khi con nghỉ học 2 ngày, khi chuỗi ngày của con sắp mất (19–21h) và khi báo cáo tuần sẵn sàng.{prefs.push_devices > 0 && ` Đang bật trên ${prefs.push_devices} thiết bị.`}</div>
+          {pushError && <div className="alert-error" style={{ marginTop: 8 }}>{pushError}</div>}
+        </div>
+        <button type="button" className={`btn btn-sm ${pushOn ? 'btn-outline' : 'btn-primary'}`} onClick={togglePush} disabled={pushBusy}>
+          {pushBusy ? <LoaderCircle className="animate-spin" size={14} /> : pushOn ? 'Đang bật · Tắt' : 'Bật thông báo'}
+        </button>
+      </div>
+    )}
+    {prefs.zalo_available && (
+      <div className="card" style={{ marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <span className="icon-tile" style={{ flexShrink: 0, background: 'color-mix(in srgb, #0068FF 12%, transparent)', color: '#0068FF' }}><MessageCircle size={20} strokeWidth={1.8} /></span>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontWeight: 600 }}>Nhận cảnh báo qua Zalo</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            {prefs.zalo_linked
+              ? 'Đã kết nối. Báo cáo tuần, cảnh báo nghỉ học và chuỗi sắp mất sẽ gửi vào Zalo của bạn.'
+              : <>Mở OA <a href={prefs.zalo_oa_link ?? '#'} target="_blank" rel="noreferrer">AI AGENT ENGLISH trên Zalo</a>, bấm Quan tâm rồi gửi mã <b>{prefs.zalo_link_code}</b>.</>}
+          </div>
+        </div>
+        {prefs.zalo_linked
+          ? <button type="button" className="btn btn-sm btn-outline" onClick={async () => setPrefs(await unlinkParentZalo())}>Ngắt kết nối</button>
+          : <button type="button" className="btn btn-sm btn-primary" onClick={() => navigator.clipboard?.writeText(prefs.zalo_link_code ?? '')}>Sao chép mã</button>}
+      </div>
+    )}
     <div className="card" style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
       <span className="icon-tile" style={{ flexShrink: 0 }}><Mail size={20} strokeWidth={1.8} /></span>
       <div style={{ flex: 1, minWidth: 220 }}>
@@ -77,6 +128,7 @@ function ParentEmailCard() {
         {busy ? <LoaderCircle className="animate-spin" size={14} /> : prefs.weekly_report_email ? 'Đang bật · Tắt' : 'Bật'}
       </button>
     </div>
+    </>
   );
 }
 
@@ -450,13 +502,16 @@ export default function ParentDashboardPage() {
                         {selectedChild.current_streak > 0 && ` · chuỗi ${selectedChild.current_streak} ngày`}
                       </div>
                     </div>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => handleUnlink(selected)}
-                      style={{ color: 'var(--agen-secondary)', fontSize: '0.8rem' }}
-                    >
-                      Hủy liên kết
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Link href={`/parent/report/${selected}`} className="btn btn-outline btn-sm"><Printer size={14} /> Tải PDF</Link>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => handleUnlink(selected)}
+                        style={{ color: 'var(--agen-secondary)', fontSize: '0.8rem' }}
+                      >
+                        Hủy liên kết
+                      </button>
+                    </div>
                   </div>
 
                   <ChildReportPanel key={selected} learnerId={selected} childName={selectedChild.display_name} />

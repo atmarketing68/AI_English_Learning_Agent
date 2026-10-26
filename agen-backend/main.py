@@ -28,6 +28,13 @@ from app.api.review import router as review_router
 from app.api.engagement import router as engagement_router
 from app.api.reminders import router as reminders_router
 from app.api.audio import router as audio_router
+from app.api.friends import router as friends_router
+from app.api.groups import router as groups_router
+from app.api.exams import router as exams_router
+from app.api.tutor import router as tutor_router
+from app.api.speaking_exams import router as speaking_exams_router
+from app.api.study_plan import router as study_plan_router
+from app.api.zalo import router as zalo_router
 from app.services.gamification import seed_achievements
 from app.services.curriculum_seed import seed_curriculum
 
@@ -167,6 +174,13 @@ app.include_router(review_router, prefix=PREFIX)
 app.include_router(engagement_router, prefix=PREFIX)
 app.include_router(reminders_router, prefix=PREFIX)
 app.include_router(audio_router, prefix=PREFIX)
+app.include_router(friends_router, prefix=PREFIX)
+app.include_router(groups_router, prefix=PREFIX)
+app.include_router(exams_router, prefix=PREFIX)
+app.include_router(tutor_router, prefix=PREFIX)
+app.include_router(speaking_exams_router, prefix=PREFIX)
+app.include_router(study_plan_router, prefix=PREFIX)
+app.include_router(zalo_router, prefix=PREFIX)
 
 # ── Root & Health ─────────────────────────────────────────────────────────────
 @app.get("/", tags=["Health"])

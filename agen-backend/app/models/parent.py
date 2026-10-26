@@ -28,6 +28,8 @@ class ParentProfile(Base):
     # G3 · proactive e-mails: weekly report (Sunday evening) + inactivity alerts.
     weekly_report_email = Column(Boolean, default=True, server_default=sa_true(), nullable=False)
     last_weekly_report_week = Column(String(10), nullable=True)      # e.g. "2026-W44"
+    # G7 · web push to the parent's own devices (inactivity, weekly report, streak at risk)
+    push_alerts = Column(Boolean, default=True, server_default=sa_true(), nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -48,4 +50,6 @@ class ParentChildLink(Base):
     relationship_label = Column(String(30), nullable=True)  # e.g. "mother", "father"
     # G3 · last "child has not studied for 2 days" alert, local "YYYY-MM-DD" (one per quiet spell).
     last_inactivity_alert_on = Column(String(10), nullable=True)
+    # G7 · last "streak at risk tonight" push, local "YYYY-MM-DD" (one per day)
+    last_streak_alert_on = Column(String(10), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
