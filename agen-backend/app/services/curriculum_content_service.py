@@ -154,6 +154,12 @@ def materialize_lesson_for_learner(
             type=ex.get("type", "multiple_choice"),
             content=ex.get("content", {}),
         ))
+    from app.services.exercise_builder import extra_exercises
+
+    next_order = max((e.get("order", 0) for e in data.get("exercises", [])), default=-1) + 1
+    for i, extra in enumerate(extra_exercises(cached.skill, data)):
+        db.add(Exercise(id=str(uuid.uuid4()), lesson_id=lesson.id, order=next_order + i, **extra))
+        lesson.total_exercises += 1
 
     if cached.skill == "vocabulary" and "vocabulary" in data:
         lesson.content = {"vocabulary": data["vocabulary"]}

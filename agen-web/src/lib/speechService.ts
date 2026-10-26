@@ -133,7 +133,7 @@ export class SpeechRecognizer {
 
 // --- Text to Speech (Synthesis) ---
 
-export const speakText = (text: string, onEnd?: () => void) => {
+export const speakText = (text: string, onEnd?: () => void, rate = 0.9) => {
   if (typeof window === 'undefined' || !window.speechSynthesis) {
     console.warn('SpeechSynthesis API not supported.');
     if (onEnd) onEnd();
@@ -153,7 +153,7 @@ export const speakText = (text: string, onEnd?: () => void) => {
     utterance.voice = preferredVoice;
   }
 
-  utterance.rate = 0.9;
+  utterance.rate = rate;
   utterance.pitch = 1.0;
 
   if (onEnd) {
