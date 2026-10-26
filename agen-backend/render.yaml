@@ -48,7 +48,7 @@ services:
 
       # ALLOWED_ORIGINS: set your Vercel frontend URL here after first deploy
       - key: ALLOWED_ORIGINS
-        value: https://agen-web.vercel.app   # update after Vercel deploy
+        value: https://ai-english-learning-agent.atmarketing.vn,https://ai-english-learning-agent.vercel.app
 
       # AI Keys: set these manually in Render dashboard (sensitive)
       - key: GEMINI_API_KEY

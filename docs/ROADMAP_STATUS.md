@@ -6,6 +6,8 @@
 
 Cập nhật lần cuối: 2026-10-26.
 
+Web production: https://ai-english-learning-agent.atmarketing.vn · Backend: https://agen-api.onrender.com
+
 ## Cách làm việc với chủ dự án
 
 - Trao đổi bằng **tiếng Việt**, ngắn gọn, không thuật ngữ thừa. Chủ dự án làm SEO, bận — làm trọn gói, ít hỏi.
@@ -45,7 +47,8 @@ Khoá đã được tạo và gửi cho chủ dự án trong chat (KHÔNG có tr
    `REMINDER_CRON_SECRET` (cùng giá trị Render). Dùng chung cho workflow nhắc học và Content Factory.
 3. **Tài khoản admin:** đăng ký trên web bằng `atmarketing68@gmail.com`, rồi thêm `ADMIN_EMAILS=atmarketing68@gmail.com`
    trên Render → vào `/admin`.
-4. **Kiểm tra `ALLOWED_ORIGINS` / `APP_URL` trên Render = đúng URL web đang dùng** (vd. `https://agen-web.vercel.app`).
+4. **`ALLOWED_ORIGINS` / `APP_URL` trên Render = `https://ai-english-learning-agent.atmarketing.vn`** (tên miền thật của web;
+   trước đây để nhầm `agen-web.vercel.app` nên đăng ký bị chặn).
    Sai URL thì mọi lệnh gọi API bị chặn — đăng ký báo "Không kết nối được máy chủ".
 5. Chạy thử: Actions → *Content Factory* → Run workflow (limit 10); Actions → *Learning reminders* → Run.
 
