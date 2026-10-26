@@ -13,6 +13,11 @@ import StreakWeekCard from '@/components/engagement/StreakWeekCard';
 import ReminderCard from '@/components/engagement/ReminderCard';
 import InstallAppCard from '@/components/engagement/InstallAppCard';
 import LeagueCard from '@/components/engagement/LeagueCard';
+import BlitzCard from '@/components/engagement/BlitzCard';
+import Avatar from '@/components/ui/Avatar';
+import Mascot from '@/components/ui/Mascot';
+import GemsBadge from '@/components/ui/GemsBadge';
+import { useSkin } from '@/store/skinStore';
 import NotificationBell from '@/components/NotificationBell';
 import { PageSkeleton } from '@/components/Skeleton';
 import type { LearnerProfile } from '@/types';
@@ -39,6 +44,14 @@ const itemVariants: Variants = {
   hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.25, 0.1, 0.25, 1] } }
 };
+
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 11) return 'Chào buổi sáng';
+  if (h < 14) return 'Chào buổi trưa';
+  if (h < 18) return 'Chào buổi chiều';
+  return 'Chào buổi tối';
+}
 
 // --- Sub-components ---
 
@@ -168,6 +181,7 @@ export default function DashboardPage() {
   const [engagement, setEngagement] = useState<Engagement | null>(null);
   const [nextLesson, setNextLesson] = useState<NextLesson | null>(null);
   const [reviewSummary, setReviewSummary] = useState<ReviewSummary | null>(null);
+  const skin = useSkin();
 
   useEffect(() => {
     if (!hydrated) return;
@@ -205,16 +219,22 @@ export default function DashboardPage() {
       >
         
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 'var(--spacing-xl)' }}>
-          <motion.div variants={itemVariants}>
-            <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', marginBottom: 6 }}>Xin chào, {learner.display_name}</h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
-              <span className="level-badge">{learner.overall_level}</span>
-              <span className="streak-badge"><Flame size={13} /> {engagement?.streak.current ?? learner.current_streak} ngày liên tiếp</span>
-              <span className="xp-badge"><Star size={13} fill="currentColor" /> {engagement?.total_xp ?? learner.total_xp} XP</span>
+        <div className="dash-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 'var(--spacing-xl)' }}>
+          <motion.div variants={itemVariants} className="dash-head-main" style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+            <Link href="/shop" aria-label="Avatar · Cửa hàng" style={{ flexShrink: 0, opacity: 1 }}>
+              <Avatar avatar={learner.avatar} name={learner.display_name} size={skin === 'vivid' ? 64 : 52} />
+            </Link>
+            <div style={{ minWidth: 0 }}>
+              <h1 className="dash-greeting">{greeting()}, {learner.display_name}</h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexWrap: 'wrap' }}>
+                <span className="level-badge">{learner.overall_level}</span>
+                <span className="streak-badge"><Flame size={13} /> {engagement?.streak.current ?? learner.current_streak} ngày liên tiếp</span>
+                <span className="xp-badge"><Star size={13} fill="currentColor" /> {engagement?.total_xp ?? learner.total_xp} XP</span>
+                <GemsBadge gems={learner.gems ?? 0} />
+              </div>
             </div>
           </motion.div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexShrink: 0 }}>
+          <div className="dash-head-actions" style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', flexShrink: 0 }}>
             <NotificationBell />
             <button
               className="btn btn-ghost btn-sm"
@@ -224,6 +244,13 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
+        {skin === 'vivid' && (
+          <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)' }}>
+            <Mascot size={80} mood={(engagement?.streak.studied_today) ? 'cheer' : 'happy'}
+              say={engagement?.streak.studied_today ? `Hôm nay học rồi, giỏi quá! Chuỗi ${engagement.streak.current} ngày.` : (engagement?.streak.current ?? 0) > 0 ? `Học một bài để giữ chuỗi ${engagement?.streak.current} ngày nhé!` : 'Chào bạn! Cùng Bo học một bài hôm nay nào!'} />
+          </motion.div>
+        )}
 
         {/* Today's Mission & Daily Challenge */}
         <motion.div variants={itemVariants} className="grid-2" style={{ marginBottom: 'var(--spacing-md)', gap: 'var(--spacing-md)' }}>
@@ -240,6 +267,7 @@ export default function DashboardPage() {
 
         <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
           <LeagueCard />
+          <BlitzCard wordsKnown={reviewSummary?.vocab_total ?? 0} />
           <InstallAppCard />
           <ReminderCard />
         </motion.div>

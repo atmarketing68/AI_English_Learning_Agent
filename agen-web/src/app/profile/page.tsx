@@ -4,8 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  BookOpen, Check, Copy, Download, Flame, GraduationCap, LogOut, Pencil, Sparkles, Star, Trash2, Trophy, Users, X,
+  BookOpen, Briefcase, Check, Copy, Download, Flame, Gem, GraduationCap, LogOut, Pencil, ShoppingBag, Smile, Sparkles, Star, Trash2, Trophy, Users, X,
 } from 'lucide-react';
+import Avatar from '@/components/ui/Avatar';
+import { skinForLearner, useSkinStore } from '@/store/skinStore';
+import { track } from '@/lib/analytics';
 import api from '@/lib/api';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import { getAchievements, getMe, getMyProfile, updateMyProfile } from '@/lib/services';
@@ -42,6 +45,7 @@ export default function ProfilePage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const setSkin = useSkinStore((s) => s.setSkin);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -107,6 +111,13 @@ export default function ProfilePage() {
     }
   };
 
+  const currentSkin = skinForLearner(learner);
+  const changeSkin = async (skin: 'vivid' | 'classic') => {
+    if (skin === currentSkin) return;
+    setSkin(skin);                       // instant, before the request returns
+    if (await save({ ui_skin: skin })) track('ui_skin_changed', { skin });
+  };
+
   const earned = achievements.filter(a => a.earned);
   const isPremium = plan?.is_premium;
 
@@ -115,7 +126,9 @@ export default function ProfilePage() {
       <div className="container" style={{ padding: 0, maxWidth: 880 }}>
         {/* Header */}
         <section className="card profile-head">
-          <span className="avatar profile-avatar">{(learner.display_name || '?').slice(0, 1).toUpperCase()}</span>
+          <Link href="/shop" aria-label="Đổi avatar ở Cửa hàng" style={{ flexShrink: 0, opacity: 1 }}>
+            <Avatar avatar={learner.avatar} name={learner.display_name} size={72} className="profile-avatar" />
+          </Link>
           <div style={{ flex: 1, minWidth: 0 }}>
             {editingName ? (
               <form className="profile-name-edit" onSubmit={(e) => { e.preventDefault(); saveName(); }}>
@@ -135,6 +148,7 @@ export default function ProfilePage() {
               {user?.email && <span>{user.email}</span>}
               <span className="level-badge">{learner.overall_level}</span>
               <span className={isPremium ? 'plan-chip is-premium' : 'plan-chip'}>{isPremium ? 'Premium' : 'Gói miễn phí'}</span>
+              <Link href="/shop" className="gems-badge"><Gem size={13} /> {learner.gems ?? 0} · Cửa hàng</Link>
             </div>
           </div>
         </section>
@@ -142,7 +156,7 @@ export default function ProfilePage() {
         {/* Stats */}
         <section className="profile-stats">
           <div className="card"><Flame size={18} color="var(--agen-secondary)" /><strong>{engagement?.streak.current ?? learner.current_streak}</strong><span>ngày liên tiếp · dài nhất {engagement?.streak.longest ?? '–'}</span></div>
-          <div className="card"><Star size={18} color="var(--agen-accent)" /><strong>{learner.total_xp}</strong><span>điểm XP</span></div>
+          <div className="card"><Star size={18} color="var(--agen-accent)" /><strong>{learner.total_xp}</strong><span>điểm XP · <Gem size={11} style={{ verticalAlign: -1 }} /> {learner.gems ?? 0} đá quý</span></div>
           <div className="card"><BookOpen size={18} color="var(--agen-primary)" /><strong>{learner.total_lessons_completed}</strong><span>bài đã học</span></div>
           <div className="card"><GraduationCap size={18} color="var(--skill-reading)" /><strong>{review?.mastered_count ?? 0}<small>/{review?.vocab_total ?? 0}</small></strong><span>từ đã thuộc</span></div>
         </section>
@@ -176,6 +190,21 @@ export default function ProfilePage() {
               {GOALS.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
             </select>
           </label>
+          <div className="profile-field">
+            <span>Giao diện</span>
+            <div className="skin-switch" role="group" aria-label="Giao diện">
+              <button type="button" className="skin-option" aria-pressed={currentSkin === 'vivid'} disabled={saving} onClick={() => changeSkin('vivid')}>
+                <strong><Smile size={16} color="#6C5CE7" /> Vui nhộn</strong>
+                <span className="skin-option-swatch"><i style={{ background: '#6C5CE7' }} /><i style={{ background: '#F59E0B' }} /><i style={{ background: '#22C55E' }} /><i style={{ background: '#EC4899' }} /></span>
+                <span>Màu sắc tươi, mascot Bo, nút to — hợp với học sinh.</span>
+              </button>
+              <button type="button" className="skin-option" aria-pressed={currentSkin === 'classic'} disabled={saving} onClick={() => changeSkin('classic')}>
+                <strong><Briefcase size={16} color="#0071E3" /> Chuyên nghiệp</strong>
+                <span className="skin-option-swatch"><i style={{ background: '#0071E3' }} /><i style={{ background: '#1D1D1F' }} /><i style={{ background: '#86868B' }} /><i style={{ background: '#1F9D55' }} /></span>
+                <span>Gọn gàng, hiện đại — cho người đi làm và phụ huynh.</span>
+              </button>
+            </div>
+          </div>
           <div className="profile-field">
             <span>Thời gian mỗi ngày</span>
             <div className="segmented" role="group" aria-label="Phút học mỗi ngày">
@@ -217,6 +246,7 @@ export default function ProfilePage() {
             {!isPremium && (
               <Link href="/upgrade" className="btn btn-primary"><Sparkles size={16} /> Nâng cấp Premium</Link>
             )}
+            <Link href="/shop" className="btn btn-ghost"><ShoppingBag size={16} /> Cửa hàng avatar</Link>
             <button type="button" className="btn btn-ghost" onClick={exportData}><Download size={16} /> Tải dữ liệu của tôi</button>
             <button type="button" className="btn btn-ghost" onClick={() => { logout(); router.push('/'); }}><LogOut size={16} /> Đăng xuất</button>
             <button type="button" className="btn btn-ghost profile-danger" onClick={() => setDeleteOpen(true)}><Trash2 size={16} /> Xoá tài khoản</button>

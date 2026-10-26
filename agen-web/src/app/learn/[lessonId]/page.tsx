@@ -19,8 +19,9 @@ import confetti from 'canvas-confetti';
 import { playSound } from '@/lib/soundEffects';
 import {
   ArrowRight, BookMarked, BookOpen, BookText, ChevronDown, ChevronUp, CircleAlert, CircleCheck, CircleX,
-  Flame, Headphones, Lightbulb, PenLine, RotateCcw, Sparkles, Star, Target, Trophy, X, type LucideIcon,
+  Flame, Gem, Headphones, Lightbulb, PenLine, RotateCcw, Sparkles, Star, Target, Trophy, X, type LucideIcon,
 } from 'lucide-react';
+import Mascot from '@/components/ui/Mascot';
 import { track } from '@/lib/analytics';
 import { RETRYABLE, SKIP_ANSWER, correctAnswerText, isCorrectLocally } from '@/lib/exerciseCheck';
 import { DialogueOrder, Dictation, ListenChoose, MatchPairs, SpeakRepeat, WordBank } from '@/components/exercises/InteractiveExercises';
@@ -460,6 +461,8 @@ export default function LessonPlayerPage() {
     return (
       <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
         <div className="card animate-bounce-in" style={{ maxWidth: 500, width: '100%', textAlign: 'center', padding: 'clamp(24px, 5vw, 40px)', border: 'none', boxShadow: 'var(--shadow-md)' }}>
+          <Mascot size={96} bubble="top" mood={lesson.score >= 80 ? 'cheer' : lesson.score >= 50 ? 'happy' : 'think'}
+            say={lesson.score >= 80 ? 'Xuất sắc! Bo tự hào về bạn!' : lesson.score >= 50 ? 'Tốt lắm! Mai học tiếp nhé.' : 'Không sao, ôn lại là nhớ ngay!'} className="lesson-mascot" />
           <CircleCheck size={44} strokeWidth={1.5} color="var(--agen-success)" style={{ marginBottom: 14 }} />
           <h2 style={{ marginBottom: 6 }}>Hoàn thành bài học</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>{lesson.title}</p>
@@ -468,6 +471,7 @@ export default function LessonPlayerPage() {
           </div>
           <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 28, flexWrap: 'wrap' }}>
             <span className="xp-badge"><Star size={13} fill="currentColor" /> +{lesson.xp_earned} XP</span>
+            {!!finishResult?.gems_earned && <span className="gems-badge"><Gem size={13} /> +{finishResult.gems_earned}</span>}
             <span className="xp-badge">{lesson.correct_exercises}/{lesson.total_exercises} câu đúng</span>
             {bestCombo >= 2 && <span className="xp-badge"><Flame size={13} color="var(--agen-accent)" /> Combo {bestCombo}</span>}
             {fixedCount > 0 && <span className="xp-badge"><RotateCcw size={13} /> Đã sửa {fixedCount} lỗi</span>}
@@ -630,6 +634,7 @@ export default function LessonPlayerPage() {
           transition={{ type: 'spring', stiffness: 380, damping: 34 }}
         >
           <div className="review-feedback-inner">
+            <Mascot size={56} mood={feedback.correct ? (combo >= 3 ? 'cheer' : 'happy') : 'think'} className="feedback-mascot" />
             <div className="review-feedback-title">
               {feedback.correct
                 ? <><CircleCheck size={20} /> {combo >= 3 ? `Tuyệt vời! Combo ${combo}` : 'Chính xác!'}</>
