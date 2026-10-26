@@ -60,7 +60,11 @@ export type AnalyticsEvent =
   | 'shop_item_equipped'
   | 'blitz_started'
   | 'blitz_completed'
-  | 'ui_skin_changed';
+  | 'ui_skin_changed'
+  // G6
+  | 'friend_added'
+  | 'duo_quest_claimed'
+  | 'parent_report_printed';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

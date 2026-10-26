@@ -10,25 +10,7 @@ import { motion } from 'framer-motion';
 import { Volume2 } from 'lucide-react';
 import { useSkin } from '@/store/skinStore';
 
-/** G5 · Bo speaks Vietnamese through the browser voice when one is installed. */
-function viVoice(): SpeechSynthesisVoice | null {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return null;
-  return window.speechSynthesis.getVoices().find(v => v.lang.toLowerCase().startsWith('vi')) || null;
-}
-
-export function speakVi(text: string): void {
-  const voice = viVoice();
-  if (!voice) return;
-  try {
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.voice = voice;
-    u.lang = voice.lang;
-    u.rate = 1;
-    u.pitch = 1.15;
-    window.speechSynthesis.speak(u);
-  } catch { /* unsupported */ }
-}
+import { playVietnamese, vietnameseVoiceAvailable } from '@/lib/speechService';
 
 export type MascotMood = 'happy' | 'cheer' | 'think' | 'sad' | 'sleepy' | 'wow';
 
@@ -70,11 +52,12 @@ export default function Mascot({ mood = 'happy', size = 96, say, bubble = 'right
   const skin = useSkin();
   const [canSpeak, setCanSpeak] = useState(false);
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
-    const check = () => setCanSpeak(Boolean(viVoice()));
+    const check = () => setCanSpeak(vietnameseVoiceAvailable());
     check();
-    window.speechSynthesis.addEventListener?.('voiceschanged', check);
-    return () => window.speechSynthesis.removeEventListener?.('voiceschanged', check);
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.addEventListener?.('voiceschanged', check);
+      return () => window.speechSynthesis.removeEventListener?.('voiceschanged', check);
+    }
   }, []);
   if (skin !== 'vivid' && !always) return null;
   const eye = EYE[mood];
@@ -87,7 +70,7 @@ export default function Mascot({ mood = 'happy', size = 96, say, bubble = 'right
         <div className="mascot-bubble" role="status">
           {say}
           {canSpeak && (
-            <button type="button" className="mascot-speak" aria-label="Nghe Bo nói" onClick={() => speakVi(say)}><Volume2 size={14} /></button>
+            <button type="button" className="mascot-speak" aria-label="Nghe Bo nói" onClick={() => void playVietnamese(say)}><Volume2 size={14} /></button>
           )}
         </div>
       )}

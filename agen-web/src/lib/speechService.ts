@@ -172,7 +172,7 @@ function normalize(text: string): string {
 /** Server audio for `text` as an object URL, or null when unavailable (caller falls back). */
 let probe: Promise<unknown> | null = null;
 
-async function fetchServerAudio(text: string, voice: Voice): Promise<string | null> {
+async function fetchServerAudio(text: string, voice: Voice, lang: 'en' | 'vi' = 'en'): Promise<string | null> {
   if (serverTts === 'off' || !hasAuthToken()) return null;
   // While the first request is deciding whether the server voice exists, queue behind it
   // so a page that plays several lines at once does not fire a burst of 404s.
@@ -180,7 +180,7 @@ async function fetchServerAudio(text: string, voice: Voice): Promise<string | nu
     await probe;
     if ((serverTts as ServerTtsState) === 'off') return null;
   }
-  const key = `${voice}|${text.toLowerCase()}`;
+  const key = `${lang}|${voice}|${text.toLowerCase()}`;
   const cached = audioCache.get(key);
   if (cached) return cached;
   const pending = inflight.get(key);
@@ -188,7 +188,7 @@ async function fetchServerAudio(text: string, voice: Voice): Promise<string | nu
 
   const task = (async () => {
     try {
-      const res = await api.get('/audio/tts', { params: { text, voice }, responseType: 'blob' });
+      const res = await api.get('/audio/tts', { params: lang === 'vi' ? { text, voice, lang } : { text, voice }, responseType: 'blob' });
       serverTts = 'on';
       const url = URL.createObjectURL(res.data as Blob);
       if (audioCache.size >= CACHE_MAX) {
@@ -305,3 +305,44 @@ export async function playText(text: string, opts: SpeakOptions = {}): Promise<v
 export const speakText = (text: string, onEnd?: () => void, rate = 0.9) => {
   void playText(text, { onEnd, rate: rate < 0.85 ? 0.75 : 1 });
 };
+
+// ─── G6 · Bo speaks Vietnamese: neural server voice first, browser vi-VN voice otherwise ──
+export function browserVietnameseVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === 'undefined' || !window.speechSynthesis) return null;
+  return window.speechSynthesis.getVoices().find(v => v.lang.toLowerCase().startsWith('vi')) || null;
+}
+
+/** True when some Vietnamese voice can play (server unknown/on, or a browser voice exists). */
+export function vietnameseVoiceAvailable(): boolean {
+  return serverTts !== 'off' || browserVietnameseVoice() !== null;
+}
+
+export async function playVietnamese(text: string): Promise<void> {
+  const clean = normalize(text);
+  if (!clean) return;
+  stopSpeech();
+  const token = playToken;
+  const url = await fetchServerAudio(clean, 'female', 'vi');
+  if (token !== playToken) return;
+  if (url) {
+    await new Promise<void>(resolve => {
+      const audio = new Audio(url);
+      current = audio;
+      const done = () => { if (current === audio) current = null; resolve(); };
+      audio.onended = done;
+      audio.onerror = done;
+      audio.play().catch(done);
+    });
+    return;
+  }
+  const voice = browserVietnameseVoice();
+  if (!voice) return;
+  try {
+    const u = new SpeechSynthesisUtterance(clean);
+    u.voice = voice;
+    u.lang = voice.lang;
+    u.rate = 1;
+    u.pitch = 1.15;
+    window.speechSynthesis.speak(u);
+  } catch { /* unsupported */ }
+}
