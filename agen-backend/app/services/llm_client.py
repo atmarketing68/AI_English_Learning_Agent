@@ -16,6 +16,7 @@ logger = logging.getLogger("agen.llm")
 # Retry config
 MAX_ATTEMPTS = 3           # per provider
 RETRY_DELAYS = [1.5, 4.0]  # seconds between retries
+REQUEST_TIMEOUT_S = 45     # per provider call, so a hung request cannot hold a worker indefinitely
 
 # Phrases that indicate quota/rate-limit errors (case-insensitive)
 _QUOTA_PHRASES = (
@@ -79,6 +80,9 @@ def get_llm_response(prompt: str) -> str:
                     "LLM %s failed (attempt %d/%d, quota=%s): %s",
                     provider, attempt, MAX_ATTEMPTS, is_quota, exc,
                 )
+                if is_quota:
+                    # Retrying an exhausted quota only adds waiting; try the next provider.
+                    break
                 if attempt < MAX_ATTEMPTS:
                     delay = RETRY_DELAYS[attempt - 1] if attempt - 1 < len(RETRY_DELAYS) else 4.0
                     time.sleep(delay)
@@ -95,7 +99,11 @@ def get_llm_response(prompt: str) -> str:
 
 def _call_gemini(prompt: str) -> str:
     from google import genai
-    client = genai.Client(api_key=settings.GEMINI_API_KEY)
+    from google.genai import types
+    client = genai.Client(
+        api_key=settings.GEMINI_API_KEY,
+        http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_S * 1000),
+    )
     # Use Chat (Interactions API) — avoids AFC warning
     chat = client.chats.create(model="gemini-3.6-flash")
     response = chat.send_message(prompt)
@@ -104,7 +112,7 @@ def _call_gemini(prompt: str) -> str:
 
 def _call_openai(prompt: str) -> str:
     from openai import OpenAI
-    client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=30.0, max_retries=0)
+    client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=REQUEST_TIMEOUT_S, max_retries=0)
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],

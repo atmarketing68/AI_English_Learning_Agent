@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getAdminMe, getEvaluationSummary, listEvaluations,
   listContent, setContentStatus, batchGenerateContent,
@@ -258,6 +258,7 @@ function ContentPanel() {
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hydrated = useAuthHydrated();
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [summary, setSummary] = useState<EvalSummary | null>(null);
   const [traces, setTraces] = useState<EvalTraceItem[]>([]);
@@ -269,11 +270,12 @@ export default function AdminDashboardPage() {
 
   // Access check
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     getAdminMe()
       .then((me) => setAuthorized(me.is_admin))
       .catch(() => setAuthorized(false));
-  }, [isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router]);
 
   // Load data once authorized / filters change
   useEffect(() => {

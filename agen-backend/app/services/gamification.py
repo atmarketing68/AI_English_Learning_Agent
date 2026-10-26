@@ -254,7 +254,8 @@ def get_or_create_daily_challenge(learner: LearnerProfile, db: Session) -> Daily
     Creates one if it doesn't exist yet.
     """
     import random
-    today = datetime.now(timezone.utc).date().isoformat()
+    from app.core.timeutil import local_today
+    today = local_today().isoformat()
 
     existing = db.query(DailyChallenge).filter(
         DailyChallenge.learner_id == learner.id,

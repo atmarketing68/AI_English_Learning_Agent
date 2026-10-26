@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getSubscription, upgradeToPremium, cancelSubscription,
   type SubscriptionInfo,
@@ -46,6 +46,7 @@ const PLAN_PRICES = [
 export default function UpgradePage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hydrated = useAuthHydrated();
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [selectedMonths, setSelectedMonths] = useState(3);
   const [loading, setLoading] = useState(true);
@@ -55,12 +56,13 @@ export default function UpgradePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     getSubscription()
       .then(setSubscription)
       .catch(() => setError('Không thể tải thông tin gói.'))
       .finally(() => setLoading(false));
-  }, [isAuthenticated, router]);
+  }, [hydrated, isAuthenticated, router]);
 
   const handleUpgrade = async () => {
     setUpgrading(true);
@@ -71,8 +73,9 @@ export default function UpgradePage() {
       setSuccess(true);
       playSound('success');
       confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
-    } catch {
-      setError('Nâng cấp thất bại. Vui lòng thử lại.');
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Nâng cấp thất bại. Vui lòng thử lại.');
     } finally {
       setUpgrading(false);
     }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   startPlacement, getPlacementQuestion, submitAnswer, finishPlacement,
   PlacementQuestion, PlacementAnswerRes, PlacementResult,
@@ -252,6 +252,7 @@ type Phase = 'intro' | 'testing' | 'result';
 export default function PlacementPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hydrated = useAuthHydrated();
 
   const [phase, setPhase] = useState<Phase>('intro');
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -267,9 +268,10 @@ export default function PlacementPage() {
   });
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) router.push('/login');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [hydrated, isAuthenticated]);
 
   const handleStart = async () => {
     setLoading(true);

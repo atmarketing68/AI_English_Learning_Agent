@@ -3,12 +3,11 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core import get_db, get_password_hash, verify_password, create_access_token, settings
+from app.core.ratelimit import limiter
 from app.models import AuthSession, User, LearnerProfile, ParentProfile
 
 
@@ -25,9 +24,6 @@ def _generate_invite_code(db: Session) -> str:
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
-
-# Limiter instance — same key_func as main.py so slowapi shares state correctly
-limiter = Limiter(key_func=get_remote_address)
 
 # ── Password strength rules ────────────────────────────────────────────────────
 _PASSWORD_MIN_LENGTH = 8
@@ -164,7 +160,8 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
 @limiter.limit("20/minute")
 def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """Authenticate and return JWT access token."""
-    user = db.query(User).filter(User.email == form.username).first()
+    # Emails are stored lower-cased at registration, so match case-insensitively.
+    user = db.query(User).filter(User.email == form.username.strip().lower()).first()
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

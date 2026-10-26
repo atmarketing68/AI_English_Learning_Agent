@@ -48,7 +48,8 @@ def is_premium(db: Session, user_id: str) -> bool:
 
 
 def _lessons_today(db: Session, learner_id: str) -> int:
-    start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    from app.core.timeutil import local_day_start_utc
+    start = local_day_start_utc()
     return (
         db.query(func.count(LearningEvent.id))
         .filter(

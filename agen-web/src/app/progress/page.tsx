@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getOverview, getActivity, getCoachAdvice, getWeeklyReport,
   getAssessmentOutcomes, getLeaderboard,
@@ -82,6 +82,7 @@ function ActivityCalendar({ days }: { days: ActivityData['days'] }) {
 export default function ProgressPage() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
+  const hydrated = useAuthHydrated();
 
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [activity, setActivity] = useState<ActivityData | null>(null);
@@ -96,6 +97,7 @@ export default function ProgressPage() {
   const [activeTab, setActiveTab] = useState<'progress' | 'leaderboard'>('progress');
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
 
     // Load overview, activity & achievements first (fast)
@@ -110,7 +112,7 @@ export default function ProgressPage() {
       .catch(() => { /* non-critical */ })
       .finally(() => setCoachLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [hydrated, isAuthenticated]);
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--text-muted)' }}>

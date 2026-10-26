@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, Variants } from 'framer-motion';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import { getMyProfile, getDailyChallenge } from '@/lib/services';
 import { getNextLesson, type NextLesson } from '@/lib/curriculumService';
 import NotificationBell from '@/components/NotificationBell';
@@ -145,10 +145,12 @@ function DailyChallengeCard({ challenge }: { challenge: DailyChallenge }) {
 export default function DashboardPage() {
   const router = useRouter();
   const { isAuthenticated, learner, setLearner, logout } = useAuthStore();
+  const hydrated = useAuthHydrated();
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [nextLesson, setNextLesson] = useState<NextLesson | null>(null);
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) {
       router.push('/login');
       return;
@@ -165,7 +167,7 @@ export default function DashboardPage() {
       })
       .catch(() => logout());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [hydrated, isAuthenticated]);
 
   if (!learner) {
     return <PageSkeleton cards={3} />;

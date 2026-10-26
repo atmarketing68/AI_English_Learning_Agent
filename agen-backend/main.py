@@ -4,12 +4,13 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.core.database import Base, engine, get_db
+from app.core.ratelimit import limiter
 from app.api import auth_router, learner_router
 from app.api.placement import router as placement_router
 from app.api.lessons import router as lessons_router
@@ -57,9 +58,6 @@ with next(get_db()) as db:
     if new_lessons:
         logger.info("Seeded %d new curriculum lessons.", new_lessons)
 
-# ── Rate Limiter ──────────────────────────────────────────────────────────────
-limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
-
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title=settings.APP_NAME,
@@ -72,6 +70,8 @@ app = FastAPI(
 # Attach limiter to app state (required by slowapi)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+# Applies the limiter's default per-IP limit to every route.
+app.add_middleware(SlowAPIMiddleware)
 
 # ── CORS Middleware ───────────────────────────────────────────────────────────
 app.add_middleware(

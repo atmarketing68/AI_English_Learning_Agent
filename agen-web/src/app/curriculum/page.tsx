@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getCurriculumMap,
   type CurriculumMap,
@@ -98,11 +98,13 @@ function UnitBlock({ unit }: { unit: CurriculumMap['units'][number] }) {
 export default function CurriculumPage() {
   const router = useRouter();
   const { isAuthenticated, learner } = useAuthStore();
+  const hydrated = useAuthHydrated();
   const [map, setMap] = useState<CurriculumMap | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     const level = learner?.overall_level || 'A1';
     getCurriculumMap(level)
@@ -110,7 +112,7 @@ export default function CurriculumPage() {
       .catch(() => setError('Không thể tải lộ trình học tập.'))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [hydrated, isAuthenticated]);
 
   if (loading) return <PageSkeleton cards={4} />;
 

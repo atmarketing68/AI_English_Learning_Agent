@@ -109,9 +109,10 @@ export async function generateLesson(skill: string, topic?: string, curriculumCo
       skill,
       topic: topic || null,
       curriculum_code: curriculumCode || null,
-      // Cached curriculum content returns synchronously (200); only fall back to
-      // async background generation when there is no cache.
-      background: !curriculumCode,
+      // Cached curriculum content still returns synchronously (200). Anything the
+      // AI has to write runs as a background job we poll, so a 30–120s generation
+      // never holds an HTTP request (and a server worker) open.
+      background: true,
     });
   } catch (err: unknown) {
     const response = (err as { response?: { status?: number; data?: { detail?: string } } })?.response;

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import { generateLesson, getDailyRecommendations, getMyLessons, LessonQuotaError, DailyRecommendation, LessonSummary } from '@/lib/lessonService';
 import { startCurriculumLesson } from '@/lib/curriculumService';
 import { PageSkeleton } from '@/components/Skeleton';
@@ -32,6 +32,7 @@ function LearnHubContent() {
   const searchParams = useSearchParams();
   const curriculumCode = searchParams.get('code');
   const { isAuthenticated, learner } = useAuthStore();
+  const hydrated = useAuthHydrated();
 
   const [recommendations, setRecommendations] = useState<DailyRecommendation[]>([]);
   const [recentLessons, setRecentLessons] = useState<LessonSummary[]>([]);
@@ -60,6 +61,7 @@ function LearnHubContent() {
   };
 
   useEffect(() => {
+    if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
 
     // If arriving with a curriculum code, start that node then generate its lesson
@@ -84,7 +86,7 @@ function LearnHubContent() {
       .catch((err) => setError((err as Error).message))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, curriculumCode]);
+  }, [hydrated, isAuthenticated, curriculumCode]);
 
   // While preparing a curriculum lesson: show the friendly generating overlay,
   // unless generation failed — then show the error with a way back.

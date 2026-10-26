@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
@@ -72,6 +73,11 @@ def upgrade(
     db: Session = Depends(get_db),
 ):
     """Upgrade to premium (pilot: no real charge)."""
+    if not settings.demo_upgrade_enabled:
+        raise HTTPException(
+            status_code=403,
+            detail="Thanh toán trực tuyến đang được tích hợp. Vui lòng quay lại sau.",
+        )
     sub = subs.upgrade_to_premium(db, current_user.id, months=payload.months)
     return SubscriptionOut(
         plan=sub.plan, status=sub.status,
