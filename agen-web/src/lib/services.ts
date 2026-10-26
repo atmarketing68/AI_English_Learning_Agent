@@ -22,6 +22,17 @@ export async function login(payload: LoginPayload): Promise<AuthToken> {
   return res.data;
 }
 
+// --- G3 · Học thử không cần đăng ký ---
+export async function startGuestTrial(): Promise<AuthToken> {
+  const res = await api.post('/auth/guest');
+  return res.data;
+}
+
+export async function claimGuestAccount(payload: RegisterPayload): Promise<User> {
+  const res = await api.post('/auth/claim', payload);
+  return res.data;
+}
+
 // --- Learner ---
 export async function getMyProfile(): Promise<LearnerProfile> {
   const res = await api.get('/learner/me');

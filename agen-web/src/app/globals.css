@@ -2168,3 +2168,17 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 .shadow-line { font-size: 1.08rem; font-weight: 600; line-height: 1.5; margin: 8px 0 12px; }
 .shadow-line strong { color: var(--skill-listening); }
 .shadow-controls { display: flex; align-items: center; gap: 14px; }
+
+/* ============================================
+   G3 — GUEST TRIAL
+   ============================================ */
+.guest-banner {
+  display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px var(--page-gutter);
+  background: color-mix(in srgb, var(--agen-accent) 12%, var(--bg-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--agen-accent) 30%, transparent);
+  font-size: 0.88rem; color: var(--text-secondary);
+}
+.guest-banner strong { color: var(--text-primary); }
+.hero-guest-btn { background: rgba(255,255,255,0.85); color: var(--text-primary); border: 1px solid rgba(0,0,0,0.1); }
+.hero-guest-btn:hover { background: #fff; color: var(--text-primary); }

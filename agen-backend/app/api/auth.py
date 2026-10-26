@@ -101,12 +101,14 @@ class UserOut(BaseModel):
     full_name: str | None
     role: str
     is_verified: bool = False
+    is_guest: bool = False
 
     @classmethod
     def from_orm_safe(cls, user: "User") -> "UserOut":
         return cls(
             id=str(user.id), email=user.email, full_name=user.full_name,
             role=user.role or "learner", is_verified=bool(user.is_verified),
+            is_guest=bool(getattr(user, "is_guest", False)),
         )
 
     model_config = {"from_attributes": True}
@@ -221,6 +223,98 @@ from app.core.security import get_current_user
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     """Return the current authenticated user (id, email, full_name, role)."""
+    return UserOut.from_orm_safe(current_user)
+
+
+# ── G3 · Học thử không cần đăng ký ───────────────────────────────────────────
+GUEST_EMAIL_DOMAIN = "guest.agen.local"
+
+
+class ClaimGuestRequest(BaseModel):
+    """Turn a guest account into a real one, keeping all progress."""
+    email: EmailStr
+    password: str
+    full_name: str
+    display_name: str
+    age: int | None = None
+    grade: str | None = None
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: EmailStr) -> str:
+        return str(v).strip().lower()
+
+    @field_validator("password")
+    @classmethod
+    def password_strength(cls, v: str) -> str:
+        return _validate_password_strength(v)
+
+    @field_validator("full_name", "display_name")
+    @classmethod
+    def name_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Ten khong duoc de trong.")
+        return v.strip()
+
+    @field_validator("age")
+    @classmethod
+    def valid_age(cls, v: int | None) -> int | None:
+        if v is not None and not 5 <= v <= 120:
+            raise ValueError("Tuoi phai nam trong khoang 5 den 120.")
+        return v
+
+
+@router.post("/guest", response_model=Token, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
+def start_guest(request: Request, db: Session = Depends(get_db)):
+    """Create a throw-away learner so a visitor can try the app with no sign-up.
+
+    The account works like a free learner (same daily quota). /auth/claim turns it
+    into a real account later without losing XP, streak or notebook."""
+    import secrets
+
+    user = User(
+        email=f"guest-{uuid4().hex}@{GUEST_EMAIL_DOMAIN}",
+        hashed_password=get_password_hash(secrets.token_urlsafe(24)),
+        full_name="Khách học thử",
+        role="learner",
+        is_guest=True,
+    )
+    db.add(user)
+    db.flush()
+    db.add(LearnerProfile(user_id=user.id, display_name="Bạn học thử", invite_code=_generate_invite_code(db)))
+    db.commit()
+    return _issue_tokens(user, db)
+
+
+@router.post("/claim", response_model=UserOut)
+def claim_guest(
+    payload: ClaimGuestRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Give a guest account an email and password (progress is kept)."""
+    if not current_user.is_guest:
+        raise HTTPException(status_code=400, detail="Tài khoản này đã được đăng ký.")
+    if db.query(User).filter(User.email == payload.email, User.id != current_user.id).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+    current_user.email = payload.email
+    current_user.hashed_password = get_password_hash(payload.password)
+    current_user.full_name = payload.full_name
+    current_user.is_guest = False
+    learner = db.query(LearnerProfile).filter(LearnerProfile.user_id == current_user.id).first()
+    if learner:
+        learner.display_name = payload.display_name
+        if payload.age is not None:
+            learner.age = payload.age
+        if payload.grade:
+            learner.grade = payload.grade
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Unable to claim account")
+    db.refresh(current_user)
     return UserOut.from_orm_safe(current_user)
 
 
