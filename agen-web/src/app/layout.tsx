@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import MobileNav from "@/components/ui/MobileNav";
+import AppShell from "@/components/ui/AppShell";
 
 export const metadata: Metadata = {
   title: "AI AGENT ENGLISH — Học tiếng Anh cùng AI Coach cá nhân",
@@ -31,8 +31,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body>
-        {children}
-        <MobileNav />
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
