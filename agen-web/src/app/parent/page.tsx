@@ -6,13 +6,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
   getChildren, linkChild, unlinkChild, getChildReport, getParentSettings, updateParentSettings,
-  ParentPushDeniedError, disableParentPush, enableParentPush, parentPushSupported,
+  ParentPushDeniedError, disableParentPush, enableParentPush, parentPushSupported, unlinkParentZalo,
   type ChildSummary, type ChildReport, type ParentSettings,
 } from '@/lib/parentService';
 import Link from 'next/link';
 import { getSubscription, type SubscriptionInfo } from '@/lib/billingService';
 import { track } from '@/lib/analytics';
-import { BellRing, BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { BellRing, BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, MessageCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
@@ -96,6 +96,22 @@ function ParentEmailCard() {
         <button type="button" className={`btn btn-sm ${pushOn ? 'btn-outline' : 'btn-primary'}`} onClick={togglePush} disabled={pushBusy}>
           {pushBusy ? <LoaderCircle className="animate-spin" size={14} /> : pushOn ? 'Đang bật · Tắt' : 'Bật thông báo'}
         </button>
+      </div>
+    )}
+    {prefs.zalo_available && (
+      <div className="card" style={{ marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <span className="icon-tile" style={{ flexShrink: 0, background: 'color-mix(in srgb, #0068FF 12%, transparent)', color: '#0068FF' }}><MessageCircle size={20} strokeWidth={1.8} /></span>
+        <div style={{ flex: 1, minWidth: 220 }}>
+          <div style={{ fontWeight: 600 }}>Nhận cảnh báo qua Zalo</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+            {prefs.zalo_linked
+              ? 'Đã kết nối. Báo cáo tuần, cảnh báo nghỉ học và chuỗi sắp mất sẽ gửi vào Zalo của bạn.'
+              : <>Mở OA <a href={prefs.zalo_oa_link ?? '#'} target="_blank" rel="noreferrer">AI AGENT ENGLISH trên Zalo</a>, bấm Quan tâm rồi gửi mã <b>{prefs.zalo_link_code}</b>.</>}
+          </div>
+        </div>
+        {prefs.zalo_linked
+          ? <button type="button" className="btn btn-sm btn-outline" onClick={async () => setPrefs(await unlinkParentZalo())}>Ngắt kết nối</button>
+          : <button type="button" className="btn btn-sm btn-primary" onClick={() => navigator.clipboard?.writeText(prefs.zalo_link_code ?? '')}>Sao chép mã</button>}
       </div>
     )}
     <div className="card" style={{ marginBottom: 'var(--spacing-lg)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>

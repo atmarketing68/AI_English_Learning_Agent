@@ -34,6 +34,11 @@ class ReminderSettingsOut(BaseModel):
     push_public_key: Optional[str]
     email_available: bool             # server can send email
     email_address: str
+    # G9 · Zalo OA
+    zalo_available: bool = False
+    zalo_oa_link: Optional[str] = None
+    zalo_linked: bool = False
+    zalo_link_code: Optional[str] = None
 
 
 class ReminderSettingsIn(BaseModel):
@@ -73,6 +78,7 @@ def _get_learner(db: Session, user_id: str) -> LearnerProfile:
 
 
 def _settings_out(db: Session, learner: LearnerProfile, user: User) -> ReminderSettingsOut:
+    from app.services import zalo
     devices = db.query(PushSubscription).filter(PushSubscription.learner_id == learner.id).count()
     return ReminderSettingsOut(
         hour=learner.reminder_hour,
@@ -82,6 +88,10 @@ def _settings_out(db: Session, learner: LearnerProfile, user: User) -> ReminderS
         push_public_key=settings.VAPID_PUBLIC_KEY or None,
         email_available=settings.email_enabled,
         email_address=user.email,
+        zalo_available=zalo.enabled(),
+        zalo_oa_link=zalo.oa_link(),
+        zalo_linked=bool(user.zalo_user_id),
+        zalo_link_code=zalo.link_code_for(db, user) if zalo.enabled() else None,
     )
 
 

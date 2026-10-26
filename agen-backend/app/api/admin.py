@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, Integer, cast
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -553,3 +553,96 @@ def mark_invoice_issued(
     return AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
                       amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
                       invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at)
+
+
+# ── G9 · Đề thi thử do AI sinh (duyệt trước khi phát hành) ────────────────────
+class GeneratedExamOut(BaseModel):
+    id: str
+    public_id: str
+    exam: str
+    skill: str
+    title: str
+    topic: Optional[str]
+    status: str
+    questions: int
+    eval_score: Optional[float]
+    eval_flagged: Optional[bool]
+    created_at: datetime
+    approved_at: Optional[datetime]
+
+
+class GenerateExamIn(BaseModel):
+    exam: str = Field(pattern="^(ielts|toeic)$")
+    skill: str = Field(pattern="^(listening|reading)$")
+    topic: str = Field(default="", max_length=120)
+    level: str = Field(default="B1", pattern="^(A2|B1|B2|C1)$")
+    auto_approve: bool = False
+
+
+class ExamStatusIn(BaseModel):
+    status: str = Field(pattern="^(draft|approved|rejected)$")
+
+
+def _gen_out(r) -> GeneratedExamOut:
+    from app.services.exam_generator import public_id
+    return GeneratedExamOut(id=r.id, public_id=public_id(r), exam=r.exam, skill=r.skill, title=r.title, topic=r.topic, status=r.status,
+                            questions=int(r.questions or 0), eval_score=r.eval_score, eval_flagged=r.eval_flagged, created_at=r.created_at, approved_at=r.approved_at)
+
+
+@router.get("/exams", response_model=list[GeneratedExamOut])
+def list_generated_exams(status: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedExam
+    q = db.query(GeneratedExam)
+    if status:
+        q = q.filter(GeneratedExam.status == status)
+    return [_gen_out(r) for r in q.order_by(GeneratedExam.created_at.desc()).limit(200).all()]
+
+
+@router.post("/exams/generate", response_model=GeneratedExamOut)
+def generate_exam(payload: GenerateExamIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """One AI call → one draft paper (or approved straight away with auto_approve)."""
+    _require_admin(current_user)
+    from app.services.exam_generator import ExamGenerationError, generate_exam_draft
+    try:
+        row = generate_exam_draft(db, payload.exam, payload.skill, payload.topic, payload.level, payload.auto_approve)
+    except ExamGenerationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(exc))
+    db.commit()
+    return _gen_out(row)
+
+
+@router.get("/exams/{exam_id}")
+def get_generated_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Full paper with answers, for review."""
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedExam
+    row = db.query(GeneratedExam).filter(GeneratedExam.id == exam_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    return {"meta": _gen_out(row).model_dump(), "paper": row.content}
+
+
+@router.post("/exams/{exam_id}/status", response_model=GeneratedExamOut)
+def set_generated_exam_status(exam_id: str, payload: ExamStatusIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedExam
+    from app.services.exam_generator import set_status
+    row = db.query(GeneratedExam).filter(GeneratedExam.id == exam_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    set_status(db, row, payload.status)
+    db.commit()
+    return _gen_out(row)
+
+
+@router.delete("/exams/{exam_id}", status_code=204)
+def delete_generated_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedExam
+    row = db.query(GeneratedExam).filter(GeneratedExam.id == exam_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    db.delete(row)
+    db.commit()

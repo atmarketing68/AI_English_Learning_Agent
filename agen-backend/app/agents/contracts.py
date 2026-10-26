@@ -161,3 +161,56 @@ class TutorAnswerOutput(BaseModel):
     common_mistake: str = ""
     follow_ups: list[str] = Field(default_factory=list, max_length=4)
     on_topic: bool = True
+
+
+# ── G9 · Speaking mock test evaluation ───────────────────────────────────────
+class SpeakingCorrectionOutput(BaseModel):
+    original: str = Field(min_length=1)
+    corrected: str = Field(min_length=1)
+
+
+class SpeakingTaskFeedbackOutput(BaseModel):
+    task_id: str = Field(min_length=1)
+    comment_vi: str = Field(min_length=1)
+    corrections: list[SpeakingCorrectionOutput] = Field(default_factory=list, max_length=3)
+
+
+class SpeakingExamEvaluationOutput(BaseModel):
+    exam: Literal["ielts", "toeic"]
+    overall: float = Field(ge=0, le=200)
+    criteria: dict[str, float] = Field(default_factory=dict)
+    task_feedback: list[SpeakingTaskFeedbackOutput] = Field(default_factory=list, max_length=12)
+    strengths: list[str] = Field(default_factory=list, max_length=4)
+    improvements: list[str] = Field(default_factory=list, max_length=4)
+    next_band_tips: list[str] = Field(default_factory=list, max_length=4)
+
+
+# ── G9 · AI-generated mock exam paper (same shape as services/mock_exams.EXAMS) ──
+class ExamAudioLineOutput(BaseModel):
+    speaker: str = Field(min_length=1, max_length=40)
+    text: str = Field(min_length=1)
+
+
+class ExamQuestionOutput(BaseModel):
+    type: Literal["mc", "gap", "tfng"]
+    prompt: str = Field(min_length=1)
+    options: list[str] | None = None
+    answer: int | list[str]
+    explanation_vi: str = Field(min_length=1)
+    audio: list[ExamAudioLineOutput] | None = None
+
+
+class ExamSectionOutput(BaseModel):
+    title: str = Field(min_length=1)
+    instructions: str = Field(min_length=1)
+    audio: list[ExamAudioLineOutput] | None = None
+    passage: str | None = None
+    per_question_audio: bool = False
+    questions: list[ExamQuestionOutput] = Field(min_length=1, max_length=20)
+
+
+class GeneratedExamOutput(BaseModel):
+    title: str = Field(min_length=1, max_length=140)
+    description: str = Field(min_length=1)
+    minutes: int = Field(ge=5, le=30)
+    sections: list[ExamSectionOutput] = Field(min_length=1, max_length=5)

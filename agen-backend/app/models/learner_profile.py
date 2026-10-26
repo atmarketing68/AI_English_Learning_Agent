@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Boolean, Column, String, Integer, Float, DateTime, Text, ForeignKey, JSON, false as sa_false
+from sqlalchemy import Boolean, Column, Date, String, Integer, Float, DateTime, Text, ForeignKey, JSON, false as sa_false
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -73,6 +73,10 @@ class LearnerProfile(Base):
     reminder_hour = Column(Integer, nullable=True)
     reminder_email = Column(Boolean, default=False, server_default=sa_false(), nullable=False)
     last_reminder_on = Column(String(10), nullable=True)            # local "YYYY-MM-DD"
+    # G9 · kế hoạch ôn thi: exam (ielts|toeic), target band/score and the exam date
+    exam_target = Column(String(10), nullable=True)
+    exam_target_score = Column(Float, nullable=True)
+    exam_date = Column(Date, nullable=True)
 
     # --- Placement ---
     placement_completed = Column(String(10), default="none")  # none, partial, done

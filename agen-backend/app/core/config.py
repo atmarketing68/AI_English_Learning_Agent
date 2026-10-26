@@ -106,6 +106,16 @@ class Settings(BaseSettings):
     # G8 · Hỏi Bo (grammar chatbot): free accounts get this many questions a day.
     TUTOR_FREE_DAILY_LIMIT: int = 5
 
+    # G9 · Zalo Official Account as a reminder channel (learners and parents link by
+    # sending a code to the OA). Off until the app credentials and a refresh token
+    # exist. Tokens rotate; the latest pair is kept in the app_config table.
+    ZALO_APP_ID: str = ""
+    ZALO_APP_SECRET: str = ""
+    ZALO_OA_ID: str = ""                      # shown as the link https://zalo.me/<id>
+    ZALO_OA_REFRESH_TOKEN: str = ""           # first refresh token from the OA admin tool
+    ZALO_OA_ACCESS_TOKEN: str = ""            # optional first access token
+    ZALO_OA_SECRET_KEY: str = ""              # OA secret key, verifies webhook signatures
+
     @field_validator("SECRET_KEY")
     @classmethod
     def warn_default_secret(cls, v: str) -> str:
@@ -148,6 +158,10 @@ class Settings(BaseSettings):
     @property
     def fcm_enabled(self) -> bool:
         return bool(self.FIREBASE_SERVICE_ACCOUNT_JSON.strip())
+
+    @property
+    def zalo_enabled(self) -> bool:
+        return bool(self.ZALO_APP_ID and self.ZALO_APP_SECRET and (self.ZALO_OA_REFRESH_TOKEN or self.ZALO_OA_ACCESS_TOKEN))
 
     @property
     def is_production(self) -> bool:
