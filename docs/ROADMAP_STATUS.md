@@ -55,7 +55,13 @@ Cập nhật lần cuối: 2026-10-26 (G2 + G3).
 | G6 | **Báo cáo PDF cho phụ huynh**: trang `/parent/report/<learnerId>` kiểu tài liệu in, nút "Tải PDF / In" mở hộp thoại in của trình duyệt (Lưu thành PDF); không cần thư viện PDF | — |
 | G6 | **Gói gia đình tối đa 4 con**: chỉ 4 con liên kết sớm nhất được Premium; khi gói đang hoạt động, liên kết con thứ 5 bị từ chối với hướng dẫn huỷ liên kết | — |
 
-**G2 → G6 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
+| G7 | **Nhóm học cho giáo viên / doanh nghiệp** (vai trò `teacher`, `services/groups.py`, `/groups`, trang `/teacher`, `/teacher/<id>`): tạo lớp hoặc nhóm công ty, mã tham gia `LOP-XXXX` / `CTY-XXXX`, bảng tiến độ (XP tuần, chuỗi, trình độ, hôm nay đã học), giao bài theo tuần (kỹ năng + chủ đề + hạn), đếm ai đã làm; học viên có trang `/classes` + thẻ "Bài tập được giao" trên trang chủ; làm xong bài học cùng kỹ năng là bài tập được tính xong | — |
+| G7 | **Gói doanh nghiệp / lớp học theo ghế** (`plan=team`, 79K/ghế/tháng, 690K/ghế/năm, 5–500 ghế): thành viên nhóm của chủ gói là Premium theo thứ tự tham gia (`premium_source=team`); `/upgrade` với tài khoản giáo viên chọn số ghế; mua qua VNPay/MoMo hoặc demo | — |
+| G7 | **Thông báo đẩy cho phụ huynh** (`/parent/push-subscriptions`, `push_alerts`): con nghỉ 2 ngày, chuỗi ngày sắp mất (19–21h, chuỗi ≥ 3, một lần/ngày), báo cáo tuần sẵn sàng; chạy trong cron nhắc học, không cần email | — |
+| G7 | **Bảng xếp hạng bạn bè** (`GET /friends/leaderboard`, trên trang `/friends`): XP tuần của tôi và các bạn học | — |
+| G7 | **Ứng dụng di động gốc**: hướng dẫn đóng gói PWA bằng Capacitor (`docs/MOBILE_APP.md`, `docs/mobile/capacitor.config.ts.example`) — chủ dự án chạy ở máy có Android Studio / Xcode | — |
+
+**G2 → G7 hoàn tất (trên code).** Các phần cần khoá/đăng ký dịch vụ mới chạy thật — xem mục việc chủ dự án.
 
 **G1 hoàn tất.** Chưa làm trong G1: "sửa chuỗi trong 24 giờ" (streak repair) và mua bảo vệ chuỗi bằng XP —
 hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi người tặng sẵn 1, tối đa 2).
@@ -155,10 +161,22 @@ Chưa làm trong G5: thử thách bạn bè (friend quest); giọng neural cho B
 | Báo cáo PDF | Không cần gì; phụ huynh bấm "Tải PDF / In" → chọn "Lưu thành PDF" trong hộp thoại in. |
 | Giới hạn 4 con | Không cần gì; đổi số: `FAMILY_MAX_CHILDREN` trong `services/payments.py`. |
 
-## G7 — gợi ý tiếp theo
+## G7 — Lớp học / doanh nghiệp, push phụ huynh, bảng bạn bè, app di động: hoàn tất trên code
 
-Thông báo đẩy cho phụ huynh khi con xuống hạng / giữ chuỗi · Bảng xếp hạng bạn bè · Nhóm lớp cho giáo viên (nhiều học viên, giao bài) ·
-Gói doanh nghiệp (công ty mua cho nhân viên, báo cáo HR) · Ứng dụng di động gốc (Capacitor) từ PWA hiện có.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Nhóm học + bài tập | Không cần gì. Migration `w0f1a2b3c4d5` tự chạy. Giáo viên/HR đăng ký với vai trò "Giáo viên / Công ty". |
+| Gói theo ghế | Cần cổng thanh toán đã bật (G3) hoặc demo. Giá ở `TEAM_PRICES_VND`, ghế tối thiểu/tối đa `TEAM_MIN_SEATS`/`TEAM_MAX_SEATS` trong `services/payments.py`. |
+| Push phụ huynh | Cần `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` (đã dùng cho nhắc học). Chạy trong cron hằng giờ sẵn có; cửa sổ "chuỗi sắp mất" 19–21h giờ VN. |
+| Bảng xếp hạng bạn bè | Không cần gì. |
+| App di động | Chủ dự án chạy các bước trong `docs/MOBILE_APP.md` ở máy có Android Studio (Android) / Xcode (iOS); cần tài khoản Google Play (25 USD) và Apple Developer (99 USD/năm). Push gốc trên iOS cần thêm kênh FCM/APNs (chưa làm). |
+
+Chưa làm trong G7: kênh FCM/APNs cho push trên app gốc; giáo viên xem chi tiết từng bài làm của học viên; xuất báo cáo nhóm ra PDF/CSV.
+
+## G8 — gợi ý tiếp theo
+
+Push FCM cho app gốc · Xuất báo cáo nhóm (CSV/PDF) cho HR và giáo viên · Thư viện đề thi thử IELTS/TOEIC đầy đủ (Listening + Reading theo định dạng thật) ·
+Chatbot hỏi đáp ngữ pháp bằng tiếng Việt · Gói trả theo năm có hoá đơn VAT cho doanh nghiệp.
 
 ## Câu hỏi còn mở với chủ dự án
 

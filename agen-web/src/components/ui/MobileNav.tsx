@@ -12,7 +12,7 @@ export default function MobileNav() {
   const hydrated = useAuthHydrated();
   const { isAuthenticated, userRole } = useAuthStore();
 
-  if (!hydrated || !isAuthenticated || userRole === 'parent' || !showsAppShell(pathname)) return null;
+  if (!hydrated || !isAuthenticated || userRole === 'parent' || userRole === 'teacher' || !showsAppShell(pathname)) return null;
 
   return (
     <motion.nav

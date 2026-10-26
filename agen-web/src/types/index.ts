@@ -54,14 +54,14 @@ export interface RegisterPayload {
   display_name: string;
   age?: number;
   grade?: string;
-  role?: 'learner' | 'parent';
+  role?: 'learner' | 'parent' | 'teacher';
 }
 
 export interface User {
   id: string;
   email: string;
   full_name: string | null;
-  role: 'learner' | 'parent';
+  role: 'learner' | 'parent' | 'teacher';
   is_guest?: boolean;
 }
 

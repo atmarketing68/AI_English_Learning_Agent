@@ -54,3 +54,20 @@ export async function claimDuoQuest(learnerId: string): Promise<{ xp: number; ge
   const { data } = await api.post(`/friends/${learnerId}/claim`);
   return data;
 }
+
+// ── G7 · Bảng xếp hạng bạn bè ────────────────────────────────────────────────
+export interface LeaderRow {
+  rank: number;
+  learner_id: string;
+  display_name: string;
+  avatar: Partial<AvatarData>;
+  level: string;
+  weekly_xp: number;
+  streak: number;
+  is_me: boolean;
+}
+
+export async function getFriendsLeaderboard(): Promise<LeaderRow[]> {
+  const { data } = await api.get('/friends/leaderboard');
+  return data;
+}

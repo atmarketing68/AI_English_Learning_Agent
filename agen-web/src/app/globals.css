@@ -2798,3 +2798,15 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 .lp-mock-btn { justify-self: start; display: inline-flex; align-items: center; gap: 4px; padding: 7px 14px; border-radius: 99px; background: #fff; color: #0B1530; font-size: 0.82rem; font-weight: 700; margin-top: 2px; }
 .lp-hero { --ring-track: rgba(255,255,255,0.14); }
 .lp-pricing { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); max-width: 1120px; }
+
+/* ============================================
+   G7 — TEACHER / CLASSES
+   ============================================ */
+.teacher-page { min-height: 100vh; padding: clamp(24px, 5vw, 48px) var(--page-gutter); background: var(--bg-base); }
+.teacher-column { max-width: 960px; margin: 0 auto; }
+.teacher-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.teacher-table th, .teacher-table td { padding: 10px 14px; text-align: left; white-space: nowrap; border-top: 1px solid var(--border-subtle); }
+.teacher-table th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); border-top: none; }
+.assignment-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-md); background: var(--bg-elevated); }
+.assignment-row[data-done="true"] { opacity: 0.75; }
+.assignment-row[data-overdue="true"] { background: color-mix(in srgb, var(--agen-secondary) 7%, var(--bg-elevated)); }

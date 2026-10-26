@@ -5,9 +5,9 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import confetti from 'canvas-confetti';
-import { ArrowLeft, Check, CircleAlert, Copy, Flame, Gem, Gift, LoaderCircle, Star, UserPlus, Users, X } from 'lucide-react';
+import { ArrowLeft, Check, CircleAlert, Copy, Crown, Flame, Gem, Gift, LoaderCircle, Star, UserPlus, Users, X } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
-import { addFriend, claimDuoQuest, getFriends, removeFriend, type Friend, type Friends } from '@/lib/friendsService';
+import { addFriend, claimDuoQuest, getFriends, getFriendsLeaderboard, removeFriend, type Friend, type Friends, type LeaderRow } from '@/lib/friendsService';
 import { getMyProfile } from '@/lib/services';
 import { PageSkeleton } from '@/components/Skeleton';
 import Avatar from '@/components/ui/Avatar';
@@ -35,11 +35,13 @@ export default function FriendsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [board, setBoard] = useState<LeaderRow[]>([]);
 
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     getFriends().then(setData).catch(() => setError('Không tải được danh sách bạn học.'));
+    getFriendsLeaderboard().then(setBoard).catch(() => undefined);
   }, [hydrated, isAuthenticated, router]);
 
   const onAdd = async (e: React.FormEvent) => {
@@ -48,6 +50,7 @@ export default function FriendsPage() {
     setBusy('add'); setError('');
     try {
       setData(await addFriend(code));
+      getFriendsLeaderboard().then(setBoard).catch(() => undefined);
       setCode('');
       track('friend_added');
       playSound('pop');
@@ -151,6 +154,22 @@ export default function FriendsPage() {
             </div>
           ))}
         </div>
+        {board.length > 1 && (
+          <>
+            <h3 style={{ margin: '24px 0 10px' }}>Bảng xếp hạng tuần này</h3>
+            <ol className="league-board card">
+              {board.map(r => (
+                <li key={r.learner_id} className="league-row" data-me={r.is_me}>
+                  <span className="league-rank">{r.rank === 1 ? <Crown size={18} color="#D4A017" /> : r.rank}</span>
+                  <Avatar avatar={r.avatar} name={r.display_name} size={36} />
+                  <span className="league-name">{r.display_name}{r.is_me && <small> (bạn)</small>} <small style={{ display: 'inline-flex', alignItems: 'center', gap: 3, marginLeft: 6 }}><Flame size={11} color="var(--agen-secondary)" /> {r.streak}</small></span>
+                  <span className="level-badge">{r.level}</span>
+                  <span className="league-xp"><Star size={13} fill="currentColor" /> {r.weekly_xp}</span>
+                </li>
+              ))}
+            </ol>
+          </>
+        )}
         <p className="league-note">Thử thách làm mới vào thứ Hai hằng tuần. XP tính từ mọi hoạt động học của hai bạn.</p>
       </div>
     </main>

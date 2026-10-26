@@ -64,7 +64,13 @@ export type AnalyticsEvent =
   // G6
   | 'friend_added'
   | 'duo_quest_claimed'
-  | 'parent_report_printed';
+  | 'parent_report_printed'
+  // G7
+  | 'group_created'
+  | 'group_joined'
+  | 'assignment_created'
+  | 'assignment_started'
+  | 'parent_push_enabled';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

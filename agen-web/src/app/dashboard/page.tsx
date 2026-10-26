@@ -15,6 +15,7 @@ import InstallAppCard from '@/components/engagement/InstallAppCard';
 import LeagueCard from '@/components/engagement/LeagueCard';
 import BlitzCard from '@/components/engagement/BlitzCard';
 import FriendsCard from '@/components/engagement/FriendsCard';
+import AssignmentsCard from '@/components/engagement/AssignmentsCard';
 import Avatar from '@/components/ui/Avatar';
 import Mascot from '@/components/ui/Mascot';
 import CountUp from '@/components/ui/CountUp';
@@ -251,6 +252,7 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
           <LeagueCard />
           <BlitzCard wordsKnown={reviewSummary?.vocab_total ?? 0} />
+          <AssignmentsCard />
           <FriendsCard />
           <InstallAppCard />
           <ReminderCard />
