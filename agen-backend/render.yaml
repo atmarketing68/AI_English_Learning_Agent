@@ -67,6 +67,24 @@ services:
       - key: WORKER_MODE
         value: local
 
+      # Daily learning reminders (optional — see docs/HUONG_DAN_QUAN_TRI.md §5.1).
+      # Generate the VAPID pair with: python scripts/generate_vapid_keys.py
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: APP_URL
+        sync: false
+      # Copy this value into the GitHub secret REMINDER_CRON_SECRET.
+      - key: REMINDER_CRON_SECRET
+        generateValue: true
+
 databases:
   # ── PostgreSQL Database ─────────────────────────────────────────────────────
   - name: agen-db

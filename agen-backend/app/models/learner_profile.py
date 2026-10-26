@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, Integer, Float, DateTime, Text, ForeignKey, JSON
+from sqlalchemy import Boolean, Column, String, Integer, Float, DateTime, Text, ForeignKey, JSON, false as sa_false
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -62,6 +62,10 @@ class LearnerProfile(Base):
     # Weekly goal: number of study days per Mon–Sun week; reward claimed once per ISO week.
     weekly_goal_days = Column(Integer, default=5, server_default="5", nullable=False)
     weekly_goal_claimed_week = Column(String(10), nullable=True)   # e.g. "2026-W44"
+    # Daily reminder: local hour (0–23) or None for off; email is opt-in.
+    reminder_hour = Column(Integer, nullable=True)
+    reminder_email = Column(Boolean, default=False, server_default=sa_false(), nullable=False)
+    last_reminder_on = Column(String(10), nullable=True)            # local "YYYY-MM-DD"
 
     # --- Placement ---
     placement_completed = Column(String(10), default="none")  # none, partial, done
