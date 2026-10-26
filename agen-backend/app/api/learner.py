@@ -7,6 +7,7 @@ from app.core import get_db
 from app.core.security import get_current_user   # ← checks user.is_active
 from app.models import LearnerProfile
 from app.models.user import User
+from app.services.streak_service import effective_streak
 
 router = APIRouter(prefix="/learner", tags=["Learner Profile"])
 
@@ -65,7 +66,7 @@ class LearnerProfileOut(BaseModel):
             writing_score=p.writing_score or 0.0,
             vocabulary_score=p.vocabulary_score or 0.0,
             grammar_score=p.grammar_score or 0.0,
-            current_streak=p.current_streak or 0,
+            current_streak=effective_streak(p),
             total_xp=p.total_xp or 0,
             total_lessons_completed=p.total_lessons_completed or 0,
             strengths=p.strengths or [],

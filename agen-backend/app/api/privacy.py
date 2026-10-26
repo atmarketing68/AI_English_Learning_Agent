@@ -15,6 +15,7 @@ from app.models.placement import PlacementSession
 from app.models.roleplay import RoleplaySession
 from app.models.writing import WritingSubmission
 from app.models.review_item import ReviewItem
+from app.models.daily_quest import DailyQuest
 
 router = APIRouter(prefix="/privacy", tags=["Privacy"])
 PRIVACY_POLICY_VERSION = "2026-09-07"
@@ -108,6 +109,7 @@ def delete_account(
         db.query(RoleplaySession).filter(RoleplaySession.learner_id == profile.id).delete(synchronize_session=False)
         db.query(WritingSubmission).filter(WritingSubmission.learner_id == profile.id).delete(synchronize_session=False)
         db.query(ReviewItem).filter(ReviewItem.learner_id == profile.id).delete(synchronize_session=False)
+        db.query(DailyQuest).filter(DailyQuest.learner_id == profile.id).delete(synchronize_session=False)
         lesson_ids = [lesson.id for lesson in db.query(Lesson).filter(Lesson.learner_id == profile.id).all()]
         if lesson_ids:
             from app.models.lesson import Exercise

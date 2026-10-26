@@ -17,6 +17,7 @@ from app.models.user import User
 from app.models.learner_profile import LearnerProfile
 from app.models.learning_event import LearningEvent
 from app.models.parent import ParentProfile, ParentChildLink
+from app.services.streak_service import effective_streak
 
 router = APIRouter(prefix="/parent", tags=["Parent"])
 
@@ -122,7 +123,7 @@ def link_child(
         display_name=learner.display_name,
         overall_level=learner.overall_level or "PRE_A1",
         total_xp=learner.total_xp or 0,
-        current_streak=learner.current_streak or 0,
+        current_streak=effective_streak(learner),
         total_lessons_completed=learner.total_lessons_completed or 0,
         relationship_label=payload.relationship_label,
     )
@@ -147,7 +148,7 @@ def list_children(
             display_name=learner.display_name,
             overall_level=learner.overall_level or "PRE_A1",
             total_xp=learner.total_xp or 0,
-            current_streak=learner.current_streak or 0,
+            current_streak=effective_streak(learner),
             total_lessons_completed=learner.total_lessons_completed or 0,
             relationship_label=link.relationship_label,
         ))
@@ -236,7 +237,7 @@ def child_report(
         what_needs_help = (
             f"{focus_label} đang là kỹ năng yếu nhất ({skill_scores[focus_skill]:.0f}%) — cần luyện thêm."
         )
-        streak = learner.current_streak or 0
+        streak = effective_streak(learner)
         if streak >= 3:
             what_to_do = (
                 f"{name} đang có chuỗi {streak} ngày liên tiếp — hãy động viên con giữ vững! "
@@ -255,7 +256,7 @@ def child_report(
         sessions_this_week=sessions,
         xp_this_week=xp_week,
         study_minutes_estimate=study_minutes,
-        current_streak=learner.current_streak or 0,
+        current_streak=effective_streak(learner),
         accuracy_pct=accuracy,
         skills=skills,
         best_skill=best_label,

@@ -13,6 +13,8 @@ import { PageSkeleton } from '@/components/Skeleton';
 import { playSound } from '@/lib/soundEffects';
 import { speakText } from '@/lib/speechService';
 import { track } from '@/lib/analytics';
+import { getEngagement, type Engagement } from '@/lib/engagementService';
+import DailyQuests from '@/components/engagement/DailyQuests';
 import {
   answerReview, getReviewSession, getReviewSummary, intervalLabel, parseUtc,
   type ReviewAnswerResult, type ReviewQuestion, type ReviewSummary,
@@ -46,6 +48,7 @@ export default function ReviewPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [stats, setStats] = useState<Stats>(EMPTY_STATS);
+  const [engagement, setEngagement] = useState<Engagement | null>(null);
   // Items answered wrong get one more try at the end of the session.
   const retried = useRef<Set<string>>(new Set());
 
@@ -135,6 +138,7 @@ export default function ReviewPage() {
       setPhase('done');
       track('review_completed', { answered: stats.answered, correct: stats.correct, xp: stats.xp });
       getReviewSummary().then(setSummary).catch(() => undefined);
+      getEngagement().then(setEngagement).catch(() => undefined);
     }
   }, [current, queue, result, stats]);
 
@@ -212,6 +216,11 @@ export default function ReviewPage() {
             <div><strong>{stats.bestCombo}</strong><span>combo dài nhất</span></div>
             <div><strong>+{stats.xp}</strong><span>XP</span></div>
           </div>
+          {engagement && (
+            <div style={{ width: '100%', textAlign: 'left', marginBottom: 8 }}>
+              <DailyQuests state={engagement} onChange={setEngagement} compact />
+            </div>
+          )}
           {summary && summary.due_count > 0 ? (
             <button className="btn btn-primary btn-lg btn-full" onClick={() => start()}>
               <RotateCcw size={18} /> Ôn tiếp {summary.due_count} mục

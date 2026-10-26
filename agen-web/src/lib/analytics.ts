@@ -31,7 +31,10 @@ export type AnalyticsEvent =
   | 'review_completed'
   | 'notebook_opened'
   | 'mistake_explained'
-  | 'lesson_retry_completed';
+  | 'lesson_retry_completed'
+  | 'quest_claimed'
+  | 'weekly_goal_claimed'
+  | 'weekly_goal_set';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;
