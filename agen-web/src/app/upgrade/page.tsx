@@ -100,8 +100,8 @@ export default function UpgradePage() {
   const isPremium = subscription?.is_premium;
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg) 80px' }}>
-      <div className="container" style={{ maxWidth: 920, padding: 0 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--page-gutter) 80px' }}>
+      <div className="container" style={{ padding: 0 }}>
 
         {/* Back */}
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 32 }}>

@@ -102,8 +102,8 @@ export default function WritingPracticePage() {
   }
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 4vw, 40px) var(--spacing-lg)' }}>
-      <div className="container" style={{ maxWidth: 1200, padding: 0 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 4vw, 40px) var(--page-gutter)' }}>
+      <div className="container" style={{ padding: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <button className="btn btn-ghost btn-sm" onClick={() => setPromptData(null)}><ArrowLeft size={16} /> Đổi đề tài</button>
           <div className="level-badge">{promptData.level}</div>

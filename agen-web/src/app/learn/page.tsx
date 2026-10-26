@@ -108,11 +108,11 @@ function LearnHubContent() {
     ? recentLessons
     : recentLessons.filter(l => l.skill === skillFilter);
 
-  if (loading) return <PageSkeleton maxWidth={900} cards={3} />;
+  if (loading) return <PageSkeleton cards={3} />;
 
   return (
-    <main style={{ padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg)', minHeight: '100vh' }}>
-      <div className="container" style={{ maxWidth: 980, padding: 0 }}>
+    <main style={{ padding: 'clamp(24px, 5vw, 48px) var(--page-gutter)', minHeight: '100vh' }}>
+      <div className="container" style={{ padding: 0 }}>
 
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
@@ -131,7 +131,7 @@ function LearnHubContent() {
         {/* Quick-Start: 4 Skill Buttons */}
         <div className="animate-fade-in-up delay-100" style={{ marginBottom: 'var(--spacing-xl)' }}>
           <h3 style={{ marginBottom: 16 }}>Bắt đầu ngay</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--spacing-md)' }}>
+          <div className="grid-4" style={{ gap: 'var(--spacing-md)' }}>
             {ALL_SKILLS.filter(s => s.id !== 'all').map(skill => (
               <button
                 key={skill.id}
@@ -249,7 +249,7 @@ function LearnHubContent() {
 // useSearchParams requires a Suspense boundary in the App Router
 export default function LearnHubPage() {
   return (
-    <Suspense fallback={<PageSkeleton maxWidth={900} cards={3} />}>
+    <Suspense fallback={<PageSkeleton cards={3} />}>
       <LearnHubContent />
     </Suspense>
   );

@@ -73,7 +73,7 @@ function LessonRow({ lesson }: { lesson: CurriculumLessonNode }) {
 function UnitBlock({ unit }: { unit: CurriculumMap['units'][number] }) {
   const pct = unit.total_count ? Math.round((unit.completed_count / unit.total_count) * 100) : 0;
   return (
-    <div className="card animate-fade-in-up" style={{ marginBottom: 'var(--spacing-lg)' }}>
+    <div className="card animate-fade-in-up">
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
         {unit.icon && <span style={{ fontSize: '1.5rem' }}>{unit.icon}</span>}
         <div style={{ flex: 1 }}>
@@ -112,7 +112,7 @@ export default function CurriculumPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  if (loading) return <PageSkeleton maxWidth={860} cards={4} />;
+  if (loading) return <PageSkeleton cards={4} />;
 
   if (error || !map) return (
     <main style={{ padding: 40, textAlign: 'center' }}>
@@ -122,8 +122,8 @@ export default function CurriculumPage() {
   );
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg)' }}>
-      <div className="container" style={{ maxWidth: 760, padding: 0 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--page-gutter)' }}>
+      <div className="container" style={{ padding: 0 }}>
 
         {/* Header */}
         <div className="animate-fade-in-up" style={{ marginBottom: 'var(--spacing-xl)' }}>
@@ -155,7 +155,9 @@ export default function CurriculumPage() {
         </div>
 
         {/* Units */}
-        {map.units.map((unit) => <UnitBlock key={unit.id} unit={unit} />)}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 460px), 1fr))', gap: 'var(--spacing-lg)', alignItems: 'start' }}>
+          {map.units.map((unit) => <UnitBlock key={unit.id} unit={unit} />)}
+        </div>
       </div>
     </main>
   );

@@ -168,14 +168,14 @@ export default function DashboardPage() {
   }, [isAuthenticated]);
 
   if (!learner) {
-    return <PageSkeleton maxWidth={900} cards={3} />;
+    return <PageSkeleton cards={3} />;
   }
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg)' }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--page-gutter)' }}>
       <motion.div 
         className="container" 
-        style={{ maxWidth: 980, padding: 0 }}
+        style={{ padding: 0 }}
         variants={containerVariants}
         initial="hidden"
         animate="show"
@@ -203,13 +203,13 @@ export default function DashboardPage() {
         </div>
 
         {/* Today's Mission & Daily Challenge */}
-        <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--spacing-md)' }}>
+        <motion.div variants={itemVariants} className="grid-2" style={{ marginBottom: 'var(--spacing-md)', gap: 'var(--spacing-md)' }}>
           <MissionCard learner={learner} nextLesson={nextLesson} />
           {dailyChallenge && <DailyChallengeCard challenge={dailyChallenge} />}
         </motion.div>
 
         {/* Stats Row */}
-        <motion.div variants={itemVariants} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
+        <motion.div variants={itemVariants} className="grid-4" style={{ gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-md)' }}>
           <StatCard icon={BookOpen} color="var(--agen-primary)" value={learner.total_lessons_completed} label="Bài đã học" />
           <StatCard icon={Flame} color="var(--agen-secondary)" value={learner.current_streak} label="Ngày liên tiếp" />
           <StatCard icon={Star} color="var(--agen-accent)" value={learner.total_xp} label="Điểm XP" />
@@ -219,7 +219,7 @@ export default function DashboardPage() {
         {/* 4-Skill Tracker */}
         <motion.div variants={itemVariants} className="card" style={{ marginBottom: 'var(--spacing-2xl)', padding: 'var(--spacing-xl)', borderRadius: 'var(--radius-xl)' }}>
           <h3 style={{ marginBottom: 'var(--spacing-lg)' }}>4 kỹ năng</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'var(--spacing-lg) var(--spacing-xl)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 'var(--spacing-lg) var(--spacing-xl)' }}>
             <SkillBar label="Listening" icon={Headphones} score={learner.listening_score} color="var(--skill-listening)" />
             <SkillBar label="Speaking" icon={Mic} score={learner.speaking_score} color="var(--skill-speaking)" />
             <SkillBar label="Reading" icon={BookOpen} score={learner.reading_score} color="var(--skill-reading)" />
@@ -230,7 +230,7 @@ export default function DashboardPage() {
         {/* Quick Access */}
         <motion.div variants={itemVariants}>
           <h3 style={{ marginBottom: 'var(--spacing-md)' }}>Học nhanh</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 'var(--spacing-md)' }}>
+          <div className="grid-4" style={{ gap: 'var(--spacing-md)' }}>
             {[
               { icon: Headphones, label: 'Listening', color: 'var(--skill-listening)', href: '/learn' },
               { icon: Mic,        label: 'Speaking',  color: 'var(--skill-speaking)',  href: '/practice/speaking' },

@@ -45,15 +45,16 @@ export function SkeletonCard({ lines = 3 }: { lines?: number }) {
  * Used in place of a bare spinner while a page's data loads.
  */
 export function PageSkeleton({
-  maxWidth = 900,
+  maxWidth,
   cards = 3,
 }: {
+  /** Omit for a full-width page. */
   maxWidth?: number;
   cards?: number;
 }) {
   return (
-    <main style={{ minHeight: '100vh', padding: 'var(--spacing-lg)' }}>
-      <div className="container" style={{ maxWidth }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--page-gutter)' }}>
+      <div className="container" style={{ maxWidth, padding: 0 }}>
         {/* Header */}
         <div style={{ marginBottom: 'var(--spacing-xl)' }}>
           <Skeleton width={220} height={14} style={{ marginBottom: 12 }} />

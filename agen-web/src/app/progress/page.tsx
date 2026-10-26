@@ -126,8 +126,8 @@ export default function ProgressPage() {
   );
 
   return (
-    <main style={{ padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg)', minHeight: '100vh' }}>
-      <div className="container" style={{ maxWidth: 980, padding: 0 }}>
+    <main style={{ padding: 'clamp(24px, 5vw, 48px) var(--page-gutter)', minHeight: '100vh' }}>
+      <div className="container" style={{ padding: 0 }}>
 
         {/* ── Header ── */}
         <div className="animate-fade-in-up" style={{ marginBottom: 'var(--spacing-xl)' }}>
@@ -160,7 +160,7 @@ export default function ProgressPage() {
           <AnimatePresence mode="wait">
             <motion.div key="progress-tab" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
               {/* ── Hero Stats ── */}
-        <div className="animate-fade-in-up delay-100" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
+        <div className="animate-fade-in-up delay-100 grid-4" style={{ gap: 'var(--spacing-md)', marginBottom: 'var(--spacing-xl)' }}>
           {[
             { label: 'Trình độ', value: overview.overall_level, icon: GraduationCap, color: 'var(--skill-writing)' },
             { label: 'Tổng XP', value: overview.total_xp, icon: Star, color: 'var(--agen-accent)' },

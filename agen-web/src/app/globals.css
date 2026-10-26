@@ -64,6 +64,9 @@
   --spacing-xl: 32px;
   --spacing-2xl: 48px;
 
+  /* --- Page layout: full-width with responsive side gutters --- */
+  --page-gutter: clamp(20px, 4vw, 64px);
+
   /* --- Radius --- */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -515,9 +518,19 @@ a:hover { opacity: 0.8; }
    LAYOUT UTILITIES
    ============================================ */
 .container {
-  max-width: 1200px;
+  width: 100%;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
+  padding: 0 var(--page-gutter);
+}
+
+/* Responsive grids: 1 → 2 → 3/4 columns */
+.grid-2, .grid-3, .grid-4 { display: grid; grid-template-columns: 1fr; }
+@media (min-width: 640px) {
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1000px) {
+  .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .flex          { display: flex; }
@@ -537,10 +550,6 @@ a:hover { opacity: 0.8; }
    ============================================ */
 @media (max-width: 768px) {
   body { font-size: 16px; }
-
-  .container {
-    padding: 0 var(--spacing-md);
-  }
 
   .card {
     padding: var(--spacing-md);

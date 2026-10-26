@@ -294,8 +294,8 @@ export default function ParentDashboardPage() {
   const selectedChild = children.find(c => c.learner_id === selected);
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg)', background: 'var(--bg-base)' }}>
-      <div className="container" style={{ maxWidth: 860, padding: 0 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--page-gutter)', background: 'var(--bg-base)' }}>
+      <div className="container" style={{ padding: 0 }}>
 
         {/* Header */}
         <motion.div

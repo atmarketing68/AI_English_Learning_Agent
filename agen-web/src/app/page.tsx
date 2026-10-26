@@ -111,7 +111,7 @@ export default function HomePage() {
         background: 'var(--bg-nav)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)',
         borderBottom: '1px solid var(--border-subtle)',
       }}>
-        <div style={{ maxWidth: 1024, margin: '0 auto', height: '100%', padding: '0 22px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ height: '100%', padding: '0 var(--page-gutter)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link href="/" aria-label="AGEN — trang chủ" style={{ display: 'inline-flex', opacity: 1 }}><Logo size={28} /></Link>
           <nav style={{ display: 'flex', alignItems: 'center', gap: 20, fontSize: '0.85rem' }}>
             <Link href="/login" style={{ color: 'var(--text-secondary)' }}>Đăng nhập</Link>
@@ -121,7 +121,7 @@ export default function HomePage() {
       </header>
 
       {/* ─── HERO ─────────────────────────────────────────────────────── */}
-      <section style={{ padding: 'clamp(64px, 10vw, 120px) 22px 80px', textAlign: 'center' }}>
+      <section style={{ padding: 'clamp(64px, 10vw, 120px) var(--page-gutter) 80px', textAlign: 'center' }}>
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
@@ -152,7 +152,7 @@ export default function HomePage() {
         <motion.div
           initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-          style={{ maxWidth: 880, margin: '72px auto 0' }}
+          style={{ maxWidth: 1280, margin: '72px auto 0' }}
         >
           <ProductPreview />
         </motion.div>
@@ -168,10 +168,10 @@ export default function HomePage() {
       </section>
 
       {/* ─── FEATURES ─────────────────────────────────────────────────── */}
-      <section style={{ padding: '100px 22px', background: 'var(--bg-base)' }}>
-        <div style={{ maxWidth: 1024, margin: '0 auto' }}>
+      <section style={{ padding: '100px var(--page-gutter)', background: 'var(--bg-base)' }}>
+        <div>
           <SectionHeading eyebrow="Tất cả trong một" title="Vì sao chọn AGEN?" sub="Mọi thứ bạn cần để tiến bộ đều đặn — gói gọn trong một ứng dụng." />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 20 }}>
+          <div className="grid-3" style={{ gap: 20 }}>
             {FEATURES.map(({ icon: Icon, title, desc }, i) => (
               <motion.div
                 key={title}
@@ -189,10 +189,10 @@ export default function HomePage() {
       </section>
 
       {/* ─── HOW IT WORKS ─────────────────────────────────────────────── */}
-      <section style={{ padding: '100px 22px' }}>
-        <div style={{ maxWidth: 1024, margin: '0 auto' }}>
+      <section style={{ padding: '100px var(--page-gutter)' }}>
+        <div>
           <SectionHeading eyebrow="Bắt đầu trong 30 giây" title="Cách hoạt động" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 40 }}>
+          <div className="grid-3" style={{ gap: 40 }}>
             {STEPS.map((step, i) => (
               <motion.div key={step.n} {...reveal} transition={{ ...reveal.transition, delay: i * 0.08 }} style={{ textAlign: 'center' }}>
                 <div style={{
@@ -211,10 +211,10 @@ export default function HomePage() {
       </section>
 
       {/* ─── TESTIMONIALS ─────────────────────────────────────────────── */}
-      <section style={{ padding: '100px 22px', background: 'var(--bg-base)' }}>
-        <div style={{ maxWidth: 1024, margin: '0 auto' }}>
+      <section style={{ padding: '100px var(--page-gutter)', background: 'var(--bg-base)' }}>
+        <div>
           <SectionHeading eyebrow="Câu chuyện thật" title="Học viên nói gì?" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+          <div className="grid-3" style={{ gap: 20 }}>
             {TESTIMONIALS.map((t, i) => (
               <motion.figure
                 key={t.name}
@@ -236,7 +236,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── CTA BOTTOM ───────────────────────────────────────────────── */}
-      <section style={{ padding: '120px 22px', textAlign: 'center' }}>
+      <section style={{ padding: '120px var(--page-gutter)', textAlign: 'center' }}>
         <motion.div {...reveal} style={{ maxWidth: 680, margin: '0 auto' }}>
           <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.25rem)', fontWeight: 700, letterSpacing: '-0.035em', marginBottom: 16 }}>
             Sẵn sàng bắt đầu?
@@ -258,8 +258,8 @@ export default function HomePage() {
       </section>
 
       {/* ─── FOOTER ───────────────────────────────────────────────────── */}
-      <footer style={{ background: 'var(--bg-base)', borderTop: '1px solid var(--border-subtle)', padding: '24px 22px' }}>
-        <div style={{ maxWidth: 1024, margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+      <footer style={{ background: 'var(--bg-base)', borderTop: '1px solid var(--border-subtle)', padding: '24px var(--page-gutter)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}><Logo size={20} wordmark={false} /> © {new Date().getFullYear()} AGEN. Bảo lưu mọi quyền.</span>
           <span>AI English Learning Agent</span>
         </div>

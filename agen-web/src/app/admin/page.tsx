@@ -323,8 +323,8 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--spacing-lg)' }}>
-      <div className="container" style={{ maxWidth: 900, padding: 0 }}>
+    <main style={{ minHeight: '100vh', padding: 'clamp(24px, 5vw, 48px) var(--page-gutter)' }}>
+      <div className="container" style={{ padding: 0 }}>
 
         <div className="animate-fade-in-up" style={{ marginBottom: 'var(--spacing-lg)' }}>
           <h1 style={{ margin: 0, fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', display: 'flex', alignItems: 'center', gap: 10 }}><ShieldCheck size={28} strokeWidth={1.8} /> Quản trị AGEN</h1>
