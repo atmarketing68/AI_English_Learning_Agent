@@ -13,7 +13,9 @@ from pydantic import BaseModel, Field
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import User
-from app.services.subscription_service import premium_source
+from app.models.subscription import PLAN_FAMILY
+from app.services.payments import FAMILY_MAX_CHILDREN
+from app.services.subscription_service import get_or_create_subscription, premium_source
 from app.models.learner_profile import LearnerProfile
 from app.models.parent import ParentProfile, ParentChildLink
 from app.services.streak_service import effective_streak
@@ -109,6 +111,13 @@ def link_child(
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="Bạn đã liên kết với học viên này rồi.")
+
+    # G6 · a family plan covers at most FAMILY_MAX_CHILDREN children: refuse the next link
+    # while the plan is active, instead of silently leaving a child uncovered.
+    linked = db.query(ParentChildLink).filter(ParentChildLink.parent_id == parent.id).count()
+    sub = get_or_create_subscription(db, current_user.id)
+    if sub.plan == PLAN_FAMILY and premium_source(db, current_user.id) == "own" and linked >= FAMILY_MAX_CHILDREN:
+        raise HTTPException(status_code=400, detail=f"Gói gia đình bao gồm tối đa {FAMILY_MAX_CHILDREN} con. Hãy huỷ liên kết một con trước khi thêm con mới.")
 
     link = ParentChildLink(
         parent_id=parent.id,

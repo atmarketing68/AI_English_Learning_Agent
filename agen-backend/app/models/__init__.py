@@ -22,6 +22,7 @@ from app.models.push_subscription import PushSubscription
 from app.models.payment_order import PaymentOrder
 from app.models.goal_track import GoalTrackProgress
 from app.models.league_membership import LeagueMembership
+from app.models.friendship import Friendship
 
 __all__ = [
     "User", "LearnerProfile", "LearningEvent", "Lesson", "Exercise",
@@ -41,4 +42,5 @@ __all__ = [
     "PaymentOrder",
     "GoalTrackProgress",
     "LeagueMembership",
+    "Friendship",
 ]

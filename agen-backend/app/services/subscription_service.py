@@ -53,16 +53,31 @@ def family_parent_subscription(db: Session, user_id: str) -> Subscription | None
     if not learner:
         return None
     rows = (
-        db.query(Subscription)
+        db.query(Subscription, ParentProfile.id)
         .join(ParentProfile, ParentProfile.user_id == Subscription.user_id)
         .join(ParentChildLink, ParentChildLink.parent_id == ParentProfile.id)
         .filter(ParentChildLink.learner_id == learner.id, Subscription.plan == PLAN_FAMILY)
         .all()
     )
-    for sub in rows:
-        if _active_paid(sub):
+    for sub, parent_id in rows:
+        if _active_paid(sub) and learner.id in covered_children(db, parent_id):
             return sub
     return None
+
+
+def covered_children(db: Session, parent_id: str) -> list[str]:
+    """G6 · The first FAMILY_MAX_CHILDREN linked learners (by link date) are the ones a family plan covers."""
+    from app.models.parent import ParentChildLink
+    from app.services.payments import FAMILY_MAX_CHILDREN
+
+    links = (
+        db.query(ParentChildLink.learner_id)
+        .filter(ParentChildLink.parent_id == parent_id)
+        .order_by(ParentChildLink.created_at, ParentChildLink.id)
+        .limit(FAMILY_MAX_CHILDREN)
+        .all()
+    )
+    return [lid for (lid,) in links]
 
 
 def premium_source(db: Session, user_id: str) -> str | None:

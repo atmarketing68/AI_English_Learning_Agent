@@ -28,6 +28,7 @@ from app.api.review import router as review_router
 from app.api.engagement import router as engagement_router
 from app.api.reminders import router as reminders_router
 from app.api.audio import router as audio_router
+from app.api.friends import router as friends_router
 from app.services.gamification import seed_achievements
 from app.services.curriculum_seed import seed_curriculum
 
@@ -146,6 +147,7 @@ app.include_router(review_router, prefix=PREFIX)
 app.include_router(engagement_router, prefix=PREFIX)
 app.include_router(reminders_router, prefix=PREFIX)
 app.include_router(audio_router, prefix=PREFIX)
+app.include_router(friends_router, prefix=PREFIX)
 
 # ── Root & Health ─────────────────────────────────────────────────────────────
 @app.get("/", tags=["Health"])
