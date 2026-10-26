@@ -78,6 +78,12 @@ Mọi cấu hình / việc chủ dự án phải tự làm (khoá, biến môi t
   `payments.refund_order`/`record_refund` (trạng thái `refunded`, trừ lại thời hạn Premium; Stripe `charge.refunded` tìm đơn theo
   `provider_txn`), biên nhận `/billing/orders/<id>/receipt` + web `/receipt/<id>` (ALWAYS_CLASSIC); cảnh báo chi phí
   `ai_usage.check_alerts` (cờ ngày trong `AppConfig`, chạy trong cron hằng giờ). Ngày của học viên luôn theo `local_today()` — cả trong test.
+- G12: podcast tự động `podcast_generator.run_auto_drafts` (gọi trong `/admin/content/cron`, tối đa 1 lượt AI/lần chạy,
+  `GeneratedEpisode.auto`); lịch câu lạc bộ lớp `GroupClubSchedule` → `speaking_club.ensure_group_rooms` (chạy trong `run_reminders`),
+  phòng lớp có `group_id`/`schedule_id`, `host_learner_id` có thể null (người đăng ký đầu làm chủ), chỉ thành viên lớp vào được;
+  rubric IELTS `WritingSubmission.teacher_rubric` + `groups.ielts_overall` (làm tròn kiểu IELTS); HĐĐT Viettel `services/einvoice.py`
+  (token cookie `access_token`, `createInvoice/{MST}`, `transactionUuid` lưu trước khi gọi để không xuất trùng), cron hằng giờ `run_auto`;
+  chế độ tiết kiệm `ai_usage.economy_active()` (cache 60 giây) + `llm_client.economy_model()`, mô hình tiết kiệm lỗi → gọi lại mô hình thường.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

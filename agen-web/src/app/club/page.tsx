@@ -25,9 +25,9 @@ function RoomRow({ r, action, onClick, busy }: { r: RoomCard; action: string; on
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600 }}>{r.topic.title_vi}</div>
         <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{r.topic.level} · chủ phòng {r.host_name} · <Users size={12} /> {r.members}/4 · mã {r.code}</div>
-        {r.scheduled_at && <div className="club-when"><CalendarClock size={12} /> {formatSlot(r.scheduled_at)}</div>}
+        {r.scheduled_at && <div className="club-when"><CalendarClock size={12} /> {formatSlot(r.scheduled_at)}{r.group_name && <span className="club-group-badge" style={{ marginLeft: 6 }}>Lớp {r.group_name}</span>}</div>}
       </div>
-      <button type="button" className="btn btn-primary btn-sm" onClick={onClick} disabled={busy}>{action} <ArrowRight size={14} /></button>
+      <button type="button" className={`btn btn-sm ${r.registered ? 'btn-outline' : 'btn-primary'}`} onClick={onClick} disabled={busy}>{r.registered ? 'Vào phòng' : action} <ArrowRight size={14} /></button>
     </div>
   );
 }

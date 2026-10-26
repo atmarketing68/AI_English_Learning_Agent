@@ -293,6 +293,10 @@ def order_receipt(order_id: str, current_user: User = Depends(get_current_user),
         "seller": {"name": settings.SELLER_NAME, "tax_code": settings.SELLER_TAX_CODE or None, "address": settings.SELLER_ADDRESS or None,
                    "email": settings.SELLER_EMAIL or None},
         "refund_note": order.refund_note,
+        # G12 · e-invoice issued on Viettel S-Invoice
+        "einvoice": ({"number": order.einvoice_no, "lookup_code": order.einvoice_lookup_code, "series": settings.VIETTEL_SINVOICE_SERIES or None,
+                      "lookup_url": settings.EINVOICE_LOOKUP_URL or None, "seller_tax_code": settings.VIETTEL_SINVOICE_TAX_CODE or settings.SELLER_TAX_CODE or None}
+                     if order.einvoice_no else None),
     }
 
 

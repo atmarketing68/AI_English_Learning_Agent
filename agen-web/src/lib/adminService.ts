@@ -172,6 +172,23 @@ export interface AdminOrder {
   amount_foreign?: number | null;
   refunded_at?: string | null;
   refund_note?: string | null;
+  /** G12 · Viettel S-Invoice */
+  einvoice_no?: string | null;
+  einvoice_lookup_code?: string | null;
+  einvoice_error?: string | null;
+}
+
+export interface EInvoiceStatus { enabled: boolean; provider: string | null; auto: string; tax_percent: number; template: string | null; series: string | null }
+
+export async function getEInvoiceStatus(): Promise<EInvoiceStatus> {
+  const res = await api.get('/admin/einvoice/status');
+  return res.data;
+}
+
+/** G12 · Issue the e-invoice of a paid order on Viettel S-Invoice. */
+export async function issueEInvoice(orderId: string): Promise<AdminOrder> {
+  const res = await api.post(`/admin/revenue/orders/${orderId}/einvoice`);
+  return res.data;
 }
 
 /** G11 · Refund a paid order (Stripe through the API unless `manual`; other gateways: record after refunding on the gateway). */
@@ -249,6 +266,8 @@ export interface AiUsageSummary {
   by_provider: AiUsageBucket[];
   top_users: { user_id: string; email: string | null; role: string | null; premium: boolean; calls: number; cost_usd: number; cost_vnd: number }[];
   /** G11 · today's spend against the alert thresholds */
+  /** G12 · cheaper model once today's spend passes the threshold */
+  economy?: { threshold_usd: number; active: boolean; models: Record<string, { normal: string; economy: string }> };
   alerts?: { today_usd: number; total_threshold_usd: number; user_threshold_usd: number; total_over: boolean; users_over: { user_id: string; email: string | null; cost_usd: number }[] };
 }
 
@@ -275,6 +294,8 @@ export interface GeneratedEpisode {
   eval_flagged: boolean | null;
   created_at: string;
   approved_at: string | null;
+  /** G12 · made by the scheduled Content Factory */
+  auto?: boolean;
 }
 
 export interface GeneratedEpisodeFull {

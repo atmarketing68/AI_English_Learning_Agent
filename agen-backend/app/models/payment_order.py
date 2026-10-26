@@ -44,3 +44,9 @@ class PaymentOrder(Base):
     refunded_at = Column(DateTime, nullable=True)
     refund_txn = Column(String(120), nullable=True)
     refund_note = Column(String(300), nullable=True)
+
+    # G12 · electronic invoice (Viettel S-Invoice): number, lookup code, our transaction id, last error
+    einvoice_no = Column(String(40), nullable=True)
+    einvoice_lookup_code = Column(String(60), nullable=True)
+    einvoice_txn = Column(String(40), nullable=True)
+    einvoice_error = Column(String(300), nullable=True)

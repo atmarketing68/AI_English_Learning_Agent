@@ -2,7 +2,7 @@
 
 > Danh sách để đánh dấu dần. Mỗi việc ghi **làm ở đâu**, **từng bước**, **biến cần dán**, và **cách kiểm tra**.
 > Khoá bí mật **không bao giờ** dán vào code hay gửi công khai — chỉ dán vào Render / Vercel / GitHub Secrets.
-> Cập nhật: 2026-10-27 (sau G11). Mỗi giai đoạn mới Claude sẽ bổ sung vào file này.
+> Cập nhật: 2026-10-27 (sau G12). Mỗi giai đoạn mới Claude sẽ bổ sung vào file này.
 
 Ba nơi bạn sẽ dán cấu hình:
 
@@ -65,6 +65,15 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
   - Kiểm tra: trang `/upgrade` hiện nút "Thẻ quốc tế".
 - [ ] **3.4 Sau khi bật cổng thật:** Render `ALLOW_DEMO_UPGRADE=false`.
 - [ ] **3.5 Thông tin người bán in trên biên nhận** — Render: `SELLER_NAME` (mặc định "AI AGENT ENGLISH"), `SELLER_TAX_CODE`, `SELLER_ADDRESS`, `SELLER_EMAIL`.
+- [ ] **3.6 Hoá đơn điện tử Viettel S-Invoice** (tự xuất HĐĐT cho đơn đã thanh toán)
+  1. Ký hợp đồng HĐĐT với Viettel (đã đăng ký mẫu số + ký hiệu hoá đơn với cơ quan thuế), xin **tài khoản tích hợp API** (username/password — thường username là MST).
+  2. Hỏi kế toán: dịch vụ học trực tuyến của bạn chịu **thuế suất bao nhiêu** (0/5/8/10 %) hay **không chịu thuế**.
+  3. Render: `EINVOICE_PROVIDER=viettel`, `VIETTEL_SINVOICE_USERNAME`, `VIETTEL_SINVOICE_PASSWORD`, `VIETTEL_SINVOICE_TAX_CODE` (MST, trống thì dùng `SELLER_TAX_CODE`),
+     `VIETTEL_SINVOICE_TEMPLATE_CODE` (mẫu số, vd. `1/001`), `VIETTEL_SINVOICE_SERIES` (ký hiệu, vd. `C26TAA`),
+     `EINVOICE_TAX_PERCENT` (`-2` = không chịu thuế — mặc định; hoặc `8`, `10`…), tuỳ chọn `EINVOICE_UNIT_NAME` (mặc định "Gói"), `EINVOICE_LOOKUP_URL` (trang tra cứu hoá đơn in trên biên nhận).
+  4. Thử trước với môi trường **demo** của Viettel: đặt `VIETTEL_SINVOICE_API_URL` và `VIETTEL_SINVOICE_LOGIN_URL` theo địa chỉ demo Viettel cấp; xuất thử 1 đơn ở `/admin` → Doanh thu → **Xuất HĐĐT**; kiểm tra trên cổng Viettel rồi mới chuyển sang địa chỉ thật (mặc định đã là địa chỉ thật).
+  5. Muốn tự động: `EINVOICE_AUTO=business` (chỉ đơn yêu cầu hoá đơn công ty) hoặc `all` (mọi đơn). Mặc định `off`.
+  - Kiểm tra: dòng "HĐĐT Viettel: mẫu… ký hiệu…" hiện trên bảng đơn hàng; sau khi xuất, số hoá đơn hiện ở cột "HĐ điện tử" và trên biên nhận của khách.
 
 ## Mức 4 — Bật khi cần (tính năng nâng cao)
 
@@ -79,12 +88,14 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
 - [ ] **4.3 App di động (Android / iOS)** — làm theo `docs/MOBILE_APP.md` trên máy có Android Studio / Xcode. Tài khoản Google Play (25 USD một lần), Apple Developer (99 USD/năm).
   Push trên app: Firebase console → Project settings → Service accounts → Generate new private key → dán **nguyên nội dung file JSON** vào Render `FIREBASE_SERVICE_ACCOUNT_JSON`.
 - [ ] **4.4 Giọng đọc miễn phí tự host (Voicebox)** — chỉ khi có máy chạy 24/7: `VOICEBOX_URL`, `VOICEBOX_PROFILE_ID` (+ `VOICEBOX_PROFILE_ID_MALE`, `VOICEBOX_API_KEY`). Chi tiết ở `docs/ROADMAP_STATUS.md` mục G2.
+- [ ] **4.5 Podcast tự sinh theo lịch** — Render: `PODCAST_AUTO_DRAFTS=2` (giữ 2 bản nháp chờ duyệt mỗi trình độ; `0` = tắt), tuỳ chọn `PODCAST_AUTO_LEVELS` (mặc định `A2,B1,B2`). Mỗi ngày vào `/admin` → **Podcast AI** nghe thử và duyệt các tập có nhãn "Tự động".
 
 ## Mức 5 — Kiểm soát chi phí AI (khuyên đặt khi có người dùng thật)
 
 - [ ] **5.1 Cảnh báo chi phí** — Render: `AI_ALERT_DAILY_USD` (vd. `5` = báo khi cả app tốn quá 5 USD/ngày), `AI_ALERT_USER_DAILY_USD` (vd. `0.5` = báo khi 1 tài khoản tốn quá 0,5 USD/ngày). Email gửi tới `ADMIN_EMAILS` (cần mục 2.2), tối đa 1 lần/ngày mỗi ngưỡng.
 - [ ] **5.2 Giới hạn cứng mỗi người/ngày** — Render: `AI_DAILY_LIMIT_USD_FREE` (vd. `0.2`), `AI_DAILY_LIMIT_USD_PREMIUM` (vd. `1`). Vượt mức thì tính năng AI dùng phương án dự phòng tới hôm sau. `0` = không giới hạn.
 - [ ] **5.3 Đơn giá để ước tính đúng** (tuỳ chọn, USD / 1 triệu token): `AI_PRICE_GEMINI_IN`, `AI_PRICE_GEMINI_OUT`, `AI_PRICE_OPENAI_IN`, `AI_PRICE_OPENAI_OUT`, `TTS_PRICE_PER_MCHAR`.
+- [ ] **5.4 Chế độ tiết kiệm (tự đổi mô hình rẻ hơn)** — Render: `AI_ECONOMY_AT_USD` (vd. `3`), `AI_ECONOMY_GEMINI_MODEL` và/hoặc `AI_ECONOMY_OPENAI_MODEL` = tên mô hình rẻ hơn (xem trang giá Google AI / OpenAI). Đổi mô hình thường bằng `GEMINI_MODEL`, `OPENAI_MODEL`. Sai tên mô hình tiết kiệm thì hệ thống tự quay về mô hình thường.
 - Giọng đọc: `TTS_DAILY_CHAR_LIMIT` (mặc định 150.000 ký tự mới/ngày); tắt hẳn bằng `TTS_PROVIDER=off`.
 - Hạn mức miễn phí: `FREE_DAILY_LESSON_LIMIT` (bài/ngày), `TUTOR_FREE_DAILY_LIMIT` (câu hỏi Bo/ngày, mặc định 5).
 
@@ -96,10 +107,12 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
 |---|---|---|
 | Duyệt đề thi AI sinh | `/admin` → **Đề thi** → Sinh bản nháp → đọc đáp án → Duyệt | Khi muốn thêm đề |
 | Duyệt tập podcast AI sinh (+ gắn video YouTube khớp lời thoại nếu có) | `/admin` → **Podcast AI** | Khi muốn thêm tập |
-| Xuất hoá đơn VAT cho doanh nghiệp | `/admin` → **Doanh thu** → "Đơn hàng & hoá đơn VAT": xuất trên phần mềm HĐĐT của bạn (Viettel/MISA…) rồi bấm "Đánh dấu đã xuất" | Khi có đơn yêu cầu |
+| Xuất hoá đơn VAT cho doanh nghiệp | `/admin` → **Doanh thu** → "Đơn hàng & hoá đơn VAT": bấm **Xuất HĐĐT** (khi đã cấu hình Viettel, mục 3.6) — hoặc xuất trên phần mềm HĐĐT khác rồi bấm "Đánh dấu đã xuất" | Khi có đơn yêu cầu (hoặc để chế độ tự động) |
+| Hoàn tiền đơn đã có HĐĐT | Lập hoá đơn điều chỉnh / huỷ trên cổng Viettel S-Invoice | Khi hoàn tiền |
 | Hoàn tiền | `/admin` → **Doanh thu** → **Hoàn tiền**. Stripe hoàn tự động; VNPay/MoMo: hoàn trên cổng trước rồi bấm để ghi nhận | Khi khách yêu cầu |
 | Xem chi phí AI, người dùng tốn nhiều | `/admin` → **Chi phí AI** | Hằng tuần |
 | Xem chất lượng AI (bài bị gắn cờ) | `/admin` → **Chất lượng AI** | Hằng tuần |
+| Nhắc giáo viên đặt lịch câu lạc bộ nói cho lớp | Trang lớp của giáo viên → "Câu lạc bộ nói hằng tuần" | Khi mở lớp mới |
 | Kiểm tra lịch tự động còn chạy | GitHub → **Actions** (3 lịch: nhắc học, Content Factory, nhắc câu lạc bộ nói) | Hằng tuần |
 
 ## Lưu ý khi deploy

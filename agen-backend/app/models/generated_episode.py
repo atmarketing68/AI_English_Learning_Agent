@@ -24,6 +24,7 @@ class GeneratedEpisode(Base):
     youtube_id = Column(String(20), nullable=True)
     video_start = Column(Integer, nullable=True)
     video_end = Column(Integer, nullable=True)
+    auto = Column(Boolean, nullable=False, default=False, server_default="0")   # G12 · made by the scheduled Content Factory
     eval_score = Column(Float, nullable=True)
     eval_flagged = Column(Boolean, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

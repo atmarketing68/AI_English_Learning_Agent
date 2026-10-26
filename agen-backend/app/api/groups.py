@@ -113,6 +113,7 @@ class WritingGradeIn(BaseModel):
     score: Optional[float] = Field(default=None, ge=0, le=100)     # None clears the teacher grade
     band: Optional[float] = Field(default=None, ge=0, le=200)
     comment: Optional[str] = Field(default=None, max_length=2000)
+    rubric: Optional[dict[str, float]] = None                      # G12 · IELTS: task, coherence, lexical, grammar
 
 
 class CertificateIn(BaseModel):
@@ -253,7 +254,8 @@ def _writing_out(w) -> dict:
     return {"id": w.id, "prompt_title": w.prompt_title, "prompt_text": w.prompt_text, "genre": w.genre, "level": w.level, "user_text": w.user_text,
             "word_count": w.word_count, "overall_score": w.overall_score, "grade": w.grade, "evaluation": w.evaluation or {}, "created_at": w.created_at,
             "exam": (EXAM_GENRES.get(w.genre or "") or {}).get("exam"),
-            "teacher_score": w.teacher_score, "teacher_band": w.teacher_band, "teacher_comment": w.teacher_comment, "teacher_scored_at": w.teacher_scored_at}
+            "teacher_score": w.teacher_score, "teacher_band": w.teacher_band, "teacher_comment": w.teacher_comment, "teacher_scored_at": w.teacher_scored_at,
+            "teacher_rubric": w.teacher_rubric}
 
 
 @router.post("/{group_id}/members/{learner_id}/writing/{submission_id}/grade")
@@ -266,7 +268,7 @@ def grade_member_writing(group_id: str, learner_id: str, submission_id: str, pay
     if not w:
         raise HTTPException(status_code=404, detail="Không tìm thấy bài viết.")
     try:
-        svc.grade_writing(db, g, current_user, learner, w, payload.score, payload.band, payload.comment)
+        svc.grade_writing(db, g, current_user, learner, w, payload.score, payload.band, payload.comment, payload.rubric)
     except svc.GroupError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
@@ -413,3 +415,73 @@ def start_assignment(assignment_id: str, current_user: User = Depends(get_curren
         raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
     return StartOut(assignment_id=a.id, skill=a.skill, topic=a.topic, title=a.title)
+
+
+# ── G12 · Lịch câu lạc bộ nói hằng tuần của lớp ──────────────────────────────
+class ClubScheduleIn(BaseModel):
+    weekday: int = Field(ge=0, le=6)                 # 0 = Thứ Hai … 6 = Chủ nhật
+    time: str = Field(pattern=r"^\d{1,2}:\d{2}$")    # giờ Việt Nam
+    topic_id: Optional[str] = Field(default=None, max_length=40)
+
+
+def _schedule_out(db: Session, sch) -> dict:
+    from app.models.speaking_club import SpeakingRoom
+    from app.services import speaking_club as club
+    room = (db.query(SpeakingRoom).filter(SpeakingRoom.schedule_id == sch.id, SpeakingRoom.status != "finished")
+            .order_by(SpeakingRoom.scheduled_at).first())
+    topic = club.get_topic(sch.topic_id) if sch.topic_id else None
+    return {
+        "id": sch.id, "weekday": sch.weekday, "time": sch.time_local, "label": club.schedule_label(sch),
+        "topic_id": sch.topic_id, "topic_title": topic["title_vi"] if topic else "Luân phiên các chủ đề",
+        "next": None if not room else {"room_id": room.id, "code": room.code, "scheduled_at": room.scheduled_at, "status": room.status,
+                                       "registered": len(club.active_members(db, room.id)),
+                                       "topic_title": (club.get_topic(room.topic_id) or {}).get("title_vi", "")},
+    }
+
+
+@router.get("/{group_id}/club-schedules")
+def list_club_schedules(group_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    from app.models.speaking_club import GroupClubSchedule
+    from app.services import speaking_club as club
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    rows = db.query(GroupClubSchedule).filter(GroupClubSchedule.group_id == g.id, GroupClubSchedule.is_active == 1).order_by(
+        GroupClubSchedule.weekday, GroupClubSchedule.time_local).all()
+    return {"schedules": [_schedule_out(db, r) for r in rows],
+            "topics": [{"id": t["id"], "title_vi": t["title_vi"], "level": t["level"], "emoji": t["emoji"]} for t in club.TOPICS],
+            "weekdays": club.WEEKDAYS_VI}
+
+
+@router.post("/{group_id}/club-schedules")
+def add_club_schedule(group_id: str, payload: ClubScheduleIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G12 · Weekly class speaking-club slot; the next session's room is opened right away and the class is told."""
+    _owner(current_user)
+    from app.services import speaking_club as club
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+        sch = club.create_schedule(db, g, current_user, payload.weekday, payload.time, payload.topic_id)
+    except (svc.GroupError, club.ClubError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    club.ensure_group_rooms(db)
+    db.commit()
+    return _schedule_out(db, sch)
+
+
+@router.delete("/{group_id}/club-schedules/{schedule_id}", status_code=204)
+def delete_club_schedule(group_id: str, schedule_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    from app.models.speaking_club import GroupClubSchedule
+    from app.services import speaking_club as club
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    sch = db.query(GroupClubSchedule).filter(GroupClubSchedule.id == schedule_id, GroupClubSchedule.group_id == g.id).first()
+    if not sch:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lịch.")
+    club.cancel_schedule(db, sch)
+    db.commit()

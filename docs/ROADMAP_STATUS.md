@@ -4,7 +4,7 @@
 > Kế hoạch gốc (đã được chủ dự án duyệt): Claude Doc "Kế hoạch nâng cấp AGEN — Audit & Lộ trình"
 > https://claude.ai/artifact/7PHjES4CK5zB9i8rBxrCuT
 
-Cập nhật lần cuối: 2026-10-27 (G11).
+Cập nhật lần cuối: 2026-10-27 (G12).
 
 ## Cách làm việc với chủ dự án
 
@@ -239,9 +239,23 @@ Migration `a4d5e6f7a8b9` tự chạy khi deploy. Sửa kèm: 3 test thử thách
 
 Chưa làm trong G11: thư viện video có bản quyền (cần hợp đồng với nhà sản xuất); câu lạc bộ nói bằng giọng thật (WebRTC); hoàn tiền một phần; hoá đơn điện tử tự động.
 
-## G12 — gợi ý tiếp theo
+## G12 — Podcast tự động, câu lạc bộ nói hằng tuần của lớp, rubric IELTS, hoá đơn điện tử Viettel, chế độ tiết kiệm AI: hoàn tất trên code
 
-Podcast sinh tự động theo lịch cho từng trình độ (vẫn chờ duyệt) · Lịch câu lạc bộ nói định kỳ hằng tuần do giáo viên mở cho cả lớp · Rubric chấm bài viết cho giáo viên (4 tiêu chí IELTS) · Kết nối hoá đơn điện tử (VNPT/Viettel S-Invoice) · Tự hạ cấp mô hình AI rẻ hơn khi chi phí vượt ngưỡng.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Podcast tự sinh theo lịch | Render: `PODCAST_AUTO_DRAFTS` = số bản nháp chờ duyệt muốn giữ cho mỗi trình độ (vd. `2`; `0` = tắt), tuỳ chọn `PODCAST_AUTO_LEVELS` (mặc định `A2,B1,B2`). Content Factory (2 giờ/lần) tạo tối đa 1 tập mỗi lần chạy, mỗi trình độ ≤ 1 tập/ngày, chủ đề luân phiên; vẫn phải **duyệt** ở `/admin` → Podcast AI (tập tự động có nhãn "Tự động"); admin nhận email khi có tập mới (nếu đã bật email). |
+| Câu lạc bộ nói hằng tuần của lớp | Không cần gì thêm (dùng lịch 10 phút/lần của G11). Giáo viên vào trang lớp → "Câu lạc bộ nói hằng tuần" → chọn thứ, giờ (giờ VN), chủ đề hoặc luân phiên. Phòng buổi kế tiếp tự mở, cả lớp nhận thông báo; học viên đăng ký ở **Lớp học** hoặc **Câu lạc bộ nói**; người đăng ký đầu tiên làm chủ phòng; trước 15 phút: người đăng ký được nhắc (push/Zalo), cả lớp nhận thông báo trong app. Phòng chỉ thành viên lớp vào được. |
+| Rubric IELTS 4 tiêu chí | Không cần gì. Với bài IELTS, giáo viên chấm Đáp ứng đề · Mạch lạc · Từ vựng · Ngữ pháp (0–9, bước 0,5); band tổng làm tròn theo luật IELTS, điểm /100 mặc định = band/9; học viên thấy từng tiêu chí ở **Luyện viết → Bài viết gần đây**. |
+| Hoá đơn điện tử Viettel S-Invoice | Xem mục 3.6 trong `docs/VIEC_CAN_LAM.md` (tài khoản API, mẫu số, ký hiệu, thuế suất). Admin → Doanh thu → nút **Xuất HĐĐT** từng đơn; hoặc `EINVOICE_AUTO=business` (đơn có yêu cầu hoá đơn) / `all` (mọi đơn) để job hằng giờ tự xuất cho đơn đã trả trong 3 ngày. Số hoá đơn + mã tra cứu hiện trên biên nhận. Lần đầu nên thử với tài khoản **demo** của Viettel (đặt `VIETTEL_SINVOICE_API_URL`/`LOGIN_URL` theo hướng dẫn Viettel). Hoàn tiền đơn đã có HĐĐT: lập hoá đơn điều chỉnh/huỷ trên trang Viettel. |
+| Chế độ tiết kiệm AI | Render: `AI_ECONOMY_AT_USD` (vd. `3` = từ khi cả app tốn 3 USD/ngày) + `AI_ECONOMY_GEMINI_MODEL` / `AI_ECONOMY_OPENAI_MODEL` (tên mô hình rẻ hơn, lấy từ trang giá của Google/OpenAI). Mô hình thường: `GEMINI_MODEL`, `OPENAI_MODEL`. Nếu mô hình tiết kiệm lỗi (sai tên…) hệ thống tự gọi lại bằng mô hình thường. Tab Chi phí AI hiện băng khi đang tiết kiệm. |
+
+Migration `b5e6f7a8b9c0` tự chạy khi deploy.
+
+Chưa làm trong G12: tích hợp VNPT/MISA (chỉ Viettel); tải file PDF hoá đơn từ Viettel về app; lập hoá đơn điều chỉnh tự động khi hoàn tiền; podcast tự sinh có giọng đọc riêng từng nhân vật bằng nhiều giọng neural.
+
+## G13 — gợi ý tiếp theo
+
+Bảng điều khiển phụ huynh trên ứng dụng di động (push gốc) · Bài kiểm tra định kỳ hằng tháng tự chấm cho lớp · Báo cáo tiến bộ theo rubric cho giáo viên (biểu đồ 4 tiêu chí theo thời gian) · Hoá đơn VNPT/MISA · Đề Speaking/Writing do AI sinh có duyệt.
 
 ## Câu hỏi còn mở với chủ dự án
 

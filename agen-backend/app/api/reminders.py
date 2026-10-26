@@ -216,4 +216,12 @@ def run_reminders(
         import logging
         logging.getLogger("agen.ai_usage").exception("AI alert check failed")
         stats["ai_alerts"] = {"error": True}
+    # G12 · e-invoices for recent paid orders (only when EINVOICE_AUTO is set)
+    try:
+        from app.services.einvoice import run_auto
+        stats["einvoice"] = run_auto(db)
+    except Exception:
+        import logging
+        logging.getLogger("agen.einvoice").exception("Auto e-invoice run failed")
+        stats["einvoice"] = {"error": True}
     return stats

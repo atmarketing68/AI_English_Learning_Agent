@@ -165,6 +165,7 @@ def summary(db, days: int = 30) -> dict:
         "by_provider": finish(by_provider),
         "top_users": top,
         "alerts": alert_state(db),
+        "economy": economy_state(db),
     }
 
 
@@ -257,3 +258,41 @@ def check_alerts(db) -> dict:
         out["user_alerts"] = len(new_users)
     db.commit()
     return out
+
+
+# ── G12 · Chế độ tiết kiệm ───────────────────────────────────────────────────
+_economy_cache: dict = {"at": 0.0, "value": False}
+ECONOMY_CACHE_S = 60
+
+
+def today_total_usd(db) -> float:
+    return float(db.query(func.coalesce(func.sum(AiUsage.cost_usd), 0.0)).filter(AiUsage.created_at >= _day_start()).scalar() or 0.0)
+
+
+def economy_active(force_refresh: bool = False) -> bool:
+    """True once today's total AI spend passes AI_ECONOMY_AT_USD (checked at most once a minute). Fails closed (False)."""
+    import time as _time
+
+    if settings.AI_ECONOMY_AT_USD <= 0:
+        return False
+    if not force_refresh and _time.time() - _economy_cache["at"] < ECONOMY_CACHE_S:
+        return _economy_cache["value"]
+    try:
+        db = _session_factory()
+        try:
+            value = today_total_usd(db) >= settings.AI_ECONOMY_AT_USD
+        finally:
+            db.close()
+    except Exception:
+        logger.warning("Economy-mode check failed", exc_info=True)
+        value = False
+    _economy_cache.update(at=_time.time(), value=value)
+    return value
+
+
+def economy_state(db) -> dict:
+    from app.services.llm_client import economy_model, normal_model
+    total = today_total_usd(db)
+    on = settings.AI_ECONOMY_AT_USD > 0 and total >= settings.AI_ECONOMY_AT_USD
+    return {"threshold_usd": settings.AI_ECONOMY_AT_USD, "active": on,
+            "models": {p: {"normal": normal_model(p), "economy": economy_model(p)} for p in ("gemini", "openai")}}

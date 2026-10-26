@@ -85,6 +85,8 @@ export interface Receipt {
   invoice: InvoiceInfo | null;
   seller: { name: string; tax_code: string | null; address: string | null; email: string | null };
   refund_note: string | null;
+  /** G12 · e-invoice issued on Viettel S-Invoice */
+  einvoice?: { number: string; lookup_code: string | null; series: string | null; lookup_url: string | null; seller_tax_code: string | null } | null;
 }
 
 export const getReceipt = async (orderId: string): Promise<Receipt> => (await api.get(`/billing/orders/${orderId}/receipt`)).data;

@@ -69,6 +69,8 @@ export interface WritingHistoryItem {
   teacher_band?: number | null;
   teacher_comment?: string | null;
   teacher_scored_at?: string | null;
+  /** G12 · IELTS criteria the teacher scored */
+  teacher_rubric?: { task: number; coherence: number; lexical: number; grammar: number } | null;
 }
 
 export const getWritingPrompt = async (genre: string = 'opinion'): Promise<WritingPromptResponse> => {

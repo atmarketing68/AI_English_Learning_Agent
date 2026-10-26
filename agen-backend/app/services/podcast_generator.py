@@ -66,7 +66,8 @@ def normalize_episode(data: dict, level: str) -> dict:
     }
 
 
-def generate_episode_draft(db: Session, level: str = "B1", topic: str = "", style: str = "conversation", auto_approve: bool = False) -> GeneratedEpisode:
+def generate_episode_draft(db: Session, level: str = "B1", topic: str = "", style: str = "conversation", auto_approve: bool = False,
+                           auto: bool = False) -> GeneratedEpisode:
     """One LLM call → one GeneratedEpisode row (draft unless auto_approve). Caller commits."""
     if level not in LEVELS:
         raise PodcastGenerationError("Trình độ không hợp lệ.")
@@ -76,7 +77,7 @@ def generate_episode_draft(db: Session, level: str = "B1", topic: str = "", styl
         raise PodcastGenerationError(result.error or "Không sinh được tập podcast.")
     episode = normalize_episode(result.data, level)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    row = GeneratedEpisode(level=level, topic=topic[:120] or None, title=episode["title"] or "Untitled", content=episode,
+    row = GeneratedEpisode(level=level, topic=topic[:120] or None, title=episode["title"] or "Untitled", content=episode, auto=auto,
                            eval_score=result.eval_score, eval_flagged=bool(result.eval_flagged),
                            status=STATUS_APPROVED if auto_approve else STATUS_DRAFT, approved_at=now if auto_approve else None)
     db.add(row)
@@ -140,3 +141,80 @@ def episode_by_public_id(db: Session, episode_id: str) -> dict | None:
         return None
     row = db.query(GeneratedEpisode).filter(GeneratedEpisode.id == episode_id[4:], GeneratedEpisode.status == STATUS_APPROVED).first()
     return as_episode(row) if row else None
+
+
+# ── G12 · Bản nháp tự động theo lịch ─────────────────────────────────────────
+AUTO_TOPICS = [
+    "ordering food delivery", "a job interview", "planning a weekend trip", "healthy habits", "learning a new skill online",
+    "renting an apartment", "a day at the office", "shopping for clothes", "protecting the environment", "using public transport",
+    "a family celebration", "talking to a doctor", "working from a café", "social media habits", "saving money",
+    "a volunteer project", "Tet holiday traditions", "a customer complaint", "choosing a university course", "a team meeting",
+]
+AUTO_SPACING_HOURS = 20          # at most one new auto draft per level per ~day
+
+
+def auto_levels() -> list[str]:
+    from app.core.config import settings
+    return [l.strip().upper() for l in settings.PODCAST_AUTO_LEVELS.split(",") if l.strip().upper() in LEVELS]
+
+
+def run_auto_drafts(db: Session, now: datetime | None = None, max_new: int = 1) -> dict:
+    """Content Factory hook: top up the review queue to PODCAST_AUTO_DRAFTS drafts per level.
+
+    At most `max_new` AI calls per run and one draft per level every ~20 hours, so the AI quota stays
+    free for learners. Drafts still need an admin to approve them. Never raises.
+    """
+    import logging
+
+    from app.core.config import settings
+
+    target = settings.PODCAST_AUTO_DRAFTS
+    out = {"enabled": target > 0, "created": [], "errors": 0}
+    if target <= 0:
+        return out
+    now = now or datetime.now(timezone.utc).replace(tzinfo=None)
+    from datetime import timedelta
+    attempts = 0
+    for level in auto_levels():
+        if attempts >= max_new:           # failed calls count too: one AI call per run keeps the quota for learners
+            break
+        pending = db.query(GeneratedEpisode).filter(GeneratedEpisode.level == level, GeneratedEpisode.status == STATUS_DRAFT).count()
+        if pending >= target:
+            continue
+        recent = (db.query(GeneratedEpisode).filter(GeneratedEpisode.level == level, GeneratedEpisode.auto.is_(True),
+                                                    GeneratedEpisode.created_at >= now - timedelta(hours=AUTO_SPACING_HOURS)).count())
+        if recent:
+            continue
+        made = db.query(GeneratedEpisode).filter(GeneratedEpisode.level == level).count()
+        topic = AUTO_TOPICS[(made + LEVELS.index(level) * 7) % len(AUTO_TOPICS)]
+        style = "talk" if made % 3 == 2 else "conversation"
+        attempts += 1
+        try:
+            row = generate_episode_draft(db, level, topic, style, auto=True)
+            db.commit()
+            out["created"].append({"id": row.id, "level": level, "title": row.title})
+        except Exception:
+            db.rollback()
+            out["errors"] += 1
+            logging.getLogger("agen.podcast").warning("Auto podcast draft failed for %s", level, exc_info=True)
+    if out["created"]:
+        _email_admins_new_drafts(out["created"])
+    return out
+
+
+def _email_admins_new_drafts(created: list[dict]) -> None:
+    """Tell admins there is something to review (only when e-mail is configured)."""
+    import html
+
+    from app.core.config import settings
+    from app.services.reminders import deliver_email
+
+    if not settings.email_enabled or not settings.admin_emails_list:
+        return
+    items = "".join(f"<li>{html.escape(c['level'])} · {html.escape(c['title'])}</li>" for c in created)
+    body = (f"<div style=\"font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#1d1d1f\">"
+            f"<p style=\"font-size:13px;color:#86868b\">AI AGENT ENGLISH · quản trị</p><h1 style=\"font-size:20px\">Có tập podcast mới chờ duyệt</h1>"
+            f"<ul>{items}</ul><p><a href=\"{html.escape(settings.app_url)}/admin\">Mở /admin → Podcast AI để nghe thử và duyệt</a></p></div>")
+    text = "Có tập podcast mới chờ duyệt:\n" + "\n".join(f"- {c['level']} · {c['title']}" for c in created) + f"\n{settings.app_url}/admin"
+    for email in settings.admin_emails_list:
+        deliver_email(email, "Podcast mới chờ duyệt", body, text)

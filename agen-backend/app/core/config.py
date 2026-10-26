@@ -121,6 +121,21 @@ class Settings(BaseSettings):
     STRIPE_WEBHOOK_SECRET: str = ""
     USD_TO_VND: int = 25_000                  # revenue stats store every order in VND
 
+    # G12 · e-invoices through Viettel S-Invoice (off until provider + credentials + template/series are set)
+    EINVOICE_PROVIDER: str = ""                       # "viettel"
+    EINVOICE_AUTO: str = "off"                        # off | business (orders that asked for a VAT invoice) | all
+    EINVOICE_TAX_PERCENT: int = -2                    # -2 = không chịu thuế (KCT); 0/5/8/10 = thuế suất — hỏi kế toán
+    EINVOICE_UNIT_NAME: str = "Gói"
+    EINVOICE_LOOKUP_URL: str = ""                     # trang tra cứu hoá đơn cho người mua (tuỳ chọn)
+    VIETTEL_SINVOICE_USERNAME: str = ""
+    VIETTEL_SINVOICE_PASSWORD: str = ""
+    VIETTEL_SINVOICE_TAX_CODE: str = ""               # MST người bán; trống = SELLER_TAX_CODE
+    VIETTEL_SINVOICE_TEMPLATE_CODE: str = ""          # mẫu số, vd. "1/001"
+    VIETTEL_SINVOICE_SERIES: str = ""                 # ký hiệu, vd. "C26TAA"
+    VIETTEL_SINVOICE_INVOICE_TYPE: str = "1"          # 1 = hoá đơn GTGT
+    VIETTEL_SINVOICE_API_URL: str = "https://api-vinvoice.viettel.vn/services/einvoiceapplication/api/"
+    VIETTEL_SINVOICE_LOGIN_URL: str = "https://api-vinvoice.viettel.vn/auth/login"
+
     # G11 · seller details printed on payment receipts (all optional)
     SELLER_NAME: str = "AI AGENT ENGLISH"
     SELLER_TAX_CODE: str = ""
@@ -138,6 +153,16 @@ class Settings(BaseSettings):
     # answer with their usual "busy" fallback until the next day (VN time).
     AI_DAILY_LIMIT_USD_FREE: float = 0.0
     AI_DAILY_LIMIT_USD_PREMIUM: float = 0.0
+    # G12 · LLM model names, and an "economy" pair used once today's AI spend passes AI_ECONOMY_AT_USD (0 = off).
+    # An empty economy model keeps the normal one; if the economy model fails, the call retries on the normal model.
+    GEMINI_MODEL: str = "gemini-3.6-flash"
+    OPENAI_MODEL: str = "gpt-4o-mini"
+    AI_ECONOMY_AT_USD: float = 0.0
+    AI_ECONOMY_GEMINI_MODEL: str = ""
+    AI_ECONOMY_OPENAI_MODEL: str = ""
+    # G12 · scheduled AI podcast drafts: keep up to N drafts waiting for review per level (0 = off)
+    PODCAST_AUTO_DRAFTS: int = 0
+    PODCAST_AUTO_LEVELS: str = "A2,B1,B2"
     # G11 · e-mail ADMIN_EMAILS (once per day each) when today's AI spend passes these (0 = off)
     AI_ALERT_DAILY_USD: float = 0.0           # whole app
     AI_ALERT_USER_DAILY_USD: float = 0.0      # any single account
