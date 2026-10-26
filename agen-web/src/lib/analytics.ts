@@ -38,7 +38,13 @@ export type AnalyticsEvent =
   | 'reminder_set'
   | 'reminder_push_enabled'
   | 'app_installed'
-  | 'install_prompt_answered';
+  | 'install_prompt_answered'
+  // G2 · speaking & listening
+  | 'speaking_scenario_started'
+  | 'speaking_phrase_scored'
+  | 'listening_word_lookup'
+  | 'listening_word_saved'
+  | 'listening_shadowing_started';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

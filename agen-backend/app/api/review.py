@@ -21,7 +21,7 @@ from app.models.learner_profile import LearnerProfile
 from app.models.learning_event import LearningEvent
 from app.models.review_item import ReviewItem
 from app.models.user import User
-from app.services.srs import MASTERED_STABILITY_DAYS, apply_review, is_mastered, strength
+from app.services.srs import MASTERED_STABILITY_DAYS, add_vocab_item, apply_review, is_mastered, strength
 from app.services.streak_service import update_streak
 
 router = APIRouter(prefix="/review", tags=["Review"])
@@ -103,6 +103,29 @@ class NotebookItem(BaseModel):
 class NotebookPage(BaseModel):
     items: list[NotebookItem]
     total: int
+
+
+class AddWordPayload(BaseModel):
+    """G2 · a word tapped in a listening transcript (or typed by hand)."""
+    word: str = Field(min_length=1, max_length=60)
+    meaning: str = Field(min_length=1, max_length=300)
+    phonetic: Optional[str] = Field(default=None, max_length=100)
+    example: Optional[str] = Field(default=None, max_length=300)
+    source_lesson_id: Optional[str] = Field(default=None, max_length=36)
+
+
+class AddWordResponse(BaseModel):
+    item: NotebookItem
+    created: bool
+
+
+class WordLookup(BaseModel):
+    word: str
+    phonetic: str = ""
+    part_of_speech: str = ""
+    meaning_vi: str
+    definition_en: str = ""
+    example: str = ""
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -339,3 +362,49 @@ def delete_notebook_item(
         raise HTTPException(status_code=404, detail="Review item not found.")
     db.delete(item)
     db.commit()
+
+
+@router.post("/items", response_model=AddWordResponse, status_code=201)
+def add_notebook_word(
+    payload: AddWordPayload,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """G2 · Add a word to the vocabulary notebook (first review due tomorrow)."""
+    learner = _get_learner(db, current_user.id)
+    now = _now()
+    try:
+        item, created = add_vocab_item(
+            db, learner.id, payload.word, payload.meaning,
+            phonetic=payload.phonetic, example=payload.example,
+            source_lesson_id=payload.source_lesson_id, now=now,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    db.commit()
+    db.refresh(item)
+    return AddWordResponse(item=_notebook_item(item, now), created=created)
+
+
+@router.get("/lookup", response_model=WordLookup)
+def lookup_word_endpoint(
+    word: str = Query(min_length=1, max_length=60),
+    context: str = Query(default="", max_length=300),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """G2 · Quick bilingual lookup for a word tapped in a transcript."""
+    from app.services.dictionary_service import clean_word, lookup_word
+    from app.services.llm_client import LLMError
+
+    cleaned = clean_word(word)
+    if not cleaned:
+        raise HTTPException(status_code=422, detail="Từ không hợp lệ.")
+    learner = _get_learner(db, current_user.id)
+    try:
+        data = lookup_word(cleaned, context.strip(), learner.overall_level or "A2")
+    except LLMError as exc:
+        raise HTTPException(status_code=429 if exc.is_quota_error else 502, detail=str(exc))
+    except ValueError:
+        raise HTTPException(status_code=502, detail="Không tra được từ này lúc này. Hãy thử lại.")
+    return WordLookup(**data)
