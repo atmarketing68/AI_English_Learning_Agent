@@ -544,6 +544,7 @@ a:hover { opacity: 0.8; }
 .text-center { text-align: center; }
 .text-gradient { color: var(--text-primary); }
 .text-muted { color: var(--text-muted); }
+.nowrap { white-space: nowrap; }
 
 /* ============================================
    RESPONSIVE (MOBILE FIRST ALIGNMENT)
@@ -562,4 +563,96 @@ a:hover { opacity: 0.8; }
   body {
     padding-bottom: 76px;
   }
+}
+
+/* ============================================
+   LANDING HERO — full-width banner with text on the left
+   The banner is always light, so hero text keeps dark colors in both themes.
+   ============================================ */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: #EAF3FF;
+  color: #1D1D1F;
+}
+.hero-media {
+  position: absolute;
+  inset: 0;
+}
+.hero-media img { object-position: right center; }
+.hero-media::after {
+  /* keeps the headline readable where the robot gets close on narrower screens */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(234,243,255,0.92) 0%, rgba(234,243,255,0.55) 34%, rgba(234,243,255,0) 58%);
+}
+.hero-content {
+  position: relative;
+  z-index: 1;
+  aspect-ratio: 2000 / 857;
+  min-height: 560px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 72px var(--page-gutter);
+}
+.hero-content > * { max-width: min(620px, 46%); }
+.hero-eyebrow {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #0066CC;
+  margin-bottom: 14px;
+}
+.hero h1 {
+  color: #1D1D1F;
+  font-size: clamp(2.2rem, 4.2vw, 4.25rem);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  margin-bottom: 20px;
+}
+.hero p {
+  color: #3A3A3C;
+  font-size: clamp(1.05rem, 1.5vw, 1.3rem);
+  line-height: 1.5;
+  margin-bottom: 32px;
+}
+.hero-actions {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 1.02rem;
+  color: #0066CC;
+}
+
+/* Tablet & phone: image on top (cropped to the robot), text below */
+@media (max-width: 900px) {
+  .hero-media {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+  }
+  .hero-media img { object-position: 76% center; }
+  .hero-media::after {
+    background: linear-gradient(180deg, rgba(234,243,255,0) 70%, #EAF3FF 100%);
+  }
+  .hero-content {
+    aspect-ratio: auto;
+    min-height: 0;
+    align-items: center;
+    text-align: center;
+    padding: 8px var(--page-gutter) 56px;
+  }
+  .hero-content > * { max-width: 600px; }
+  .hero-actions { justify-content: center; }
 }

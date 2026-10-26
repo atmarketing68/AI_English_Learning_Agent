@@ -1,10 +1,11 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   ArrowRight, ChevronRight, Brain, Mic, TrendingUp, Flame, Users, Route,
-  Headphones, BookOpen, PenLine, Check, type LucideIcon,
+  Check, type LucideIcon,
 } from 'lucide-react';
 import Logo from '@/components/ui/Logo';
 
@@ -21,13 +22,6 @@ const FEATURES: { icon: LucideIcon; title: string; desc: string }[] = [
   { icon: Flame, title: 'Động lực mỗi ngày', desc: 'XP, chuỗi ngày học, thành tựu và bảng xếp hạng giúp bạn duy trì thói quen.' },
   { icon: Users, title: 'Báo cáo phụ huynh', desc: 'Báo cáo hằng tuần bằng ngôn ngữ dễ hiểu, giúp phụ huynh biết con cần cải thiện điều gì.' },
   { icon: Route, title: 'Lộ trình CEFR riêng', desc: 'Từ bài kiểm tra đầu vào đến lộ trình chuẩn CEFR. Biết chính xác cần học gì, theo thứ tự nào.' },
-];
-
-const SKILLS: { icon: LucideIcon; label: string; color: string; score: number }[] = [
-  { icon: Headphones, label: 'Listening', color: 'var(--skill-listening)', score: 72 },
-  { icon: Mic, label: 'Speaking', color: 'var(--skill-speaking)', score: 58 },
-  { icon: BookOpen, label: 'Reading', color: 'var(--skill-reading)', score: 81 },
-  { icon: PenLine, label: 'Writing', color: 'var(--skill-writing)', score: 64 },
 ];
 
 const TESTIMONIALS = [
@@ -59,48 +53,6 @@ function SectionHeading({ eyebrow, title, sub }: { eyebrow: string; title: strin
   );
 }
 
-/** Static product preview — shows what the learner dashboard looks like. */
-function ProductPreview() {
-  return (
-    <div style={{
-      background: 'var(--bg-surface)', borderRadius: 28, border: '1px solid var(--border-subtle)',
-      boxShadow: 'var(--shadow-lg)', padding: 'clamp(20px, 4vw, 36px)', textAlign: 'left',
-      display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20,
-    }}>
-      <div style={{ borderRadius: 18, background: 'var(--bg-elevated)', padding: 24, display: 'flex', flexDirection: 'column' }}>
-        <div className="eyebrow" style={{ marginBottom: 8 }}>Bài học hôm nay</div>
-        <div style={{ fontSize: '1.35rem', fontWeight: 600, letterSpacing: '-0.02em', marginBottom: 6 }}>Ordering at a café</div>
-        <p style={{ fontSize: '0.92rem', marginBottom: 20, flex: 1 }}>Present simple · 12 từ vựng mới · Luyện nói 3 phút</p>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span className="btn btn-primary btn-sm" style={{ pointerEvents: 'none' }}>Bắt đầu</span>
-          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>~15 phút</span>
-        </div>
-      </div>
-      <div style={{ borderRadius: 18, background: 'var(--bg-elevated)', padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 18 }}>
-          <div className="eyebrow">4 kỹ năng</div>
-          <span className="level-badge">B1</span>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {SKILLS.map(({ icon: Icon, label, color, score }) => (
-            <div key={label}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: 6 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
-                  <Icon size={14} color={color} /> {label}
-                </span>
-                <span style={{ fontWeight: 600 }}>{score}%</span>
-              </div>
-              <div className="progress-bar" style={{ height: 5 }}>
-                <div className="progress-fill" style={{ width: `${score}%`, background: color }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function HomePage() {
   return (
     <main style={{ minHeight: '100vh', overflowX: 'hidden', background: 'var(--bg-surface)' }}>
@@ -121,43 +73,39 @@ export default function HomePage() {
       </header>
 
       {/* ─── HERO ─────────────────────────────────────────────────────── */}
-      <section style={{ padding: 'clamp(64px, 10vw, 120px) var(--page-gutter) 80px', textAlign: 'center' }}>
+      <section className="hero">
+        <div className="hero-media">
+          <Image
+            src="/hero-banner.webp"
+            alt="Robot AI Coach của AGEN đọc sách tiếng Anh, xung quanh là biểu tượng luyện nghe, nói, viết"
+            fill
+            priority
+            sizes="100vw"
+            style={{ objectFit: 'cover' }}
+          />
+        </div>
         <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+          className="hero-content"
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: [0.25, 0.1, 0.25, 1] }}
-          style={{ maxWidth: 820, margin: '0 auto' }}
         >
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 22 }}>
-            <span style={{ display: 'inline-flex', borderRadius: 26, boxShadow: '0 12px 32px rgba(0,80,200,0.25)' }}>
-              <Logo size={112} wordmark={false} />
-            </span>
-          </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--agen-primary-light)', marginBottom: 14 }}>
-            AI English Learning Agent
-          </div>
-          <h1 style={{ fontSize: 'clamp(2.6rem, 7.5vw, 5rem)', fontWeight: 700, lineHeight: 1.05, letterSpacing: '-0.04em', marginBottom: 22 }}>
-            Tiếng Anh.<br />Theo cách của riêng bạn.
-          </h1>
-          <p style={{ fontSize: 'clamp(1.1rem, 2.2vw, 1.4rem)', lineHeight: 1.45, maxWidth: 640, margin: '0 auto 36px', color: 'var(--text-secondary)' }}>
+          <div className="hero-eyebrow">AI English Learning Agent</div>
+          <h1><span className="nowrap">Học tiếng Anh</span> <span className="nowrap">cùng AI.</span><br /><span className="nowrap">Theo cách của</span> <span className="nowrap">riêng bạn.</span></h1>
+          <p>
             Người thầy, người bạn và huấn luyện viên tiếng Anh — đồng hành từ nền tảng đến nâng cao, theo đúng tốc độ của bạn.
           </p>
-          <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center' }}>
+          <div className="hero-actions">
             <Link href="/register" className="btn btn-primary btn-lg">Bắt đầu học miễn phí</Link>
-            <Link href="/login" style={{ display: 'inline-flex', alignItems: 'center', gap: 2, fontSize: '1.02rem' }}>
+            <Link href="/login" className="hero-link">
               Đăng nhập <ChevronRight size={18} />
             </Link>
           </div>
         </motion.div>
+      </section>
 
-        <motion.div
-          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-          style={{ maxWidth: 1280, margin: '72px auto 0' }}
-        >
-          <ProductPreview />
-        </motion.div>
-
-        <div style={{ display: 'flex', gap: 'clamp(32px, 8vw, 96px)', justifyContent: 'center', flexWrap: 'wrap', marginTop: 64 }}>
+      {/* ─── STATS ────────────────────────────────────────────────────── */}
+      <section style={{ padding: '56px var(--page-gutter)', borderBottom: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', gap: 'clamp(32px, 8vw, 120px)', justifyContent: 'center', flexWrap: 'wrap', textAlign: 'center' }}>
           {STATS.map(s => (
             <div key={s.label}>
               <div style={{ fontSize: 'clamp(1.8rem, 4vw, 2.5rem)', fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>{s.value}</div>
