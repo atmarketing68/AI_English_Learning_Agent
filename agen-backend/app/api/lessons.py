@@ -6,12 +6,14 @@ import uuid
 import logging
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db, SessionLocal
 from app.core.security import get_current_user
+from app.core.ratelimit import limiter
+from app.services.llm_client import LLMError, get_llm_response
 from app.models.user import User
 from app.models.learner_profile import LearnerProfile
 from app.models.lesson import Lesson, Exercise
@@ -102,6 +104,12 @@ class SubmitExerciseResponse(BaseModel):
     is_correct: bool
     correct_answer: Optional[str]
     explanation: Optional[str]
+
+
+class ExplainMistakeResponse(BaseModel):
+    exercise_id: str
+    explanation: str
+    source: str   # "ai" | "cached" | "fallback"
 
 
 class FinishLessonResponse(BaseModel):
@@ -255,6 +263,8 @@ def _persist_generated_lesson(
         lesson.content = {"vocabulary": lesson_data["vocabulary"]}
     elif payload.skill in ("reading", "listening") and "passage" in lesson_data:
         lesson.content = lesson_data["passage"]
+    elif payload.skill == "grammar" and isinstance(lesson_data.get("explanation"), dict):
+        lesson.content = {"explanation": lesson_data["explanation"]}
 
     return lesson
 
@@ -651,6 +661,83 @@ def submit_exercise_answer(
         correct_answer=correct_answer if not is_correct else None,
         explanation=explanation if explanation else None,
     )
+
+
+def _mistake_prompt(exercise: Exercise, lesson: Lesson, correct_text: str, wrong_text: str) -> str:
+    content = exercise.content or {}
+    if exercise.type == "multiple_choice":
+        options = content.get("options") or {}
+        question = content.get("question", "")
+        context = "Options: " + "; ".join(f"{k}. {v}" for k, v in options.items())
+    else:
+        question = content.get("sentence", "")
+        context = f"Options: {', '.join(content.get('options') or [])}"
+    return f"""You are a friendly English teacher for Vietnamese learners (CEFR {lesson.level}).
+A learner answered this {lesson.skill} exercise wrong.
+
+Question: {question}
+{context}
+Learner's answer: {wrong_text}
+Correct answer: {correct_text}
+
+Explain in Vietnamese, in at most 3 short sentences (under 70 words total):
+1. Why the learner's answer is wrong.
+2. Why the correct answer is right (name the rule or meaning).
+3. One quick tip to remember it.
+Plain text only, no markdown, no greeting."""
+
+
+@router.post("/{lesson_id}/exercises/{exercise_id}/explain", response_model=ExplainMistakeResponse)
+@limiter.limit("20/minute")
+def explain_mistake(
+    request: Request,
+    lesson_id: str,
+    exercise_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """AI "Vì sao sai?" — a short Vietnamese explanation of a wrong answer.
+
+    Only available after the learner has answered the exercise wrong, and cached
+    on the exercise so each mistake costs at most one LLM call.
+    """
+    learner = _get_learner(db, current_user.id)
+    lesson = db.query(Lesson).filter(Lesson.id == lesson_id, Lesson.learner_id == learner.id).first()
+    exercise = (
+        db.query(Exercise).filter(Exercise.id == exercise_id, Exercise.lesson_id == lesson_id).first()
+        if lesson else None
+    )
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercise not found.")
+    if exercise.type not in ("multiple_choice", "fill_blank") or exercise.user_answer is None or exercise.is_correct:
+        raise HTTPException(status_code=400, detail="Chỉ giải thích được câu bạn đã trả lời sai.")
+
+    content = dict(exercise.content or {})
+    cached = content.get("ai_explanation")
+    if isinstance(cached, dict) and cached.get("answer") == exercise.user_answer and cached.get("text"):
+        return ExplainMistakeResponse(exercise_id=exercise.id, explanation=cached["text"], source="cached")
+
+    _, correct_answer, static_explanation = _check_exercise_answer(exercise, exercise.user_answer)
+    options = content.get("options") if isinstance(content.get("options"), dict) else {}
+    correct_text = f"{correct_answer}. {options[correct_answer]}" if correct_answer in options else correct_answer
+    wrong_key = exercise.user_answer.strip().upper()
+    wrong_text = f"{wrong_key}. {options[wrong_key]}" if wrong_key in options else exercise.user_answer
+
+    try:
+        text = get_llm_response(_mistake_prompt(exercise, lesson, correct_text, wrong_text)).strip()
+    except LLMError as exc:
+        if exercise.type == "fill_blank":
+            hint = content.get("hint")
+            static_explanation = f"Đáp án đúng là “{correct_answer}”." + (f" Gợi ý: {hint}." if hint else "")
+        if static_explanation:
+            return ExplainMistakeResponse(exercise_id=exercise.id, explanation=static_explanation, source="fallback")
+        raise HTTPException(status_code=503, detail=str(exc))
+
+    text = text.replace("**", "").strip()[:700]
+    content["ai_explanation"] = {"answer": exercise.user_answer, "text": text}
+    exercise.content = content
+    db.commit()
+    return ExplainMistakeResponse(exercise_id=exercise.id, explanation=text, source="ai")
 
 
 @router.post("/{lesson_id}/finish", response_model=FinishLessonResponse)

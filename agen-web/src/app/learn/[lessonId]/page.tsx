@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  getLessonDetail, submitExerciseAnswer, finishLesson,
-  LessonDetail, SubmitExerciseResult, FinishLessonResult,
+  getLessonDetail, submitExerciseAnswer, finishLesson, explainMistake,
+  type Exercise, type GrammarExplanation, type LessonDetail, type FinishLessonResult,
 } from '@/lib/lessonService';
 import { notifyActivityCompleted, ActivityUpdateResponse } from '@/lib/services';
 import { useAuthStore } from '@/store/authStore';
@@ -16,7 +17,10 @@ import { PageSkeleton } from '@/components/Skeleton';
 import AudioPlayerTTS from '@/components/AudioPlayerTTS';
 import confetti from 'canvas-confetti';
 import { playSound } from '@/lib/soundEffects';
-import { ArrowRight, BookMarked, BookOpen, BookText, ChevronDown, ChevronUp, CircleAlert, CircleCheck, CircleX, Flame, Headphones, PenLine, Sparkles, Star, Trophy, X, type LucideIcon } from 'lucide-react';
+import {
+  ArrowRight, BookMarked, BookOpen, BookText, ChevronDown, ChevronUp, CircleAlert, CircleCheck, CircleX,
+  Flame, Headphones, Lightbulb, PenLine, RotateCcw, Sparkles, Star, Target, Trophy, X, type LucideIcon,
+} from 'lucide-react';
 import { track } from '@/lib/analytics';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
@@ -31,6 +35,13 @@ const SKILL_COLORS: Record<string, string> = {
 const SKILL_ICONS: Record<string, LucideIcon> = {
   reading: BookOpen, listening: Headphones, grammar: PenLine, vocabulary: BookText,
 };
+
+const GRADED = new Set(['multiple_choice', 'fill_blank']);
+const wrongIds = (l: LessonDetail) => l.exercises.filter(e => GRADED.has(e.type) && e.is_correct === false).map(e => e.id);
+
+function vibrate(pattern: number | number[]) {
+  try { navigator.vibrate?.(pattern); } catch { /* unsupported */ }
+}
 
 // ─── Achievement type (returned from gamification API) ─────────────────────
 interface EarnedAchievement {
@@ -86,119 +97,151 @@ function VocabReferencePanel({ items, skillColor }: { items: VocabItem[]; skillC
   );
 }
 
-// ─── Exercise Panel (declared OUTSIDE parent to avoid "component in render" error)
-interface ExercisePanelProps {
-  lesson: LessonDetail;
-  currentIndex: number;
-  feedback: SubmitExerciseResult | null;
-  submitting: boolean;
-  onAnswer: (answer: string) => void;
-  onNext: () => void;
-}
-
-function ExercisePanel({ lesson, currentIndex, feedback, submitting, onAnswer, onNext }: ExercisePanelProps) {
-  const currentEx = lesson.exercises[currentIndex];
-
+// ─── Grammar Rule Panel (the rule is taught before it is tested) ───────────
+function GrammarRulePanel({ rule, defaultOpen }: { rule: GrammarExplanation; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="animate-fade-in-up" key={currentEx.id}>
-      {/* Flashcard */}
-      {currentEx.type === 'flashcard' && (
-        <div>
-          <FlipCard
-            word={currentEx.content.word as string}
-            phonetic={currentEx.content.phonetic as string | undefined}
-            definition={currentEx.content.definition as string}
-            translation={currentEx.content.translation as string}
-            example={currentEx.content.example as string}
-            imageHint={currentEx.content.image_hint as string | undefined}
-          />
-          <button
-            className="btn btn-primary btn-full btn-lg"
-            style={{ marginTop: 32 }}
-            onClick={() => onAnswer('viewed')}
-          >
-            Đã hiểu <ArrowRight size={18} />
-          </button>
-        </div>
-      )}
-
-      {/* Fill-in-the-blank */}
-      {currentEx.type === 'fill_blank' && (
-        <FillBlank
-          sentence={currentEx.content.sentence as string}
-          blankWord={currentEx.content.blank_word as string}
-          options={currentEx.content.options as string[]}
-          hint={currentEx.content.hint as string | undefined}
-          onAnswer={onAnswer}
-          disabled={!!feedback || submitting}
-        />
-      )}
-
-      {/* Multiple Choice */}
-      {currentEx.type === 'multiple_choice' && (
-        <div className="card">
-          <h3 style={{ marginBottom: 20 }}>{currentEx.content.question as string}</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {Object.entries(currentEx.content.options as Record<string, string>).map(([k, v]) => (
-              <button
-                key={k}
-                disabled={!!feedback || submitting}
-                onClick={() => onAnswer(k)}
-                style={{
-                  padding: '14px 18px', textAlign: 'left', borderRadius: 12,
-                  border: feedback && k === feedback.correct_answer
-                    ? '1.5px solid var(--agen-success)'
-                    : '1.5px solid var(--border-subtle)',
-                  background: feedback && k === feedback.correct_answer
-                    ? 'rgba(52,199,89,0.08)'
-                    : 'var(--bg-surface)',
-                  color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: '0.95rem',
-                  cursor: feedback ? 'default' : 'pointer',
-                  transition: 'all 0.15s',
-                }}
-              >
-                <span style={{ fontWeight: 600, marginRight: 12, color: 'var(--text-muted)' }}>{k}.</span>{v}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Feedback */}
-      {feedback && (
-        <div className="animate-bounce-in" style={{ marginTop: 20 }}>
-          <div style={{
-            padding: 16, borderRadius: 14,
-            background: feedback.is_correct ? 'rgba(52,199,89,0.08)' : 'rgba(255,59,48,0.06)',
-            marginBottom: 16,
-          }}>
-            <div style={{ fontWeight: 600, color: feedback.is_correct ? 'var(--agen-success)' : 'var(--agen-secondary)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {feedback.is_correct ? <><CircleCheck size={17} /> Chính xác</> : <><CircleX size={17} /> Đáp án đúng: {feedback.correct_answer}</>}
+    <div className="rule-panel">
+      <button type="button" className="rule-panel-head" onClick={() => setOpen(!open)} aria-expanded={open}>
+        <span><Lightbulb size={16} color="var(--agen-accent)" /> Quy tắc ngữ pháp</span>
+        {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+      </button>
+      {open && (
+        <div className="rule-panel-body">
+          {rule.rule_vi && <p>{rule.rule_vi}</p>}
+          {rule.structure && <div className="rule-structure">{rule.structure}</div>}
+          {!!rule.examples?.length && (
+            <ul className="rule-examples">
+              {rule.examples.map((ex, i) => (
+                <li key={i}><strong>{ex.en}</strong><span>{ex.vi}</span></li>
+              ))}
+            </ul>
+          )}
+          {!!rule.common_mistakes?.length && (
+            <div className="rule-mistakes">
+              <div>Lỗi thường gặp</div>
+              <ul>{rule.common_mistakes.map((m, i) => <li key={i}>{m}</li>)}</ul>
             </div>
-            <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{feedback.explanation}</div>
-          </div>
-          <button className="btn btn-primary btn-full btn-lg" onClick={onNext} disabled={submitting}>
-            {submitting
-              ? 'Đang xử lý…'
-              : currentIndex < lesson.exercises.length - 1
-              ? 'Tiếp tục'
-              : 'Hoàn thành bài học'}
-          </button>
+          )}
         </div>
       )}
     </div>
   );
 }
 
+// ─── Answer helpers ────────────────────────────────────────────────────────
+function correctAnswerText(ex: Exercise): string {
+  if (ex.type === 'multiple_choice') {
+    const key = String(ex.content.correct_answer ?? '');
+    const options = ex.content.options as Record<string, string>;
+    return options?.[key] ? `${key}. ${options[key]}` : key;
+  }
+  return String(ex.content.blank_word ?? '');
+}
+
+function isCorrectLocally(ex: Exercise, answer: string): boolean {
+  if (ex.type === 'multiple_choice') return answer.trim().toUpperCase() === String(ex.content.correct_answer ?? '').trim().toUpperCase();
+  return answer.trim().toLowerCase() === String(ex.content.blank_word ?? '').trim().toLowerCase();
+}
+
+// ─── Exercise view (declared OUTSIDE parent to avoid "component in render" error)
+interface Feedback {
+  correct: boolean;
+  answerText: string;
+  explanation?: string | null;
+  canExplain: boolean;     // a first-attempt mistake the AI can explain
+}
+
+interface ExerciseViewProps {
+  exercise: Exercise;
+  picked: string | null;
+  feedback: Feedback | null;
+  submitting: boolean;
+  onAnswer: (answer: string) => void;
+}
+
+function ExerciseView({ exercise, picked, feedback, submitting, onAnswer }: ExerciseViewProps) {
+  const locked = !!feedback || submitting;
+
+  if (exercise.type === 'flashcard') {
+    return (
+      <div>
+        <FlipCard
+          word={exercise.content.word as string}
+          phonetic={exercise.content.phonetic as string | undefined}
+          definition={exercise.content.definition as string}
+          translation={exercise.content.translation as string}
+          example={exercise.content.example as string}
+          imageHint={exercise.content.image_hint as string | undefined}
+        />
+        <button className="btn btn-primary btn-full btn-lg" style={{ marginTop: 32 }} disabled={submitting} onClick={() => onAnswer('viewed')}>
+          Đã hiểu <ArrowRight size={18} />
+        </button>
+      </div>
+    );
+  }
+
+  if (exercise.type === 'fill_blank') {
+    return (
+      <>
+        <div className="eyebrow lesson-eyebrow"><PenLine size={14} /> Chọn từ đúng điền vào chỗ trống</div>
+        <FillBlank
+          sentence={exercise.content.sentence as string}
+          blankWord={exercise.content.blank_word as string}
+          options={(exercise.content.options as string[]) || []}
+          hint={exercise.content.hint as string | undefined}
+          onAnswer={onAnswer}
+          disabled={locked}
+          result={feedback ? (feedback.correct ? 'correct' : 'wrong') : undefined}
+        />
+      </>
+    );
+  }
+
+  if (exercise.type === 'multiple_choice') {
+    const options = Object.entries((exercise.content.options as Record<string, string>) || {});
+    const correctKey = String(exercise.content.correct_answer ?? '').toUpperCase();
+    return (
+      <>
+        <div className="eyebrow lesson-eyebrow"><Target size={14} /> Chọn đáp án đúng</div>
+        <h3 className="lesson-question">{exercise.content.question as string}</h3>
+        <div className="choice-grid">
+          {options.map(([k, v]) => {
+            const state = !feedback ? undefined : k === correctKey ? 'correct' : k === picked ? 'wrong' : 'muted';
+            return (
+              <button key={k} type="button" className="choice" data-state={state} disabled={locked} onClick={() => onAnswer(k)}>
+                <span className="choice-key">{k}</span>
+                <span>{v}</span>
+              </button>
+            );
+          })}
+        </div>
+      </>
+    );
+  }
+
+  return <div className="alert-error"><CircleAlert size={16} /> Dạng bài này chưa được hỗ trợ.</div>;
+}
+
 // ─── Main Page ──────────────────────────────────────────────────────────────
+type Mode = 'main' | 'retry-intro' | 'retry' | 'ready';
+
 export default function LessonPlayerPage() {
   const params = useParams();
   const lessonId = params.lessonId as string;
 
   const { setLearner } = useAuthStore();
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
+  const [mode, setMode] = useState<Mode>('main');
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [feedback, setFeedback] = useState<SubmitExerciseResult | null>(null);
+  const [retryQueue, setRetryQueue] = useState<string[]>([]);
+  const [attempt, setAttempt] = useState(0);              // re-keys the view on every new question
+  const [picked, setPicked] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [aiExplain, setAiExplain] = useState<{ loading: boolean; text?: string; fromAi?: boolean; error?: string } | null>(null);
+  const [combo, setCombo] = useState(0);
+  const [bestCombo, setBestCombo] = useState(0);
+  const [fixedCount, setFixedCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -209,83 +252,199 @@ export default function LessonPlayerPage() {
   const isSplitScreen = lesson?.skill === 'reading' || lesson?.skill === 'listening';
 
   useEffect(() => {
-    if (lessonId) {
-      getLessonDetail(lessonId)
-        .then(data => {
-          setLesson(data);
-          if (data.status !== 'completed') track('lesson_started', { skill: data.skill, level: data.level });
-          if (data.status === 'in_progress') {
-            const nextIdx = data.exercises.findIndex(e => e.user_answer == null);
-            setCurrentIndex(nextIdx !== -1 ? nextIdx : data.exercises.length - 1);
+    if (!lessonId) return;
+    getLessonDetail(lessonId)
+      .then(data => {
+        setLesson(data);
+        if (data.status !== 'completed') track('lesson_started', { skill: data.skill, level: data.level });
+        if (data.status === 'in_progress') {
+          const nextIdx = data.exercises.findIndex(e => e.user_answer == null);
+          if (nextIdx !== -1) {
+            setCurrentIndex(nextIdx);
+          } else {
+            // Everything answered but never finished: go straight to fixing mistakes.
+            const wrong = wrongIds(data);
+            setRetryQueue(wrong);
+            setMode(wrong.length ? 'retry-intro' : 'ready');
           }
-        })
-        .catch(() => setError('Không thể tải bài học'))
-        .finally(() => setLoading(false));
-    }
+        }
+      })
+      .catch(() => setError('Không thể tải bài học'))
+      .finally(() => setLoading(false));
   }, [lessonId]);
 
-  const handleAnswer = async (answer: string) => {
-    if (!lesson) return;
-    const currentEx = lesson.exercises[currentIndex];
-    if (currentEx.type === 'flashcard') {
-      await submitExerciseAnswer(lesson.id, currentEx.id, 'viewed');
-      handleNext();
-      return;
+  const current: Exercise | undefined = !lesson ? undefined
+    : mode === 'retry' ? lesson.exercises.find(e => e.id === retryQueue[0])
+    : mode === 'main' ? lesson.exercises[currentIndex]
+    : undefined;
+
+  const resetQuestion = () => {
+    setPicked(null);
+    setFeedback(null);
+    setAiExplain(null);
+    setError('');
+    setAttempt(a => a + 1);
+  };
+
+  const scoreAnswer = (correct: boolean) => {
+    if (correct) {
+      const next = combo + 1;
+      setCombo(next);
+      setBestCombo(b => Math.max(b, next));
+      playSound('success');
+      if (next > 0 && next % 5 === 0) {
+        confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 }, colors: ['#D97A00', '#FF9F0A'] });
+      }
+    } else {
+      setCombo(0);
+      playSound('error');
+      vibrate([40, 40, 40]);
     }
+  };
+
+  const finish = useCallback(async () => {
+    if (!lesson) return;
     setSubmitting(true);
     try {
-      const res = await submitExerciseAnswer(lesson.id, currentEx.id, answer);
-      setFeedback(res);
-      if (res.is_correct) {
-        playSound('success');
-      } else {
-        playSound('error');
+      const fin = await finishLesson(lesson.id);
+      playSound('success');
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
+      setFinishResult(fin);
+      const updated = await getLessonDetail(lesson.id);
+      setLesson(updated);
+      track('lesson_completed', { skill: updated.skill, level: updated.level, score: updated.score });
+
+      // Notify backend → streak + daily challenge + achievements in one call
+      const result = await notifyActivityCompleted(lesson.skill);
+      setActivityResult(result);
+      if (result.newly_earned_achievements.length > 0) {
+        setNewAchievements(result.newly_earned_achievements as EarnedAchievement[]);
       }
-      const updatedExercises = [...lesson.exercises];
-      updatedExercises[currentIndex] = { ...currentEx, user_answer: answer, is_correct: res.is_correct };
-      setLesson({ ...lesson, exercises: updatedExercises });
+
+      // Refresh learner profile in store so dashboard shows updated streak/XP
+      const freshProfile = await getMyProfile();
+      setLearner(freshProfile);
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Lỗi khi kết thúc bài học');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [lesson, setLearner]);
+
+  /** Move on from the current main-round question. */
+  const advance = (exercises: Exercise[]) => {
+    if (!lesson) return;
+    resetQuestion();
+    if (currentIndex < exercises.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      return;
+    }
+    const wrong = wrongIds({ ...lesson, exercises });
+    if (wrong.length) {
+      setRetryQueue(wrong);
+      setMode('retry-intro');
+    } else {
+      finish();
+    }
+  };
+
+  const handleAnswer = useCallback(async (answer: string) => {
+    if (!lesson || !current || feedback || submitting) return;
+
+    // Retry round: answers are checked locally, the first attempt already counted.
+    if (mode === 'retry') {
+      const correct = isCorrectLocally(current, answer);
+      setPicked(answer);
+      scoreAnswer(correct);
+      setFeedback({
+        correct,
+        answerText: correctAnswerText(current),
+        explanation: current.type === 'multiple_choice' ? (current.content.explanation as string) : null,
+        canExplain: false,
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await submitExerciseAnswer(lesson.id, current.id, answer);
+      const exercises = lesson.exercises.map(e => (e.id === current.id ? { ...e, user_answer: answer, is_correct: res.is_correct } : e));
+      setLesson({ ...lesson, exercises });
+      if (current.type === 'flashcard') {
+        setSubmitting(false);
+        advance(exercises);
+        return;
+      }
+      setPicked(answer);
+      scoreAnswer(res.is_correct);
+      setFeedback({
+        correct: res.is_correct,
+        answerText: correctAnswerText(current),
+        // fill_blank's server text only repeats the answer; the hint is shown in the card
+        explanation: current.type === 'multiple_choice' ? res.explanation : null,
+        canExplain: !res.is_correct,
+      });
     } catch (err: unknown) {
       const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       setError(detail || 'Lỗi khi nộp bài');
     } finally {
       setSubmitting(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson, current, feedback, submitting, mode, combo]);
 
-  const handleNext = async () => {
-    setFeedback(null);
-    if (!lesson) return;
-    if (currentIndex < lesson.exercises.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-    } else {
-      setSubmitting(true);
-      try {
-        const fin = await finishLesson(lesson.id);
-        playSound('success');
-        confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 }, colors: ['#0071E3', '#1F9D55', '#D97A00', '#8E4EC6'] });
-        setFinishResult(fin);
-        const updated = await getLessonDetail(lesson.id);
-        setLesson(updated);
-        track('lesson_completed', { skill: updated.skill, level: updated.level, score: updated.score });
+  const handleNext = useCallback(() => {
+    if (!lesson || !feedback) return;
+    if (mode === 'main') {
+      advance(lesson.exercises);
+      return;
+    }
+    // Retry: fixed → drop it; still wrong → send it to the back of the queue.
+    const [head, ...rest] = retryQueue;
+    const queue = feedback.correct ? rest : [...rest, head];
+    if (feedback.correct) setFixedCount(n => n + 1);
+    resetQuestion();
+    setRetryQueue(queue);
+    if (!queue.length) {
+      track('lesson_retry_completed', { skill: lesson.skill, fixed: fixedCount + 1 });
+      finish();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson, feedback, mode, retryQueue, fixedCount, finish]);
 
-        // Notify backend → streak + daily challenge + achievements in one call
-        const result = await notifyActivityCompleted(lesson.skill);
-        setActivityResult(result);
-        if (result.newly_earned_achievements.length > 0) {
-          setNewAchievements(result.newly_earned_achievements as EarnedAchievement[]);
-        }
-
-        // Refresh learner profile in store so dashboard shows updated streak/XP
-        const freshProfile = await getMyProfile();
-        setLearner(freshProfile);
-      } catch (err: unknown) {
-        const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
-        setError(detail || 'Lỗi khi kết thúc bài học');
-      } finally {
-        setSubmitting(false);
-      }
+  const askWhy = async () => {
+    if (!lesson || !current || aiExplain?.loading) return;
+    setAiExplain({ loading: true });
+    track('mistake_explained', { skill: lesson.skill, type: current.type });
+    try {
+      const res = await explainMistake(lesson.id, current.id);
+      setAiExplain({ loading: false, text: res.explanation, fromAi: res.source !== 'fallback' });
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setAiExplain({ loading: false, error: detail || 'AI đang bận, bạn thử lại sau nhé.' });
     }
   };
+
+  // Keyboard: A–D / 1–4 answer a multiple-choice question, Enter continues.
+  useEffect(() => {
+    if (!current || (mode !== 'main' && mode !== 'retry')) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.tagName === 'INPUT') return;
+      if (feedback) {
+        if (e.key === 'Enter') { e.preventDefault(); handleNext(); }
+        return;
+      }
+      if (current.type === 'flashcard' && e.key === 'Enter') { e.preventDefault(); handleAnswer('viewed'); return; }
+      if (current.type !== 'multiple_choice') return;
+      const keys = Object.keys((current.content.options as Record<string, string>) || {});
+      const byLetter = e.key.toUpperCase();
+      const key = keys.includes(byLetter) ? byLetter : keys[Number(e.key) - 1];
+      if (key) handleAnswer(key);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [current, mode, feedback, handleNext, handleAnswer]);
 
   if (loading) return <PageSkeleton maxWidth={720} cards={2} />;
   if (!lesson) return <div style={{ padding: 40, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, color: 'var(--text-secondary)' }}><CircleAlert size={18} /> {error || 'Bài học không tồn tại'}</div>;
@@ -302,9 +461,11 @@ export default function LessonPlayerPage() {
           <div style={{ fontSize: '4.5rem', fontWeight: 700, letterSpacing: '-0.04em', lineHeight: 1, color: skillColor, marginBottom: 16 }}>
             {lesson.score}%
           </div>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 28 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginBottom: 28, flexWrap: 'wrap' }}>
             <span className="xp-badge"><Star size={13} fill="currentColor" /> +{lesson.xp_earned} XP</span>
             <span className="xp-badge">{lesson.correct_exercises}/{lesson.total_exercises} câu đúng</span>
+            {bestCombo >= 2 && <span className="xp-badge"><Flame size={13} color="var(--agen-accent)" /> Combo {bestCombo}</span>}
+            {fixedCount > 0 && <span className="xp-badge"><RotateCcw size={13} /> Đã sửa {fixedCount} lỗi</span>}
           </div>
 
           {!!finishResult?.words_saved && (
@@ -373,34 +534,133 @@ export default function LessonPlayerPage() {
     );
   }
 
+  // ─── Between rounds: fix mistakes / finish ─────────────────────────────────
+  if (mode === 'retry-intro' || mode === 'ready' || (mode === 'retry' && !current)) {
+    const n = retryQueue.length;
+    return (
+      <main className="review-shell">
+        <div className="card review-end animate-bounce-in">
+          {mode === 'retry-intro' ? (
+            <>
+              <RotateCcw size={40} strokeWidth={1.5} color="var(--agen-accent)" />
+              <h2>Sửa {n} câu sai</h2>
+              <p>Làm lại ngay những câu vừa sai giúp nhớ lâu hơn nhiều so với chỉ xem đáp án. Điểm bài học đã được tính, không bị trừ thêm.</p>
+              <button className="btn btn-primary btn-lg btn-full" onClick={() => { resetQuestion(); setMode('retry'); }} disabled={submitting}>
+                Làm lại câu sai <ArrowRight size={18} />
+              </button>
+              <button className="btn btn-ghost btn-full" onClick={finish} disabled={submitting}>
+                {submitting ? 'Đang xử lý…' : 'Bỏ qua, xem kết quả'}
+              </button>
+            </>
+          ) : (
+            <>
+              <CircleCheck size={40} strokeWidth={1.5} color="var(--agen-success)" />
+              <h2>Sẵn sàng hoàn thành</h2>
+              <p>Bạn đã làm xong tất cả câu hỏi của bài này.</p>
+              <button className="btn btn-primary btn-lg btn-full" onClick={finish} disabled={submitting}>
+                {submitting ? 'Đang xử lý…' : 'Xem kết quả'}
+              </button>
+            </>
+          )}
+          {error && <div className="alert-error"><CircleAlert size={16} /> {error}</div>}
+        </div>
+      </main>
+    );
+  }
+
+  if (!current) return null;
+
   // ─── Player View ─────────────────────────────────────────────────────────────
-  const progress = (currentIndex / lesson.total_exercises) * 100;
+  const total = lesson.exercises.length;
+  const answeredMain = currentIndex + (feedback && mode === 'main' ? 1 : 0);
+  const progress = mode === 'retry' ? 100 : (answeredMain / total) * 100;
   const skillColor = SKILL_COLORS[lesson.skill] || 'var(--agen-primary)';
   const SkillIcon = SKILL_ICONS[lesson.skill] || BookOpen;
 
-  const exercisePanelProps: ExercisePanelProps = {
-    lesson, currentIndex, feedback, submitting,
-    onAnswer: handleAnswer,
-    onNext: handleNext,
-  };
+  const topBar = (
+    <div className="lesson-topbar">
+      <Link href="/learn" aria-label="Thoát bài học" className="review-close"><X size={20} /></Link>
+      <div className="progress-bar" style={{ flex: 1 }}>
+        <motion.div className="progress-fill" style={{ background: skillColor }} animate={{ width: `${progress}%` }} transition={{ duration: 0.4 }} />
+      </div>
+      <AnimatePresence>
+        {combo >= 2 && (
+          <motion.span key={combo} className="combo-chip" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.6, opacity: 0 }}>
+            <Flame size={14} /> {combo}
+          </motion.span>
+        )}
+      </AnimatePresence>
+      <span className="lesson-counter">
+        {mode === 'retry' ? <><RotateCcw size={14} /> còn {retryQueue.length}</> : <><SkillIcon size={14} color={skillColor} /> {Math.min(currentIndex + 1, total)}/{total}</>}
+      </span>
+    </div>
+  );
+
+  const exercise = (
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={`${current.id}-${attempt}`}
+        initial={{ opacity: 0, x: 24 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -24 }}
+        transition={{ duration: 0.2 }}
+      >
+        {mode === 'retry' && <div className="retry-banner"><RotateCcw size={14} /> Sửa lỗi sai</div>}
+        <ExerciseView exercise={current} picked={picked} feedback={feedback} submitting={submitting} onAnswer={handleAnswer} />
+        {error && <div className="alert-error" style={{ marginTop: 16 }}><CircleAlert size={16} /> {error}</div>}
+      </motion.div>
+    </AnimatePresence>
+  );
+
+  const sheet = (
+    <AnimatePresence>
+      {feedback && (
+        <motion.div
+          className="review-feedback"
+          data-correct={feedback.correct}
+          initial={{ y: '100%' }}
+          animate={{ y: 0 }}
+          exit={{ y: '100%' }}
+          transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+        >
+          <div className="review-feedback-inner">
+            <div className="review-feedback-title">
+              {feedback.correct
+                ? <><CircleCheck size={20} /> {combo >= 3 ? `Tuyệt vời! Combo ${combo}` : 'Chính xác!'}</>
+                : <><CircleX size={20} /> Đáp án đúng: {feedback.answerText}</>}
+            </div>
+            {feedback.explanation && <p>{feedback.explanation}</p>}
+
+            {!feedback.correct && feedback.canExplain && (
+              aiExplain?.text ? (
+                <div className="ai-explain">{aiExplain.fromAi ? <Sparkles size={15} /> : <Lightbulb size={15} />} <span>{aiExplain.text}</span></div>
+              ) : (
+                <button type="button" className="ai-explain-btn" onClick={askWhy} disabled={aiExplain?.loading}>
+                  <Sparkles size={15} /> {aiExplain?.loading ? 'AI đang phân tích…' : 'Vì sao sai?'}
+                </button>
+              )
+            )}
+            {aiExplain?.error && <p className="ai-explain-error">{aiExplain.error}</p>}
+            {!feedback.correct && mode === 'main' && <div className="review-schedule">Câu này sẽ được làm lại ở cuối bài và lưu vào Sổ lỗi sai.</div>}
+
+            <button className="btn btn-primary btn-lg btn-full" style={{ marginTop: 12 }} onClick={handleNext} disabled={submitting} autoFocus>
+              {submitting ? 'Đang xử lý…' : 'Tiếp tục'} <ArrowRight size={18} />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   // ─── Split-Screen Layout (Reading / Listening) ───────────────────────────────
   if (isSplitScreen) {
     return (
-      <main style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg-base)' }}>
-        <div style={{ padding: '12px 24px', background: 'var(--bg-nav)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', gap: 16, flexShrink: 0 }}>
-          <Link href="/learn" aria-label="Đóng" style={{ color: 'var(--text-muted)', display: 'flex' }}><X size={20} /></Link>
-          <div style={{ flex: 1 }}>
-            <div className="progress-bar" style={{ margin: 0 }}>
-              <div className="progress-fill" style={{ width: `${progress}%`, background: skillColor }} />
-            </div>
-          </div>
-          <span style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: 6 }}><SkillIcon size={15} color={skillColor} /> {currentIndex + 1}/{lesson.total_exercises}</span>
-        </div>
+      <main className="lesson-split-shell">
+        <div className="lesson-split-bar">{topBar}</div>
 
-        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: '1fr 1fr', overflow: 'hidden' }}>
-          {/* Left: Passage / Audio */}
-          <div style={{ padding: 24, overflowY: 'auto', borderRight: '1px solid var(--border-subtle)' }}>
+        <div className="lesson-split">
+          {/* Passage / Audio */}
+          <div className="lesson-split-passage">
             <div style={{ marginBottom: 16 }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 500, color: skillColor, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <SkillIcon size={14} /> {lesson.skill === 'listening' ? 'Nghe hiểu' : 'Đọc hiểu'}
@@ -437,44 +697,35 @@ export default function LessonPlayerPage() {
             )}
           </div>
 
-          {/* Right: Questions */}
-          <div style={{ padding: 24, overflowY: 'auto' }}>
-            <div style={{ marginBottom: 16, fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-              Câu hỏi {currentIndex + 1} / {lesson.total_exercises}
-            </div>
-            <ExercisePanel {...exercisePanelProps} />
-          </div>
+          {/* Questions */}
+          <div className="lesson-split-questions">{exercise}</div>
         </div>
+        {sheet}
       </main>
     );
   }
 
   // ─── Standard Layout (Vocabulary / Grammar) ──────────────────────────────────
+  const rule = lesson.content?.explanation;
   return (
-    <main style={{ minHeight: '100vh', padding: 'var(--spacing-lg)' }}>
-      <div className="container" style={{ maxWidth: 640 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <Link href="/learn" aria-label="Đóng" style={{ color: 'var(--text-muted)', display: 'flex' }}><X size={20} /></Link>
-          <div style={{ fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8, textAlign: 'center' }}><SkillIcon size={16} color={skillColor} /> {lesson.title}</div>
-          <div style={{ color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.9rem' }}>{currentIndex + 1} / {lesson.total_exercises}</div>
-        </div>
-        <div className="progress-bar" style={{ marginBottom: 32 }}>
-          <div className="progress-fill" style={{ width: `${progress}%`, background: skillColor }} />
-        </div>
+    <main className="lesson-shell">
+      <div className="lesson-column">
+        {topBar}
 
-        {currentIndex === 0 && lesson.summary && (
-          <div style={{ marginBottom: 24, padding: '14px 18px', background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)', borderRadius: 14, fontSize: '0.92rem', color: 'var(--text-secondary)' }}>
-            {lesson.summary}
-          </div>
+        {mode === 'main' && currentIndex === 0 && !feedback && lesson.summary && (
+          <div className="lesson-intro">{lesson.summary}</div>
         )}
 
+        {mode === 'main' && rule && <GrammarRulePanel key={currentIndex === 0 ? 'intro' : 'later'} rule={rule} defaultOpen={currentIndex === 0} />}
+
         {/* Vocabulary reference panel — shown when lesson has vocab content */}
-        {lesson.skill === 'vocabulary' && lesson.content?.vocabulary && lesson.content.vocabulary.length > 0 && (
+        {mode === 'main' && lesson.skill === 'vocabulary' && lesson.content?.vocabulary && lesson.content.vocabulary.length > 0 && (
           <VocabReferencePanel items={lesson.content.vocabulary} skillColor={skillColor} />
         )}
 
-        <ExercisePanel {...exercisePanelProps} />
+        {exercise}
       </div>
+      {sheet}
     </main>
   );
 }

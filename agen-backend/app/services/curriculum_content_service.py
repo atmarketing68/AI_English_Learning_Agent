@@ -159,6 +159,8 @@ def materialize_lesson_for_learner(
         lesson.content = {"vocabulary": data["vocabulary"]}
     elif cached.skill in ("reading", "listening") and "passage" in data:
         lesson.content = data["passage"]
+    elif cached.skill == "grammar" and isinstance(data.get("explanation"), dict):
+        lesson.content = {"explanation": data["explanation"]}
 
     return lesson
 
