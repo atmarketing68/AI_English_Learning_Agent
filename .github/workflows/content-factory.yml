@@ -1,0 +1,40 @@
+name: Content Factory
+
+# Pre-generates A1–B1 roadmap lessons a few at a time, so lessons open
+# instantly instead of waiting on the AI. Stops doing work once every lesson
+# has content. Uses the same secrets as the reminders workflow:
+# REMINDER_API_URL and REMINDER_CRON_SECRET.
+on:
+  schedule:
+    - cron: "35 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Lessons to generate in this run (1–10)"
+        default: "3"
+
+permissions: {}
+
+concurrency:
+  group: content-factory
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Generate missing lessons
+        env:
+          API_URL: ${{ secrets.REMINDER_API_URL }}
+          CRON_SECRET: ${{ secrets.REMINDER_CRON_SECRET }}
+          LIMIT: ${{ github.event.inputs.limit || '3' }}
+        run: |
+          if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Secrets are not set; skipping."
+            exit 0
+          fi
+          case "$LIMIT" in ''|*[!0-9]*) LIMIT=3 ;; esac
+          curl --fail-with-body --silent --show-error --max-time 600 \
+            -X POST "${API_URL%/}/api/v1/admin/content/cron?limit=${LIMIT}" \
+            -H "X-Cron-Secret: $CRON_SECRET"

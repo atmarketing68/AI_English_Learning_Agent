@@ -76,6 +76,18 @@ python scripts/pregenerate_content.py --code A1-U01-L01 --force --auto-approve
 3. Xem danh sách từng bài: mã, kỹ năng, chủ đề, **điểm đánh giá**, cờ cảnh báo, trạng thái.
 4. Duyệt/từ chối từng bài bằng nút **✅ Duyệt** / **❌ Từ chối**.
 
+### 3.2b. Cách 3 — Tự động (khuyến nghị): workflow *Content Factory*
+
+Workflow `.github/workflows/content-factory.yml` chạy **2 giờ/lần**, mỗi lần sinh **3 bài**
+A1 → A2 → B1 còn thiếu, theo đúng thứ tự lộ trình. Bài đạt cổng chất lượng AI được **duyệt tự
+động**; bài bị gắn cờ để ở trạng thái *nháp* cho bạn xem lại trong `/admin`. Hết bài thiếu thì
+workflow không làm gì nữa. Dùng chung 2 secret với nhắc học (`REMINDER_API_URL`,
+`REMINDER_CRON_SECRET`); muốn chạy ngay: tab **Actions → Content Factory → Run workflow**
+(chọn số bài, tối đa 10). Kết quả mỗi lần chạy có mục `coverage` cho biết mỗi cấp độ đã sẵn bao nhiêu bài.
+
+Khi đã có bài duyệt sẵn, **"Luyện tập tự do"** cũng mở ngay lập tức: hệ thống chọn bài cùng kỹ năng,
+đúng trình độ mà học viên chưa học; chỉ khi hết bài sẵn mới gọi AI soạn bài mới.
+
 ### 3.3. Vòng đời trạng thái nội dung
 
 | Trạng thái | Ý nghĩa | Học viên có nhận được? |

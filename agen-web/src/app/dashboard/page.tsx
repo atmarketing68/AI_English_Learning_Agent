@@ -11,6 +11,7 @@ import { getEngagement, type Engagement } from '@/lib/engagementService';
 import DailyQuests from '@/components/engagement/DailyQuests';
 import StreakWeekCard from '@/components/engagement/StreakWeekCard';
 import ReminderCard from '@/components/engagement/ReminderCard';
+import InstallAppCard from '@/components/engagement/InstallAppCard';
 import NotificationBell from '@/components/NotificationBell';
 import { PageSkeleton } from '@/components/Skeleton';
 import type { LearnerProfile } from '@/types';
@@ -236,7 +237,8 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)' }}>
+        <motion.div variants={itemVariants} style={{ marginBottom: 'var(--spacing-md)', display: 'flex', flexDirection: 'column', gap: 'var(--spacing-md)' }}>
+          <InstallAppCard />
           <ReminderCard />
         </motion.div>
 
