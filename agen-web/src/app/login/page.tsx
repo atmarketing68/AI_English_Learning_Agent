@@ -9,6 +9,7 @@ import Logo from '@/components/ui/Logo';
 import GuestTrialButton from '@/components/GuestTrialButton';
 import { CircleAlert } from 'lucide-react';
 import { identifyUser, track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function LoginPage() {
         router.push('/dashboard');
       }
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Email hoặc mật khẩu không đúng.');
+      setError(apiErrorMessage(err, 'Email hoặc mật khẩu không đúng.'));
     } finally {
       setLoading(false);
     }

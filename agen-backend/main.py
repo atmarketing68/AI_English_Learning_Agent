@@ -88,10 +88,31 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty
 # Applies the limiter's default per-IP limit to every route.
 app.add_middleware(SlowAPIMiddleware)
 
+class CatchErrorsMiddleware(BaseHTTPMiddleware):
+    """Turn unhandled errors into a JSON 500 *inside* CORS, so the browser can read it.
+
+    The catch-all exception handler below runs outside every middleware, so its
+    response carries no CORS headers and the frontend only sees a network error.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        try:
+            return await call_next(request)
+        except Exception:
+            logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"detail": "Đã xảy ra lỗi nội bộ. Vui lòng thử lại sau."},
+            )
+
+
+app.add_middleware(CatchErrorsMiddleware)
+
 # ── CORS Middleware ───────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins_list,   # reads from ALLOWED_ORIGINS env var
+    allow_origins=settings.cors_origins,   # ALLOWED_ORIGINS + APP_URL
+    allow_origin_regex=settings.ALLOWED_ORIGIN_REGEX or None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

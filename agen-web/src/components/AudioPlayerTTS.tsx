@@ -14,6 +14,7 @@ import { useSpeechRecorder } from '@/lib/useSpeechRecorder';
 import PronunciationFeedback from '@/components/speaking/PronunciationFeedback';
 import MicButton from '@/components/speaking/MicButton';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 interface ScriptLine {
   speaker: string;
@@ -140,7 +141,7 @@ export default function AudioPlayerTTS({ text, scriptLines, knownWords = [], les
       setLookup(await lookupWord(word, context));
       track('listening_word_lookup', { word });
     } catch (err: unknown) {
-      setLookupError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không tra được từ này lúc này.');
+      setLookupError(apiErrorMessage(err, 'Không tra được từ này lúc này.'));
     } finally {
       setLookingUp(false);
     }

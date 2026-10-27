@@ -10,6 +10,7 @@ import {
   type ClassTest, type ClassTestResults, type TestCatalogueItem,
 } from '@/lib/groupsService';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const SKILL_VI: Record<string, string> = { listening: 'Nghe', reading: 'Đọc', speaking: 'Nói' };
 const STATUS_VI: Record<ClassTest['status'], string> = { upcoming: 'Sắp mở', open: 'Đang mở', closed: 'Đã đóng' };
@@ -62,7 +63,7 @@ export default function ClassTestsCard({ groupId }: { groupId: string }) {
       setPick(''); setOpensOn(''); setDueOn(''); setNote(''); setMonthly(false);
       await load();
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không giao được bài kiểm tra.');
+      setError(apiErrorMessage(err, 'Không giao được bài kiểm tra.'));
     } finally { setBusy(false); }
   };
 

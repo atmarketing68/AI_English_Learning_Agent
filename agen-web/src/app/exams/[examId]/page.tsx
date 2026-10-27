@@ -15,6 +15,7 @@ import { playText, stopSpeech } from '@/lib/speechService';
 import Mascot from '@/components/ui/Mascot';
 import { playSound } from '@/lib/soundEffects';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 type Phase = 'intro' | 'test' | 'result';
 
@@ -55,7 +56,7 @@ export default function ExamPlayerPage() {
     const testId = new URLSearchParams(window.location.search).get('test');
     getExamPaper(examId, testId)
       .then(p => { setPaper(p); setSecondsLeft(p.minutes * 60); })
-      .catch((err: unknown) => setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không tải được đề thi.'));
+      .catch((err: unknown) => setError(apiErrorMessage(err, 'Không tải được đề thi.')));
     return () => { cancelRef.current = true; stopSpeech(); };
   }, [hydrated, isAuthenticated, router, examId]);
 
@@ -75,7 +76,7 @@ export default function ExamPlayerPage() {
       if (r.pct >= 70) { playSound('success'); confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }); }
       window.scrollTo({ top: 0 });
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không nộp được bài. Thử lại nhé.');
+      setError(apiErrorMessage(err, 'Không nộp được bài. Thử lại nhé.'));
     } finally { setSubmitting(false); }
   }, [paper, answers, submitting]);
 

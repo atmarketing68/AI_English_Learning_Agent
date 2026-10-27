@@ -14,6 +14,7 @@ import Avatar from '@/components/ui/Avatar';
 import Mascot from '@/components/ui/Mascot';
 import { playSound } from '@/lib/soundEffects';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const TIER_COLORS = ['#B5651D', '#8E8E93', '#D4A017', '#38BDF8'];   // Đồng · Bạc · Vàng · Kim cương
 const MOVE_LABEL: Record<LeagueMovement, string> = {
@@ -51,7 +52,7 @@ export default function LeaguePage() {
       playSound('success');
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.4 }, colors: ['#D4A017', '#0071E3', '#1F9D55'] });
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không nhận được thưởng.');
+      setError(apiErrorMessage(err, 'Không nhận được thưởng.'));
     } finally {
       setClaiming(false);
     }

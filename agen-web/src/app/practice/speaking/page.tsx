@@ -28,6 +28,7 @@ import { track } from '@/lib/analytics';
 import { PageSkeleton } from '@/components/Skeleton';
 import PronunciationFeedback from '@/components/speaking/PronunciationFeedback';
 import MicButton from '@/components/speaking/MicButton';
+import { apiErrorMessage } from '@/lib/apiError';
 
 type Phase = 'pick' | 'phrases' | 'repeat' | 'roleplay' | 'done';
 
@@ -45,8 +46,7 @@ const STEPS = [
   { key: 'roleplay', label: 'Hội thoại' },
 ] as const;
 
-const errorText = (err: unknown, fallback: string) =>
-  (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback;
+const errorText = apiErrorMessage;
 
 // ─── Small pieces ───────────────────────────────────────────────────────────
 function PersonaBadge({ persona, size = 40 }: { persona: Persona | null | undefined; size?: number }) {

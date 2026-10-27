@@ -21,6 +21,7 @@ import MicButton from '@/components/speaking/MicButton';
 import Mascot from '@/components/ui/Mascot';
 import { playSound } from '@/lib/soundEffects';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 type Phase = 'intro' | 'listen' | 'prep' | 'answer' | 'saving' | 'between' | 'result';
 
@@ -67,7 +68,7 @@ export default function SpeakingExamPage() {
     const testId = new URLSearchParams(window.location.search).get('test');
     startSpeakingExam(examId, testId)
       .then(r => { setPaper(r.exam); setAttemptId(r.attempt_id); setClassTest(!!testId); })
-      .catch((err: unknown) => setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không mở được đề thi.'));
+      .catch((err: unknown) => setError(apiErrorMessage(err, 'Không mở được đề thi.')));
   }, [hydrated, isAuthenticated, router, examId]);
 
   const task: SpeakingTask | undefined = paper?.tasks[idx];
@@ -144,7 +145,7 @@ export default function SpeakingExamPage() {
       if (r.gems_earned > 0) { playSound('success'); confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } }); }
       window.scrollTo({ top: 0 });
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không nộp được bài.');
+      setError(apiErrorMessage(err, 'Không nộp được bài.'));
     } finally { setSubmitting(false); }
   };
 

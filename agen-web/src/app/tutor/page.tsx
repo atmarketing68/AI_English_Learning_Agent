@@ -11,6 +11,7 @@ import { playText } from '@/lib/speechService';
 import { PageSkeleton } from '@/components/Skeleton';
 import Mascot from '@/components/ui/Mascot';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 function Bubble({ m, onFollowUp }: { m: TutorMessage; onFollowUp: (q: string) => void }) {
   if (m.role === 'user') return <div className="chat-row is-user"><div className="chat-bubble">{m.content}</div></div>;
@@ -70,7 +71,7 @@ export default function TutorPage() {
       setHome(h => (h ? { ...h, asked_today: r.asked_today, remaining_today: r.remaining_today } : h));
       track('tutor_asked', { fallback: r.answer.fallback });
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Bo chưa trả lời được, thử lại nhé.');
+      setError(apiErrorMessage(err, 'Bo chưa trả lời được, thử lại nhé.'));
     } finally { setBusy(false); }
   };
 

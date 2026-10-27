@@ -14,6 +14,7 @@ import Avatar from '@/components/ui/Avatar';
 import Mascot from '@/components/ui/Mascot';
 import { playSound } from '@/lib/soundEffects';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const TABS: { kind: ShopItemKind; label: string }[] = [
   { kind: 'avatar', label: 'Nhân vật' },
@@ -80,7 +81,7 @@ export default function ShopPage() {
       if (learner) setLearner({ ...learner, gems: next.gems, avatar: next.avatar });
       getMyProfile().then(setLearner).catch(() => undefined);
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không thực hiện được, thử lại nhé.');
+      setError(apiErrorMessage(err, 'Không thực hiện được, thử lại nhé.'));
     } finally {
       setBusy(null);
     }

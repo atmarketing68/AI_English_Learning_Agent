@@ -10,6 +10,7 @@ import {
 import Logo from '@/components/ui/Logo';
 import { ArrowRight, BookOpen, BookText, Check, CircleAlert, CircleCheck, CircleX, Gauge, Headphones, Lightbulb, ListChecks, LoaderCircle, Mic, PenLine, Volume2, X, Zap, type LucideIcon } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 import { playText, stopSpeech } from '@/lib/speechService';
 import { useSpeechRecorder } from '@/lib/useSpeechRecorder';
 import MicButton from '@/components/speaking/MicButton';
@@ -356,7 +357,7 @@ export default function PlacementPage() {
       setCurrentQuestion(q);
       setPhase('testing');
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không thể bắt đầu bài test. Vui lòng thử lại.');
+      setError(apiErrorMessage(err, 'Không thể bắt đầu bài test. Vui lòng thử lại.'));
     } finally {
       setLoading(false);
     }
@@ -375,7 +376,7 @@ export default function PlacementPage() {
           track('placement_completed', { type: assessmentType, level: res.overall_level, accuracy: res.accuracy_percent });
           setPhase('result');
         } catch (err: unknown) {
-          setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Lỗi khi tổng hợp kết quả.');
+          setError(apiErrorMessage(err, 'Lỗi khi tổng hợp kết quả.'));
         }
       } else {
         // Load next question — clear feedback first to avoid stale state
@@ -397,7 +398,7 @@ export default function PlacementPage() {
       const res = await submitAnswer(sessionId, answer);
       setFeedback(res);
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Lỗi khi nộp câu trả lời.');
+      setError(apiErrorMessage(err, 'Lỗi khi nộp câu trả lời.'));
     } finally {
       setSubmitting(false);
     }

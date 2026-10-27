@@ -6,6 +6,8 @@
 
 Cập nhật lần cuối: 2026-10-27 (G13).
 
+Web production: https://ai-english-learning-agent.atmarketing.vn · Backend: https://agen-api.onrender.com
+
 ## Cách làm việc với chủ dự án
 
 - Trao đổi bằng **tiếng Việt**, ngắn gọn, không thuật ngữ thừa. Chủ dự án làm SEO, bận — làm trọn gói, ít hỏi.
@@ -36,6 +38,7 @@ Cập nhật lần cuối: 2026-10-27 (G13).
 | G3 | Giải đấu tuần (`services/league.py`, `GET /engagement/league`, thưởng top 10 tuần trước, trang `/league`, thẻ trên trang chủ) | #13 |
 | G3 | Phụ huynh chủ động: email báo cáo tuần Chủ nhật 18h + cảnh báo con nghỉ 2 ngày (`services/parent_digest.py`, chạy trong cron nhắc học), bật/tắt ở bảng phụ huynh | #13 |
 | G3 | Khoá theo mục tiêu IELTS / TOEIC / phỏng vấn (`services/goal_tracks.py`, 33 bài theo thứ tự (IELTS 12 · TOEIC 12 · phỏng vấn 9), `GET /curriculum/tracks`, trang `/tracks`), bài tạo ở đúng trình độ của khoá | #13 |
+| — | Sửa lỗi đăng ký/đăng nhập: báo lỗi rõ (mất kết nối, mật khẩu thiếu số, email trùng, sai mật khẩu), lỗi 500 vẫn có CORS, `APP_URL` tự vào CORS (`lib/apiError.ts`) | #12 |
 
 | G4 | **Hai giao diện** (`ui_skin`): "Vui nhộn" (`data-skin="vivid"`: font Nunito, màu tươi, nút dày, mascot robot **Bo** có cảm xúc + bong bóng nói) mặc định cho học viên **dưới 16 tuổi**; "Chuyên nghiệp" (giao diện Apple-style hiện có) cho người đi làm và phụ huynh (trang phụ huynh/admin luôn chuyên nghiệp). Đổi ở Hồ sơ → Giao diện; lưu server + localStorage nên không nháy khi mở | — |
 | G4 | **Đá quý & Cửa hàng avatar** (`services/shop.py`, `/gamification/shop`, trang `/shop`): 12 nhân vật emoji, 6 màu nền, 5 khung; đá quý nhận khi xong bài (3–15 theo hạng S–D), nhận thưởng nhiệm vụ (+3), mục tiêu tuần (+10), top 10 giải đấu (20–40), Blitz (tới 10). Avatar hiện ở sidebar, trang chủ, hồ sơ, bảng giải đấu | — |
@@ -91,7 +94,12 @@ Khoá đã được tạo và gửi cho chủ dự án trong chat (KHÔNG có tr
    Giữ nâng Premium giả lập cho pilot: `ALLOW_DEMO_UPGRADE=true` trên Render.
 2. **GitHub → Settings → Secrets → Actions:** `REMINDER_API_URL` (URL backend Render),
    `REMINDER_CRON_SECRET` (cùng giá trị Render). Dùng chung cho workflow nhắc học và Content Factory.
-3. Chạy thử: Actions → *Content Factory* → Run workflow (limit 10); Actions → *Learning reminders* → Run.
+3. **Tài khoản admin:** đăng ký trên web bằng `atmarketing68@gmail.com`, rồi thêm `ADMIN_EMAILS=atmarketing68@gmail.com`
+   trên Render → vào `/admin`.
+4. **`ALLOWED_ORIGINS` / `APP_URL` trên Render = `https://ai-english-learning-agent.atmarketing.vn`** (tên miền thật của web;
+   trước đây để nhầm `agen-web.vercel.app` nên đăng ký bị chặn).
+   Sai URL thì mọi lệnh gọi API bị chặn — đăng ký báo "Không kết nối được máy chủ".
+5. Chạy thử: Actions → *Content Factory* → Run workflow (limit 10); Actions → *Learning reminders* → Run.
 
 Nếu khoá bị mất: tạo lại bằng `python agen-backend/scripts/generate_vapid_keys.py` (đổi khoá thì người
 học phải bật lại thông báo).

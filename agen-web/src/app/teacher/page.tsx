@@ -8,6 +8,7 @@ import { Briefcase, ChevronRight, CircleAlert, Crown, LoaderCircle, Plus, School
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import { createGroup, getOwnerHome, type GroupKind, type OwnerHome } from '@/lib/groupsService';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 export default function TeacherPage() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function TeacherPage() {
       await load();
       router.push(`/teacher/${g.id}`);
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không tạo được nhóm.');
+      setError(apiErrorMessage(err, 'Không tạo được nhóm.'));
     } finally { setBusy(false); }
   };
 

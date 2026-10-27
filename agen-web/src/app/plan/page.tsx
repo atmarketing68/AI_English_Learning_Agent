@@ -11,6 +11,7 @@ import { STATUS_COLOR, STATUS_LABEL, clearStudyPlan, formatTarget, getStudyPlan,
 import { PageSkeleton } from '@/components/Skeleton';
 import Mascot from '@/components/ui/Mascot';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const SKILL_LINK: Record<PlanSkill, string> = { listening: '/exams', reading: '/exams', writing: '/practice/writing', speaking: '/exams' };
 
@@ -28,7 +29,7 @@ function TargetForm({ plan, onSaved }: { plan: StudyPlan; onSaved: (p: StudyPlan
       onSaved(await setStudyPlan(exam, Number(score), date));
       track('study_plan_set', { exam, target: Number(score) });
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không lưu được kế hoạch.');
+      setError(apiErrorMessage(err, 'Không lưu được kế hoạch.'));
     } finally { setBusy(false); }
   };
   return (

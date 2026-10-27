@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     # CORS — comma-separated list of allowed origins
     # e.g. ALLOWED_ORIGINS="http://localhost:3000,https://agen.yourdomain.com"
     ALLOWED_ORIGINS: str = "http://localhost:3000"
+    # Optional regex for extra origins, e.g. Vercel previews: https://agen-web-.*\.vercel\.app
+    ALLOWED_ORIGIN_REGEX: str = ""
 
     # AI Services
     OPENAI_API_KEY: str = ""
@@ -183,6 +185,15 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> List[str]:
         """Parse ALLOWED_ORIGINS into a list, stripping whitespace."""
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def cors_origins(self) -> List[str]:
+        """ALLOWED_ORIGINS plus APP_URL, so setting the real frontend URL once is enough."""
+        origins = [o.rstrip("/") for o in self.allowed_origins_list]
+        app_url = self.APP_URL.strip().rstrip("/")
+        if app_url and app_url not in origins:
+            origins.append(app_url)
+        return origins
 
     @property
     def admin_emails_list(self) -> List[str]:

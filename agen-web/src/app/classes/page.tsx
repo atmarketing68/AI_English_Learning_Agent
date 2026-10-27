@@ -11,6 +11,7 @@ import { PageSkeleton } from '@/components/Skeleton';
 import { formatSlot, getClubLobby, joinRoom, type RoomCard } from '@/lib/clubService';
 import Mascot from '@/components/ui/Mascot';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 export default function ClassesPage() {
   const router = useRouter();
@@ -42,7 +43,7 @@ export default function ClassesPage() {
       setCode('');
       track('group_joined');
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không tham gia được.');
+      setError(apiErrorMessage(err, 'Không tham gia được.'));
     } finally { setBusy(false); }
   };
 

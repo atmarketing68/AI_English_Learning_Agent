@@ -57,8 +57,9 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const original = error.config as typeof error.config & { _retried?: boolean };
 
-    // Only intercept 401s that haven't been retried yet
-    if (error.response?.status !== 401 || !original || original._retried) {
+    // Only intercept 401s that haven't been retried yet. A 401 from login itself
+    // means a wrong password — let the form show it instead of redirecting.
+    if (error.response?.status !== 401 || !original || original._retried || original.url?.startsWith('/auth/login')) {
       return Promise.reject(error);
     }
 

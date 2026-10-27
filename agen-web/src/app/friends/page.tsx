@@ -14,6 +14,7 @@ import Avatar from '@/components/ui/Avatar';
 import Mascot from '@/components/ui/Mascot';
 import { playSound } from '@/lib/soundEffects';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 function DuoBar({ f, goal }: { f: Friend; goal: number }) {
   const mine = Math.min(100, (f.quest.my_xp / goal) * 100);
@@ -55,7 +56,7 @@ export default function FriendsPage() {
       track('friend_added');
       playSound('pop');
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không thêm được bạn.');
+      setError(apiErrorMessage(err, 'Không thêm được bạn.'));
     } finally { setBusy(null); }
   };
 
@@ -69,7 +70,7 @@ export default function FriendsPage() {
       playSound('success');
       confetti({ particleCount: 90, spread: 70, origin: { y: 0.5 }, colors: ['#0EA5E9', '#22C55E', '#F59E0B'] });
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không nhận được thưởng.');
+      setError(apiErrorMessage(err, 'Không nhận được thưởng.'));
     } finally { setBusy(null); }
   };
 

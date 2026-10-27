@@ -37,13 +37,13 @@ def _validate_password_strength(password: str) -> str:
     - At least 1 digit
     """
     if len(password) < _PASSWORD_MIN_LENGTH:
-        raise ValueError(f"Mat khau phai co it nhat {_PASSWORD_MIN_LENGTH} ky tu.")
+        raise ValueError(f"Mật khẩu phải có ít nhất {_PASSWORD_MIN_LENGTH} ký tự.")
     if not re.search(r"[A-Za-z]", password):
-        raise ValueError("Mat khau phai chua it nhat 1 chu cai.")
+        raise ValueError("Mật khẩu phải có ít nhất 1 chữ cái.")
     if not re.search(r"\d", password):
-        raise ValueError("Mat khau phai chua it nhat 1 chu so.")
+        raise ValueError("Mật khẩu phải có ít nhất 1 chữ số.")
     if len(password.encode("utf-8")) > 72:
-        raise ValueError("Mat khau khong duoc vuot qua 72 byte.")
+        raise ValueError("Mật khẩu quá dài (tối đa 72 byte).")
     return password
 
 
@@ -72,7 +72,7 @@ class UserRegister(BaseModel):
     @classmethod
     def valid_role(cls, v: str) -> str:
         if v not in ("learner", "parent", "teacher"):
-            raise ValueError("Vai tro khong hop le.")
+            raise ValueError("Vai trò không hợp lệ.")
         return v
 
     @field_validator("email")
@@ -84,7 +84,7 @@ class UserRegister(BaseModel):
     @classmethod
     def valid_age(cls, v: int | None) -> int | None:
         if v is not None and not 5 <= v <= 120:
-            raise ValueError("Tuoi phai nam trong khoang 5 den 120.")
+            raise ValueError("Tuổi phải từ 5 đến 120.")
         return v
 
     @field_validator("password")
@@ -96,7 +96,7 @@ class UserRegister(BaseModel):
     @classmethod
     def name_not_empty(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("Ten khong duoc de trong.")
+            raise ValueError("Tên không được để trống.")
         return v.strip()
 
 
@@ -133,7 +133,7 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
     normalized_email = str(payload.email).lower()
     existing = db.query(User).filter(User.email == normalized_email).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email này đã được đăng ký. Hãy đăng nhập.")
 
     user = User(
         email=normalized_email,
@@ -181,7 +181,7 @@ def login(request: Request, form: OAuth2PasswordRequestForm = Depends(), db: Ses
     if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
+            detail="Email hoặc mật khẩu không đúng.",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return _issue_tokens(user, db)
@@ -312,7 +312,7 @@ def claim_guest(
     if not current_user.is_guest:
         raise HTTPException(status_code=400, detail="Tài khoản này đã được đăng ký.")
     if db.query(User).filter(User.email == payload.email, User.id != current_user.id).first():
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email này đã được đăng ký. Hãy đăng nhập.")
     current_user.email = payload.email
     current_user.hashed_password = get_password_hash(payload.password)
     current_user.full_name = payload.full_name

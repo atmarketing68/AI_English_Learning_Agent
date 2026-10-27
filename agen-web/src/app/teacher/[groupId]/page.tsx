@@ -14,6 +14,7 @@ import Avatar from '@/components/ui/Avatar';
 import ClassTestsCard from '@/components/teacher/ClassTestsCard';
 import ClubSchedulesCard from '@/components/teacher/ClubSchedulesCard';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const SKILLS: AssignmentSkill[] = ['vocabulary', 'grammar', 'reading', 'listening'];
 
@@ -45,7 +46,7 @@ export default function TeacherGroupPage() {
       setForm({ title: '', skill: 'vocabulary', topic: '', due_on: '', note: '' });
       await load();
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không giao được bài.');
+      setError(apiErrorMessage(err, 'Không giao được bài.'));
     } finally { setBusy(false); }
   };
 

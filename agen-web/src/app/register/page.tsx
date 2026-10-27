@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 import Logo from '@/components/ui/Logo';
 import { CircleAlert, GraduationCap, Users, School } from 'lucide-react';
 import { identifyUser, track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const GRADES = [
   { value: 'grade_1', label: 'Lớp 1' }, { value: 'grade_2', label: 'Lớp 2' },
@@ -38,7 +39,12 @@ export default function RegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!/[A-Za-z]/.test(form.password) || !/\d/.test(form.password)) {
+      setError('Mật khẩu cần có cả chữ cái và chữ số (ví dụ: hocTiengAnh2026).');
+      return;
+    }
     setLoading(true);
+    let accountCreated = false;
     try {
       if (claiming) {
         await claimGuestAccount({ ...form, age: form.age ? parseInt(form.age) : undefined, role: 'learner' });
@@ -53,6 +59,7 @@ export default function RegisterPage() {
         age: role === 'learner' && form.age ? parseInt(form.age) : undefined,
         role,
       });
+      accountCreated = true;
       // Auto-login after register
       const token = await login({ username: form.email, password: form.password });
       setAuth(token.access_token, token.refresh_token);
@@ -71,7 +78,8 @@ export default function RegisterPage() {
         router.push('/onboarding');
       }
     } catch (err: unknown) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+      const message = apiErrorMessage(err, 'Đã có lỗi xảy ra. Vui lòng thử lại.');
+      setError(accountCreated ? `Tài khoản đã được tạo. ${message} Hãy thử Đăng nhập.` : message);
     } finally {
       setLoading(false);
     }
@@ -137,7 +145,7 @@ export default function RegisterPage() {
 
             <div className="form-group">
               <label className="form-label">Mật khẩu</label>
-              <input className="form-input" type="password" name="password" placeholder="Tối thiểu 8 ký tự" value={form.password} onChange={handleChange} required minLength={8} />
+              <input className="form-input" type="password" name="password" placeholder="Tối thiểu 8 ký tự, gồm chữ và số" value={form.password} onChange={handleChange} required minLength={8} />
             </div>
 
             {role === 'learner' && (

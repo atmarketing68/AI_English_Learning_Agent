@@ -17,6 +17,7 @@ import {
   type AdminOrder, type GeneratedExam, type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
 } from '@/lib/adminService';
 import { ArrowLeft, Check, Flag, LoaderCircle, Lock, Settings, ShieldCheck, X, Zap } from 'lucide-react';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const AGENTS = [
   'lesson', 'placement_question', 'writing_prompt', 'writing_evaluation',
@@ -223,7 +224,7 @@ function OrdersPanel() {
       const updated = await issueEInvoice(o.order_id);
       setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
     } catch (err: unknown) {
-      alert((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không xuất được hoá đơn.');
+      alert(apiErrorMessage(err, 'Không xuất được hoá đơn.'));
       listOrders(invoiceOnly, 200).then(setOrders).catch(() => undefined);
     } finally { setBusy(null); }
   };
@@ -248,7 +249,7 @@ function OrdersPanel() {
       const updated = await refundOrder(o.order_id, note);
       setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
     } catch (err: unknown) {
-      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không hoàn tiền được.';
+      const detail = apiErrorMessage(err, 'Không hoàn tiền được.');
       if (stripe && confirm(`${detail}\n\nNếu bạn đã hoàn tiền trên trang Stripe, bấm OK để chỉ ghi nhận.`)) {
         const updated = await refundOrder(o.order_id, note || 'Hoàn trên trang Stripe', true).catch(() => null);
         if (updated) setOrders(list => (list ? list.map(x => (x.order_id === o.order_id ? updated : x)) : list));
@@ -449,7 +450,7 @@ function ExamsPanel() {
       setMsg(`Đã tạo bản nháp "${r.title}" (${r.questions} câu). Xem và duyệt bên dưới.`);
       await load();
     } catch (err: unknown) {
-      setMsg((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không sinh được đề.');
+      setMsg(apiErrorMessage(err, 'Không sinh được đề.'));
     } finally { setBusy(false); }
   };
   const setStatus = async (id: string, status: 'draft' | 'approved' | 'rejected') => { await setGeneratedExamStatus(id, status); await load(); if (preview?.meta.id === id) setPreview(null); };
@@ -614,7 +615,7 @@ function SpeakingExamsPanel() {
       setMsg(`Đã tạo bản nháp "${r.title}" (${r.tasks} phần). Xem và duyệt bên dưới.`);
       await load();
     } catch (err: unknown) {
-      setMsg((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không sinh được đề.');
+      setMsg(apiErrorMessage(err, 'Không sinh được đề.'));
     } finally { setBusy(false); }
   };
   const setStatus = async (id: string, status: 'draft' | 'approved' | 'rejected') => { await setGeneratedSpeakingExamStatus(id, status); await load(); if (preview?.meta.id === id) setPreview(null); };

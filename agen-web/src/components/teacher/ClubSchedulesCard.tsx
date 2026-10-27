@@ -6,6 +6,7 @@ import { CalendarClock, CircleAlert, LoaderCircle, MessagesSquare, Plus, Trash2,
 import { addClubSchedule, deleteClubSchedule, getClubSchedules, type ClubSchedules } from '@/lib/groupsService';
 import { formatSlot } from '@/lib/clubService';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 export default function ClubSchedulesCard({ groupId }: { groupId: string }) {
   const [data, setData] = useState<ClubSchedules | null>(null);
@@ -23,7 +24,7 @@ export default function ClubSchedulesCard({ groupId }: { groupId: string }) {
       track('club_schedule_created', { weekday: form.weekday });
       await load();
     } catch (err) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không thêm được lịch.');
+      setError(apiErrorMessage(err, 'Không thêm được lịch.'));
     } finally { setBusy(false); }
   };
   const remove = async (id: string, label: string) => {

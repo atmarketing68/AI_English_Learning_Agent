@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Award, ExternalLink, LoaderCircle } from 'lucide-react';
 import { claimTrackCertificate, getMyCertificates, type MyCertificates } from '@/lib/certificatesService';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 export default function CertificatesCard() {
   const [data, setData] = useState<MyCertificates | null>(null);
@@ -23,7 +24,7 @@ export default function CertificatesCard() {
       track('certificate_claimed', { track: trackId });
       setData(d => (d ? { certificates: [c, ...d.certificates], tracks: d.tracks.map(t => (t.track_id === trackId ? { ...t, claimed_code: c.code } : t)) } : d));
     } catch (err) {
-      setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Chưa nhận được chứng nhận.');
+      setError(apiErrorMessage(err, 'Chưa nhận được chứng nhận.'));
     } finally { setBusy(''); }
   };
 

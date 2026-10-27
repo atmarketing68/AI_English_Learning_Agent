@@ -8,6 +8,7 @@ import { ArrowLeft, CircleAlert, LoaderCircle, Printer } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import { getReceipt, type Receipt } from '@/lib/billingService';
 import { track } from '@/lib/analytics';
+import { apiErrorMessage } from '@/lib/apiError';
 
 const utc = (s: string | null | undefined) => (s ? new Date(/(?:[zZ]|[+-]\d\d:\d\d)$/.test(s) ? s : `${s}Z`) : null);
 const fmtDate = (s: string | null | undefined) => utc(s)?.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) ?? '—';
@@ -24,7 +25,7 @@ export default function ReceiptPage() {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
     getReceipt(orderId).then(x => { setR(x); track('receipt_opened', { provider: x.order.provider }); })
-      .catch(err => setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không tìm thấy biên nhận.'));
+      .catch(err => setError(apiErrorMessage(err, 'Không tìm thấy biên nhận.')));
   }, [hydrated, isAuthenticated, router, orderId]);
 
   if (!r) {
