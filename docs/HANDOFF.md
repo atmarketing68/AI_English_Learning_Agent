@@ -80,7 +80,13 @@ DATABASE_URL=postgresql://u:p@localhost/x /home/user/.venv-agen/bin/alembic down
 - Lưới `grid-column: span 2` trong grid `auto-fit` làm tràn ngang trên điện thoại → dùng media query riêng. Luôn chụp 390px kiểm tra tràn.
 - Biểu đồ: theo skill dataviz (bảng màu đã kiểm tra mù màu, có chú thích + nút "Xem bảng"), ví dụ `components/teacher/RubricChart.tsx`.
 - App di động: web gọi plugin qua `window.Capacitor` (`lib/nativePush.ts`), không cài gói npm Capacitor vào web.
+- Chụp nhiều ảnh bằng Playwright dễ hết RAM (container khởi động lại, mã 137): chạy từng nhóm ảnh trong tiến trình riêng, `deviceScaleFactor` 1.25,
+  đổi PNG → WebP bằng PIL của `python3` hệ thống. Ảnh hướng dẫn: desktop 1440×900, điện thoại 720×1558 (`GuideView` dựa vào kích thước này).
+  Dữ liệu mẫu: tạo người dùng qua API + seed trực tiếp DB; backend chạy với agent bài học/kiểm tra/Bo được stub (không cần khoá LLM).
+- `timeutil.local_day_start_utc()` không nhận tham số (chỉ hôm nay) — cần mốc ngày bất kỳ thì tự tính như `retention._day_start`.
+- Test: `_learner()`/`expire_all()` bỏ mất thay đổi chưa commit — commit trước khi gọi.
+- Không đưa số liệu/lời đánh giá bịa vào landing hay trang SEO.
 
 ## 7. Hướng phát triển tiếp (đề xuất, chờ chủ dự án chọn)
 
-Xem mục "G14 — gợi ý tiếp theo" trong `ROADMAP_STATUS.md` (thứ tự ưu tiên + lý do).
+Xem mục "G15 — gợi ý tiếp theo" trong `ROADMAP_STATUS.md` (thứ tự ưu tiên + lý do).

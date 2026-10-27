@@ -801,6 +801,14 @@ def delete_generated_speaking_exam(exam_id: str, current_user: User = Depends(ge
 
 
 # ── G10 · AI cost tracking ────────────────────────────────────────────────────
+@router.get("/retention/summary")
+def retention_summary(weeks: int = 8, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G14 · Học viên quay lại theo tuần đăng ký, phễu 30 ngày, nguồn đăng ký 90 ngày."""
+    _require_admin(current_user)
+    from app.services.retention import summary
+    return summary(db, max(1, min(weeks, 26)))
+
+
 @router.get("/ai-usage/summary")
 def ai_usage_summary(days: int = 30, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Estimated AI spend (LLM + TTS) per day, feature, provider and top users."""

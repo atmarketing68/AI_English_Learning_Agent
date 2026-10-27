@@ -13,7 +13,8 @@ import Link from 'next/link';
 import { getSubscription, type SubscriptionInfo } from '@/lib/billingService';
 import { track } from '@/lib/analytics';
 import { enableNativePush, isNativeApp } from '@/lib/nativePush';
-import { BellRing, BookOpen, Smartphone, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, MessageCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { testScoreLabel } from '@/lib/groupsService';
+import { BellRing, BookOpen, ClipboardCheck, Smartphone, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, MessageCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
@@ -384,6 +385,29 @@ function ChildReportPanel({ learnerId, childName }: { learnerId: string; childNa
             </div>
             <div style={{ fontSize: '0.9rem', lineHeight: 1.65, color: 'var(--text-secondary)' }}>{report.what_to_do}</div>
           </motion.div>
+
+          {/* G14 · bài kiểm tra ở lớp của con */}
+          {!!report.class_tests?.length && (
+            <div style={{ padding: '16px 18px', borderRadius: 14, background: 'var(--bg-elevated)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <ClipboardCheck size={16} color="var(--agen-primary)" />
+                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Bài kiểm tra ở lớp</span>
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {report.class_tests.map(t => (
+                  <div key={t.id} className="parent-test-row">
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t.title}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t.group_name} · hạn {new Date(`${t.due_on}T00:00:00`).toLocaleDateString('vi-VN')}{t.avg_estimate != null ? ` · TB lớp ${testScoreLabel(t.exam, { estimate: t.avg_estimate, pct: t.avg_pct })}` : ''}</div>
+                    </div>
+                    {t.mine?.done
+                      ? <span className="plan-chip is-premium">{testScoreLabel(t.exam, t.mine)}</span>
+                      : <span className="plan-chip">{t.status === 'closed' ? 'Không làm' : t.status === 'upcoming' ? 'Sắp mở' : 'Chưa làm'}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>

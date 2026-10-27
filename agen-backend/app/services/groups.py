@@ -334,6 +334,7 @@ def member_detail(db: Session, group: Group, learner: LearnerProfile) -> dict:
                             "estimate": s.estimate, "created_at": s.created_at} for s in speaking],
         "assignments": [a.__dict__ for a in group_assignments(db, group.id, learner.id)],
         "rubric_history": rubric_history(db, learner.id),
+        "speaking_history": speaking_history(db, learner.id),
         "tests": _member_tests(db, group, learner.id),
         "feedback": [{"id": f.id, "target_type": f.target_type, "target_id": f.target_id, "target_label": f.target_label, "text": f.text,
                       "created_at": f.created_at, "read_at": f.read_at} for f in feedback],
@@ -372,6 +373,38 @@ def rubric_history(db: Session, learner_id: str) -> list[dict]:
         out.append({"submission_id": w.id, "title": w.prompt_title, "created_at": w.created_at, "source": source,
                     "overall": overall, "criteria": criteria})
     return out
+
+
+SPEAKING_CRITERIA_KEYS = {"fluency": "fluency_coherence", "lexical": "lexical_resource", "grammar": "grammatical_range", "pronunciation": "pronunciation"}
+
+
+def speaking_history(db: Session, learner_id: str) -> list[dict]:
+    """G14 · IELTS Speaking bands over time (finished mock tests), oldest first — the teacher's speaking chart."""
+    from app.models.speaking_exam import STATUS_FINISHED, SpeakingExamAttempt
+    from app.services import speaking_exams
+
+    rows = (db.query(SpeakingExamAttempt)
+            .filter(SpeakingExamAttempt.learner_id == learner_id, SpeakingExamAttempt.status == STATUS_FINISHED,
+                    SpeakingExamAttempt.exam == "ielts", SpeakingExamAttempt.estimate.isnot(None))
+            .order_by(SpeakingExamAttempt.created_at.desc()).limit(RUBRIC_HISTORY_LIMIT).all())
+    out = []
+    for a in reversed(rows):
+        raw = a.criteria or {}
+        criteria = {k: float(raw[src]) for k, src in SPEAKING_CRITERIA_KEYS.items() if isinstance(raw.get(src), (int, float))}
+        out.append({"submission_id": a.id, "title": (speaking_exams.get_exam(a.exam_id, db) or {}).get("title", a.exam_id),
+                    "created_at": a.created_at, "source": "estimate" if a.fallback else "ai", "overall": float(a.estimate), "criteria": criteria})
+    return out
+
+
+def learner_class_tests(db: Session, learner_id: str, limit: int = 20) -> list[dict]:
+    """G14 · Class tests across the learner's groups (for the parent report), newest due date first."""
+    out = []
+    for g in learner_groups(db, learner_id):
+        for t in group_tests(db, g.id, learner_id):
+            if t["available"] or t["mine"]["done"]:
+                out.append({**t, "group_name": g.name})
+    out.sort(key=lambda t: t["due_on"], reverse=True)
+    return out[:limit]
 
 
 def _member_tests(db: Session, group: Group, learner_id: str) -> list[dict]:
@@ -491,7 +524,7 @@ def _test_exam(db: Session, kind: str, exam_id: str) -> dict | None:
 
 
 def create_test(db: Session, group: Group, kind: str, exam_id: str, opens_on: date | None, due_on: date,
-                note: str | None = None, title: str | None = None):
+                note: str | None = None, title: str | None = None, repeat: str | None = None):
     from app.models.group import GroupTest
     from app.services.notification_service import create_notification
 
@@ -506,8 +539,10 @@ def create_test(db: Session, group: Group, kind: str, exam_id: str, opens_on: da
         raise GroupError("Hạn nộp phải sau ngày mở đề và không ở quá khứ.")
     if (due_on - opens_on).days > MAX_TEST_WINDOW_DAYS:
         raise GroupError(f"Một bài kiểm tra mở tối đa {MAX_TEST_WINDOW_DAYS} ngày.")
+    if repeat not in (None, "monthly"):
+        raise GroupError("Chỉ hỗ trợ lặp lại hằng tháng.")
     test = GroupTest(group_id=group.id, kind=kind, exam_id=exam_id, title=((title or "").strip() or exam["title"])[:140],
-                     note=(note or "").strip()[:500] or None, opens_on=opens_on, due_on=due_on)
+                     note=(note or "").strip()[:500] or None, opens_on=opens_on, due_on=due_on, repeat=repeat)
     db.add(test)
     db.flush()
     when = "từ hôm nay" if opens_on <= today else f"mở ngày {opens_on.strftime('%d/%m')}"
@@ -577,6 +612,7 @@ def test_view(db: Session, test, member_ids: list[str], learner_id: str | None =
         "available": bool(exam), "opens_on": test.opens_on, "due_on": test.due_on, "status": _test_status(test, today or local_today()),
         "done_count": len(attempts), "member_count": len(member_ids),
         "avg_pct": _avg([s["pct"] for s in scores]), "avg_estimate": _avg([s["estimate"] for s in scores]), "created_at": test.created_at,
+        "repeat": test.repeat, "next_test_id": test.next_test_id,
     }
     if learner_id:
         view["mine"] = _attempt_score(test, attempts.get(learner_id))
@@ -636,6 +672,66 @@ def open_test_for(db: Session, learner_id: str, test_id: str | None, kind: str, 
     if learner_id in _test_attempts(db, test):
         return None
     return test
+
+
+def add_months(d: date, months: int = 1) -> date:
+    """Same day next month, clamped to the month's last day (31 Jan → 28/29 Feb)."""
+    import calendar
+    y, m = divmod(d.month - 1 + months, 12)
+    year, month = d.year + y, m + 1
+    return date(year, month, min(d.day, calendar.monthrange(year, month)[1]))
+
+
+def set_test_repeat(db: Session, group: Group, test_id: str, repeat: str | None):
+    from app.models.group import GroupTest
+    if repeat not in (None, "monthly"):
+        raise GroupError("Chỉ hỗ trợ lặp lại hằng tháng.")
+    test = db.query(GroupTest).filter(GroupTest.id == test_id, GroupTest.group_id == group.id).first()
+    if not test:
+        raise GroupError("Không tìm thấy bài kiểm tra.")
+    test.repeat = repeat
+    db.flush()
+    return test
+
+
+def _next_exam_id(db: Session, test) -> str:
+    """Rotate to a test of the same kind, exam and skill the class has not had yet; else reuse the same one."""
+    from app.models.group import GroupTest
+    current = _test_exam(db, test.kind, test.exam_id) or {}
+    used = {eid for (eid,) in db.query(GroupTest.exam_id).filter(GroupTest.group_id == test.group_id, GroupTest.kind == test.kind).all()}
+    same = [c for c in test_catalogue(db) if c["kind"] == test.kind and c["exam"] == current.get("exam") and c["skill"] == current.get("skill")]
+    fresh = [c["id"] for c in same if c["id"] not in used]
+    return fresh[0] if fresh else test.exam_id
+
+
+def roll_recurring_tests(db: Session, today: date | None = None) -> dict:
+    """Hourly cron: when a monthly test has closed, create next month's (same window, the next unused exam).
+    Catches up if the cron missed whole months, and never creates one whose window is already over."""
+    from app.models.group import GroupTest
+    today = today or local_today()
+    stats = {"created": 0}
+    due = db.query(GroupTest).filter(GroupTest.repeat == "monthly", GroupTest.next_test_id.is_(None), GroupTest.due_on < today).all()
+    for test in due:
+        group = db.query(Group).filter(Group.id == test.group_id).first()
+        if not group:
+            continue
+        opens_on, due_on, months = test.opens_on, test.due_on, 0
+        while due_on < today and months < 24:
+            months += 1
+            opens_on, due_on = add_months(test.opens_on, months), add_months(test.due_on, months)
+        exam_id = _next_exam_id(db, test)
+        exam = _test_exam(db, test.kind, exam_id)
+        if not exam:
+            continue
+        same_title = test.title == (_test_exam(db, test.kind, test.exam_id) or {}).get("title")
+        try:
+            nxt = create_test(db, group, test.kind, exam_id, opens_on, due_on, test.note, None if same_title else test.title, repeat="monthly")
+        except GroupError:
+            continue
+        test.next_test_id = nxt.id
+        stats["created"] += 1
+    db.commit()
+    return stats
 
 
 def remind_due_tests(db: Session, now: datetime | None = None) -> dict:

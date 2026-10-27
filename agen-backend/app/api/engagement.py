@@ -19,7 +19,7 @@ from app.services.engagement import (
     WEEKLY_GOAL_OPTIONS, WEEKLY_REWARD_XP, ClaimError, claim_quest, claim_weekly_reward,
     day_metrics, quest_view, todays_quests, weekly_progress,
 )
-from app.services.streak_service import MAX_STREAK_FREEZES, streak_state
+from app.services.streak_service import MAX_STREAK_FREEZES, StreakRepairError, repair_offer, repair_streak, streak_state
 from app.services import league as league_service
 
 router = APIRouter(prefix="/engagement", tags=["Engagement"])
@@ -35,6 +35,7 @@ class StreakOut(BaseModel):
     protected: bool                  # missed days are covered by freezes
     missed_days: int
     freeze_used_today: bool          # a freeze saved the streak on today's first activity
+    repair: Optional[dict] = None    # G14 · {lost, restored, cost} when the streak can be bought back today
 
 
 class QuestOut(BaseModel):
@@ -112,6 +113,7 @@ def _state(db: Session, learner: LearnerProfile) -> EngagementOut:
             protected=s.protected,
             missed_days=s.missed_days,
             freeze_used_today=_freeze_used_today(learner.streak_freeze_used_at),
+            repair=repair_offer(learner, today),
         ),
         quests=[QuestOut(**quest_view(q, metrics)) for q in todays_quests(db, learner, today)],
         weekly=WeeklyOut(
@@ -130,6 +132,18 @@ def _state(db: Session, learner: LearnerProfile) -> EngagementOut:
 @router.get("/today", response_model=EngagementOut)
 def get_today(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _state(db, _get_learner(db, current_user.id))
+
+
+@router.post("/streak/repair", response_model=EngagementOut)
+def streak_repair(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G14 · Sửa chuỗi trong 24 giờ bằng đá quý."""
+    learner = _get_learner(db, current_user.id)
+    try:
+        repair_streak(learner)
+    except StreakRepairError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return _state(db, learner)
 
 
 @router.post("/quests/{quest_id}/claim", response_model=ClaimOut)

@@ -212,6 +212,8 @@ def run_reminders(
     try:
         from app.services.groups import remind_due_tests
         stats["class_tests"] = remind_due_tests(db)
+        from app.services.groups import roll_recurring_tests
+        stats["class_tests"]["rolled"] = roll_recurring_tests(db)["created"]
     except Exception:
         import logging
         logging.getLogger("agen.groups").exception("Class test reminder run failed")

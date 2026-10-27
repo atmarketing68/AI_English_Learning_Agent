@@ -2,10 +2,11 @@
 
 /** G13 · Bài kiểm tra lớp: giao một đề thi thử cho cả lớp trong khoảng ngày, xem điểm từng học viên. */
 import { useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, CircleAlert, ClipboardCheck, LoaderCircle, Plus, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { ChevronDown, ChevronUp, CircleAlert, ClipboardCheck, LoaderCircle, Plus, Printer, Repeat, Trash2 } from 'lucide-react';
 import Avatar from '@/components/ui/Avatar';
 import {
-  createGroupTest, deleteGroupTest, getGroupTestResults, getGroupTests, getTestCatalogue, testScoreLabel,
+  createGroupTest, deleteGroupTest, setGroupTestRepeat, getGroupTestResults, getGroupTests, getTestCatalogue, testScoreLabel,
   type ClassTest, type ClassTestResults, type TestCatalogueItem,
 } from '@/lib/groupsService';
 import { track } from '@/lib/analytics';
@@ -28,6 +29,7 @@ export default function ClassTestsCard({ groupId }: { groupId: string }) {
   const [opensOn, setOpensOn] = useState('');
   const [dueOn, setDueOn] = useState('');
   const [note, setNote] = useState('');
+  const [monthly, setMonthly] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [open, setOpen] = useState<string | null>(null);
@@ -55,13 +57,21 @@ export default function ClassTestsCard({ groupId }: { groupId: string }) {
     if (!item || !dueOn) return;
     setBusy(true); setError('');
     try {
-      await createGroupTest(groupId, { kind: item.kind, exam_id: item.id, due_on: dueOn, opens_on: opensOn || null, note: note || null });
+      await createGroupTest(groupId, { kind: item.kind, exam_id: item.id, due_on: dueOn, opens_on: opensOn || null, note: note || null, repeat: monthly ? 'monthly' : null });
       track('class_test_created', { kind: item.kind, exam: item.exam });
-      setPick(''); setOpensOn(''); setDueOn(''); setNote('');
+      setPick(''); setOpensOn(''); setDueOn(''); setNote(''); setMonthly(false);
       await load();
     } catch (err: unknown) {
       setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không giao được bài kiểm tra.');
     } finally { setBusy(false); }
+  };
+
+  const toggleRepeat = async (t: ClassTest) => {
+    try {
+      const next = await setGroupTestRepeat(groupId, t.id, t.repeat ? null : 'monthly');
+      track('class_test_repeat_set', { on: !!next.repeat });
+      setTests(prev => prev?.map(x => (x.id === t.id ? { ...x, repeat: next.repeat } : x)) ?? prev);
+    } catch { setError('Chưa đổi được chế độ lặp lại.'); }
   };
 
   const remove = async (t: ClassTest) => {
@@ -97,10 +107,11 @@ export default function ClassTestsCard({ groupId }: { groupId: string }) {
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input className="form-input" placeholder="Ghi chú (Kiểm tra tháng 11 — làm trong 1 lần)" value={note} onChange={e => setNote(e.target.value)} maxLength={500} style={{ flex: '1 1 240px' }} />
+          <label className="test-repeat-toggle"><input type="checkbox" checked={monthly} onChange={e => setMonthly(e.target.checked)} /> <Repeat size={14} /> Lặp lại hằng tháng</label>
           <button type="submit" className="btn btn-primary" disabled={busy || !pick || !dueOn}>{busy ? <LoaderCircle className="animate-spin" size={16} /> : <Plus size={16} />} Giao bài kiểm tra</button>
         </div>
         {error && <div className="alert-error"><CircleAlert size={16} /> {error}</div>}
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Cả lớp nhận thông báo; lần làm đầu tiên trong thời hạn được tính điểm và không trừ lượt thi miễn phí. Sáng ngày hết hạn, ai chưa làm sẽ được nhắc.</div>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Cả lớp nhận thông báo; lần làm đầu tiên trong thời hạn được tính điểm và không trừ lượt thi miễn phí. Sáng ngày hết hạn, ai chưa làm sẽ được nhắc. Chọn “Lặp lại hằng tháng” để hệ thống tự giao đề mới (đề chưa làm) cùng khung ngày vào tháng sau.</div>
       </form>
 
       {tests && tests.length > 0 && (
@@ -115,6 +126,7 @@ export default function ClassTestsCard({ groupId }: { groupId: string }) {
                     <span className="class-test-meta">
                       <span className={`plan-chip test-status-${t.status}`}>{STATUS_VI[t.status]}</span>
                       {t.skill && <span>{SKILL_VI[t.skill] ?? t.skill}</span>}
+                      {t.repeat && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Repeat size={12} /> hằng tháng</span>}
                       <span>{fmtDay(t.opens_on)} → {fmtDay(t.due_on)}</span>
                       <span>{avgLabel(t)}</span>
                     </span>
@@ -128,6 +140,14 @@ export default function ClassTestsCard({ groupId }: { groupId: string }) {
                 {open === t.id && (
                   <div style={{ padding: '0 16px 14px' }}>
                     {t.note && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>{t.note}</div>}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <Link href={`/teacher/${groupId}/tests/${t.id}`} className="btn btn-outline btn-sm" onClick={() => track('class_test_sheet_printed')}><Printer size={14} /> In bảng điểm</Link>
+                      {!t.next_test_id && (
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={() => toggleRepeat(t)}>
+                          <Repeat size={14} /> {t.repeat ? 'Đang lặp hằng tháng · Dừng' : 'Lặp lại hằng tháng'}
+                        </button>
+                      )}
+                    </div>
                     {!r ? <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}><LoaderCircle className="animate-spin" size={14} /> Đang tải điểm…</div> : (
                       <div style={{ overflowX: 'auto' }}>
                         {r.max_estimate != null && (

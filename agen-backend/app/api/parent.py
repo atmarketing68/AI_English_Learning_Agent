@@ -68,6 +68,8 @@ class ChildReport(BaseModel):
     what_improved: str
     what_needs_help: str
     what_to_do: str
+    # G14 · bài kiểm tra ở lớp của con (giáo viên giao), có kết quả của con
+    class_tests: list[dict] = []
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -198,6 +200,8 @@ def child_report(
     from app.services.parent_reports import build_child_report
     report = build_child_report(db, learner)
     report["skills"] = [SkillImprovement(**sk) for sk in report["skills"]]
+    from app.services.groups import learner_class_tests
+    report["class_tests"] = learner_class_tests(db, learner.id, limit=10)
     return ChildReport(**report)
 
 

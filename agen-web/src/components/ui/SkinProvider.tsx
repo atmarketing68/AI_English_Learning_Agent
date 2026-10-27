@@ -11,7 +11,8 @@ import { skinForLearner, useSkinStore } from '@/store/skinStore';
 
 // SEO content pages are marketing: always the professional look.
 const ALWAYS_CLASSIC = ['/parent', '/admin', '/teacher', '/login', '/register', '/unsubscribe', '/certificate', '/receipt',
-  '/luyen-thi-ielts', '/luyen-thi-toeic', '/tieng-anh-cho-tre-em', '/tieng-anh-giao-tiep', '/lop-hoc-va-doanh-nghiep'];
+  '/luyen-thi-ielts', '/luyen-thi-toeic', '/tieng-anh-cho-tre-em', '/tieng-anh-giao-tiep', '/lop-hoc-va-doanh-nghiep',
+  '/cam-nang', '/huong-dan-su-dung'];
 
 export default function SkinProvider() {
   const pathname = usePathname();

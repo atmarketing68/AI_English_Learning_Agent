@@ -26,6 +26,16 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
   - Render: `APP_URL` = `<web>`; `ALLOWED_ORIGINS` = `<web>` (nhiều địa chỉ cách nhau bằng dấu phẩy); `API_PUBLIC_URL` = `<api>`.
   - Vercel: `NEXT_PUBLIC_API_URL` = `<api>/api/v1` → Redeploy.
   - Kiểm tra: mở `<web>`, đăng ký tài khoản mới không báo lỗi mạng.
+- [ ] **1.2b Gắn tên miền chính `aiagentenglish.com`** (đã chốt; code đã dùng làm địa chỉ gốc cho SEO, sitemap, ảnh chia sẻ)
+  1. Vercel → dự án web → **Settings → Domains** → Add `aiagentenglish.com` và `www.aiagentenglish.com` → chọn chuyển `www` về `aiagentenglish.com`.
+  2. Ở nơi mua tên miền (DNS): bản ghi **A** `@` → `76.76.21.21`; bản ghi **CNAME** `www` → `cname.vercel-dns.com` (đúng giá trị Vercel hiển thị ở bước 1). Chờ Vercel báo "Valid" (vài phút đến vài giờ).
+  3. (Nên làm) API riêng: Render → `agen-api` → **Settings → Custom Domains** → `api.aiagentenglish.com`; DNS thêm **CNAME** `api` → `agen-api.onrender.com`.
+  4. Render → Environment: `APP_URL=https://aiagentenglish.com`; `ALLOWED_ORIGINS=https://aiagentenglish.com,https://www.aiagentenglish.com` (giữ thêm địa chỉ `*.vercel.app` cũ nếu còn dùng để thử);
+     `API_PUBLIC_URL=https://api.aiagentenglish.com` (nếu làm bước 3).
+  5. Vercel → Environment: `NEXT_PUBLIC_API_URL=https://api.aiagentenglish.com/api/v1` (nếu làm bước 3), `NEXT_PUBLIC_SITE_URL=https://aiagentenglish.com` → Redeploy.
+  6. GitHub Secrets: `REMINDER_API_URL=https://api.aiagentenglish.com` (nếu đổi API).
+  7. Đổi các địa chỉ đã khai báo ở bên ngoài cho khớp: URL trả về/IPN của VNPay, MoMo; webhook Stripe; webhook Zalo OA; tên miền gửi email Resend (xác minh `aiagentenglish.com` để gửi từ `no-reply@aiagentenglish.com`).
+  Kiểm tra: mở `https://aiagentenglish.com` có khoá 🔒, đăng ký/đăng nhập không báo lỗi mạng, `https://aiagentenglish.com/sitemap.xml` hiện đúng tên miền.
 - [ ] **1.3 Tài khoản quản trị** — Render: `ADMIN_EMAILS` = email của bạn (nhiều email cách nhau dấu phẩy).
   Kiểm tra: đăng nhập email đó → vào `<web>/admin` thấy các tab Doanh thu, Chi phí AI, Đề thi, Podcast AI.
 - [ ] **1.4 Lịch chạy tự động (cron)**
@@ -94,15 +104,20 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
 
 ## Mức 4b — SEO (để Google lập chỉ mục đúng tên miền)
 
-- [ ] **4.6 Địa chỉ chính thức của web** — Vercel: `NEXT_PUBLIC_SITE_URL` = tên miền thật, có `https://`, không có `/` cuối (vd. `https://aiagentenglish.com`) → Redeploy.
-  Chưa đặt thì app dùng tên miền production Vercel tự cấp. Kiểm tra: mở `<web>/robots.txt` và `<web>/sitemap.xml` — địa chỉ trong đó phải là tên miền thật.
+- [x] **4.6 Địa chỉ chính thức của web** — mặc định đã là `https://aiagentenglish.com` trong code; chỉ đặt `NEXT_PUBLIC_SITE_URL` trên Vercel nếu muốn tạm dùng tên miền khác.
+  Kiểm tra sau khi gắn tên miền (1.2b): `https://aiagentenglish.com/robots.txt` và `/sitemap.xml` hiện đúng tên miền.
 - [ ] **4.7 Google Search Console** — search.google.com/search-console → Thêm tài sản (*Tiền tố URL* = tên miền ở 4.6) → chọn xác minh bằng **Thẻ HTML** → chép giá trị `content="…"` →
   Vercel: `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` = giá trị đó → Redeploy → bấm Xác minh. Sau đó: **Sơ đồ trang web** → gửi `sitemap.xml`; **Kiểm tra URL** từng trang ở 4.8 → Yêu cầu lập chỉ mục.
   (Nếu xác minh bằng DNS ở nhà cung cấp tên miền thì bỏ qua biến này.)
 - [ ] **4.8 Các trang nội dung đã có** (có trong sitemap): `/luyen-thi-ielts`, `/luyen-thi-toeic`, `/tieng-anh-cho-tre-em`, `/tieng-anh-giao-tiep`, `/lop-hoc-va-doanh-nghiep`.
   Sửa chữ: `agen-web/src/lib/seo/pages.ts` (tiêu đề, mô tả, nội dung, hỏi đáp). Ảnh chia sẻ mạng xã hội: `agen-web/public/og.png` (1200×630) — thay bằng ảnh thương hiệu nếu muốn.
   Khu vực sau đăng nhập đã chặn trong `robots.txt`; trang Đăng nhập/Đăng ký đặt `noindex`.
-- Nên quyết sớm (ảnh hưởng uy tín với Google): số liệu "1.247 học viên", "4,9 sao", "98% hài lòng" và 3 lời đánh giá trên landing — nếu chưa có thật nên thay bằng số liệu thật hoặc bỏ. Code **không** khai báo điểm đánh giá (AggregateRating) cho Google vì chưa có nguồn thật.
+- [ ] **4.9 Gửi trang mới cho Google** (sau 4.7): trong Search Console → Kiểm tra URL → Yêu cầu lập chỉ mục cho `/cam-nang`, `/huong-dan-su-dung`
+  và 4 trang con `/huong-dan-su-dung/nguoi-hoc|hoc-sinh|phu-huynh|giao-vien` (sitemap đã có sẵn). Kiểm tra: trang hiện ảnh chụp, không lỗi 404.
+- [ ] **4.10 Gắn nguồn cho link quảng cáo** để bảng "Giữ chân" (admin) biết người dùng đến từ đâu: thêm `?utm_source=<tên>` vào link chia sẻ,
+  ví dụ `https://aiagentenglish.com/?utm_source=facebook`, `…?utm_source=zalo`, `…?utm_source=tiktok`. Kiểm tra: đăng ký thử qua link → admin → tab Giữ chân → bảng Nguồn.
+- Landing đã bỏ các số liệu/lời đánh giá chưa có thật. Khi có đánh giá thật của học viên (có đồng ý), sửa `agen-web/src/components/landing/LandingPage.tsx`.
+- Ảnh hướng dẫn (`agen-web/public/guides/*.webp`) chụp từ dữ liệu mẫu; khi giao diện đổi nhiều, nhờ Claude chụp lại (xem `docs/HANDOFF.md` mục 6).
 
 ## Mức 5 — Kiểm soát chi phí AI (khuyên đặt khi có người dùng thật)
 

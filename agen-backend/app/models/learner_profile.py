@@ -59,6 +59,9 @@ class LearnerProfile(Base):
     # Streak freeze: each one covers a single missed day (max 2 held at once).
     streak_freezes = Column(Integer, default=1, server_default="1", nullable=False)
     streak_freeze_used_at = Column(DateTime, nullable=True)
+    # G14 · sửa chuỗi trong 24 giờ: chuỗi vừa mất (giá trị + ngày mất, giờ VN) để có thể mua lại bằng đá quý
+    streak_lost_value = Column(Integer, nullable=True)
+    streak_lost_on = Column(String(10), nullable=True)
     # Weekly goal: number of study days per Mon–Sun week; reward claimed once per ISO week.
     weekly_goal_days = Column(Integer, default=5, server_default="5", nullable=False)
     weekly_goal_claimed_week = Column(String(10), nullable=True)   # e.g. "2026-W44"

@@ -105,7 +105,11 @@ export type AnalyticsEvent =
   // G13
   | 'class_test_created'
   | 'class_test_started'
-  | 'speaking_exam_generated';
+  | 'speaking_exam_generated'
+  // G14
+  | 'streak_repaired'
+  | 'class_test_repeat_set'
+  | 'class_test_sheet_printed';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

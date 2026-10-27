@@ -274,23 +274,29 @@ Landing tách thành server page (`app/page.tsx` → metadata, canonical, Open G
 (`lib/seo/pages.ts`, khung `components/seo/SeoLanding.tsx`, có BreadcrumbList + FAQPage), mục "Học theo mục tiêu" trên landing và cột liên kết ở chân trang
 (`components/landing/SiteChrome.tsx`). Ảnh chia sẻ `public/og.png`. Địa chỉ gốc: `NEXT_PUBLIC_SITE_URL` (mục 4.6–4.8 trong `docs/VIEC_CAN_LAM.md`).
 
-## G14 — gợi ý tiếp theo (theo thứ tự ưu tiên)
+## G14 — Tên miền, cẩm nang, hướng dẫn sử dụng có ảnh, giữ chân, tính năng học còn treo: hoàn tất trên code
 
-Sản phẩm đã đủ rộng (G1–G13); chỗ thiếu lớn nhất giờ là **để ra mắt và vận hành an toàn**, rồi mới tới tính năng học mới.
+- **Tên miền** `aiagentenglish.com` là mặc định (`lib/seo/site.ts`, `NEXT_PUBLIC_SITE_URL` ghi đè); các bước gắn DNS ở `VIEC_CAN_LAM.md` mục 1.2b.
+- **Cẩm nang** `/cam-nang` + 8 bài dài (IELTS, TOEIC, luyện nói, từ vựng, phụ huynh, CEFR): dữ liệu `lib/seo/articles*.ts`, khung `components/seo/ArticleView.tsx`.
+- **Hướng dẫn sử dụng** `/huong-dan-su-dung` cho 4 đối tượng (người học, học sinh, phụ huynh, giáo viên), 31 ảnh chụp thật ở `public/guides/*.webp`:
+  dữ liệu `lib/seo/guides.ts`, khung `components/seo/GuideView.tsx`. Menu landing có "Cẩm nang", "Hướng dẫn" (+ menu điện thoại, cột chân trang).
+- **Landing**: bỏ số liệu/lời đánh giá chưa có thật (1.247 học viên, 4,9 sao, 98%, 3 lời chứng thực) → thay bằng thông tin đúng về sản phẩm
+  và mục "Dành cho ai" dẫn sang hướng dẫn. Khi có đánh giá thật thì thêm lại.
+- **Giữ chân (admin, tab "Giữ chân")**: `services/retention.py` — quay lại ngày 1/7/30 theo tuần đăng ký, phễu 30 ngày, nguồn 90 ngày
+  (`User.signup_source` lấy từ utm_source/ref/referrer lần đầu).
+- **Tính năng học**: bài kiểm tra lớp lặp hằng tháng (`GroupTest.repeat`, `roll_recurring_tests` trong cron giờ) · biểu đồ Speaking 4 tiêu chí ·
+  phụ huynh xem bài kiểm tra lớp của con · in bảng điểm `/teacher/<nhóm>/tests/<id>` · sửa chuỗi ngày 50 💎 (`streak_service.repair_streak`).
 
-1. **Trang pháp lý công khai** — Chính sách bảo mật, Điều khoản sử dụng, Chính sách hoàn tiền, Liên hệ (thông tin doanh nghiệp).
-   Bắt buộc khi đăng ký cổng VNPay/MoMo, lên Google Play/App Store, và giúp SEO/uy tín. API xuất/xoá dữ liệu đã có (`/privacy/*`), chỉ thiếu trang.
-2. **Theo dõi lỗi & sao lưu** — Sentry (hoặc tương đương) cho web + API, tự tắt khi chưa có khoá; kiểm tra định kỳ sao lưu Postgres trên Render.
-3. **Test giao diện tự động trong CI** — chạy vài kịch bản Playwright chính (đăng ký → học thử → làm bài → thi thử) trên mỗi PR.
-4. **Blog / hướng dẫn học cho SEO** — bài dài theo từ khoá (cấu trúc đề IELTS, mẹo TOEIC Part 5…), trang danh mục, liên kết sang 5 trang mục tiêu.
-5. **Bảng phân tích giữ chân** cho admin — tỉ lệ quay lại ngày 1/7/30, phễu đăng ký → trả phí, theo nguồn truy cập.
-6. Tính năng học còn treo: kiểm tra định kỳ tự lặp theo tháng · biểu đồ Speaking 4 tiêu chí · phụ huynh xem bài kiểm tra lớp của con ·
-   PDF bảng điểm bài kiểm tra · sửa chuỗi ngày trong 24 giờ.
-7. Khi có tài liệu từ nhà cung cấp: hoá đơn VNPT/MISA. Khi có máy build: phát hành app Android/iOS (`docs/MOBILE_APP.md`).
+## G15 — gợi ý tiếp theo (theo thứ tự ưu tiên)
+
+1. **Trang pháp lý công khai** — Chính sách bảo mật, Điều khoản, Hoàn tiền, Liên hệ (bắt buộc cho VNPay/MoMo, Google Play/App Store).
+2. **Theo dõi lỗi & sao lưu** — Sentry cho web + API (tự tắt khi chưa có khoá); kiểm tra sao lưu Postgres.
+3. **Test giao diện tự động trong CI** — vài kịch bản Playwright chính trên mỗi PR.
+4. Thu lời đánh giá thật trong app (sau 7 ngày học) để đưa lên landing.
+5. Khi có tài liệu nhà cung cấp: hoá đơn VNPT/MISA. Khi có máy build: phát hành app Android/iOS (`docs/MOBILE_APP.md`).
 
 ## Câu hỏi còn mở với chủ dự án
 
-- Số liệu trên landing ("1.247 học viên", "4,9 sao", lời đánh giá) là thật hay cần thay?
 - Bảng giá trên landing: giữ hay ẩn cho tới khi có thanh toán thật? Giá 99K/tháng – 799K/năm?
 - Dịch vụ chấm phát âm đến từng âm (G2 · hạng mục 9, xem `docs/G2_CHAM_PHAT_AM_SO_SANH.md`) và cổng thanh toán (G3).
 - Thêm kênh nhắc qua Zalo OA? Có làm "học thử không cần đăng ký"?

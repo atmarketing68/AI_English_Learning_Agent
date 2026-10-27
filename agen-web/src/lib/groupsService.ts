@@ -130,6 +130,8 @@ export interface MemberDetail {
   feedback: TeacherFeedback[];
   /** G13 · IELTS writing bands over time (teacher rubric when graded, else AI) */
   rubric_history?: RubricPoint[];
+  /** G14 · IELTS Speaking mock bands over time */
+  speaking_history?: RubricPoint[];
   tests?: ClassTest[];
   group: GroupInfo;
   certificates: { code: string; title: string; issued_at: string }[];
@@ -243,6 +245,10 @@ export interface ClassTest {
   avg_estimate: number | null;
   created_at: string;
   mine?: TestScore;
+  /** G14 · "monthly" → next month's test is created automatically */
+  repeat?: 'monthly' | null;
+  next_test_id?: string | null;
+  group_name?: string;
 }
 
 export interface ClassTestResults extends ClassTest {
@@ -257,16 +263,20 @@ export interface RubricPoint {
   submission_id: string;
   title: string;
   created_at: string;
-  source: 'teacher' | 'ai';
+  source: 'teacher' | 'ai' | 'estimate';
   overall: number;
-  criteria: Partial<IeltsRubric>;
+  criteria: Record<string, number>;
 }
 
 export const getTestCatalogue = async (): Promise<TestCatalogueItem[]> => (await api.get('/groups/tests/catalogue')).data;
 export const getGroupTests = async (groupId: string): Promise<ClassTest[]> => (await api.get(`/groups/${groupId}/tests`)).data;
-export const createGroupTest = async (groupId: string, payload: { kind: ClassTestKind; exam_id: string; due_on: string; opens_on?: string | null; title?: string | null; note?: string | null }): Promise<ClassTest> =>
+export const createGroupTest = async (groupId: string, payload: { kind: ClassTestKind; exam_id: string; due_on: string; opens_on?: string | null; title?: string | null; note?: string | null; repeat?: 'monthly' | null }): Promise<ClassTest> =>
   (await api.post(`/groups/${groupId}/tests`, payload)).data;
 export const getGroupTestResults = async (groupId: string, testId: string): Promise<ClassTestResults> => (await api.get(`/groups/${groupId}/tests/${testId}`)).data;
+export const setGroupTestRepeat = async (groupId: string, testId: string, repeat: 'monthly' | null): Promise<ClassTest> =>
+  (await api.post(`/groups/${groupId}/tests/${testId}/repeat`, { repeat })).data;
+export const getGroupTestSheet = async (groupId: string, testId: string): Promise<ClassTestResults & { group_name: string; group_code: string; teacher_name: string }> =>
+  (await api.get(`/groups/${groupId}/tests/${testId}/sheet`)).data;
 export const deleteGroupTest = async (groupId: string, testId: string): Promise<void> => { await api.delete(`/groups/${groupId}/tests/${testId}`); };
 
 /** Where a learner takes a class test (the id travels in ?test= so it is counted and does not use the free daily attempt). */

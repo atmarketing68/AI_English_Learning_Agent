@@ -225,6 +225,7 @@ export default function MemberDetailPage() {
         </div>
 
         {!!d.rubric_history?.length && <RubricChart points={d.rubric_history} onOpen={openWriting} />}
+        {!!d.speaking_history?.length && <RubricChart kind="speaking" points={d.speaking_history} onOpen={() => setTab('speaking')} />}
 
         {error && <div className="alert-error" style={{ margin: '12px 0' }}><CircleAlert size={16} /> {error}</div>}
         {writing && <WritingView key={writing.id + (writing.teacher_scored_at ?? '')} w={writing} onClose={() => setWriting(null)} onComment={() => comment({ type: 'writing', id: writing.id, label: writing.prompt_title })} onGrade={gradeWriting} />}

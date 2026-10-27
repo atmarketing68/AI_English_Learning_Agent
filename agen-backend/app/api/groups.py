@@ -497,6 +497,11 @@ class GroupTestIn(BaseModel):
     note: Optional[str] = Field(default=None, max_length=500)
     opens_on: Optional[date] = None
     due_on: date
+    repeat: Optional[str] = Field(default=None, pattern="^monthly$")   # G14 · lặp lại hằng tháng
+
+
+class TestRepeatIn(BaseModel):
+    repeat: Optional[str] = Field(default=None, pattern="^monthly$")
 
 
 @router.get("/tests/catalogue")
@@ -524,7 +529,7 @@ def create_test(group_id: str, payload: GroupTestIn, current_user: User = Depend
     except svc.GroupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     try:
-        t = svc.create_test(db, g, payload.kind, payload.exam_id, payload.opens_on, payload.due_on, payload.note, payload.title)
+        t = svc.create_test(db, g, payload.kind, payload.exam_id, payload.opens_on, payload.due_on, payload.note, payload.title, payload.repeat)
     except svc.GroupError as exc:
         db.rollback()
         raise HTTPException(status_code=400, detail=str(exc))
@@ -540,6 +545,31 @@ def test_results(group_id: str, test_id: str, current_user: User = Depends(get_c
         return svc.test_results(db, g, test_id)
     except svc.GroupError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/{group_id}/tests/{test_id}/repeat")
+def set_test_repeat(group_id: str, test_id: str, payload: TestRepeatIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G14 · Bật / tắt lặp lại hằng tháng."""
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+        t = svc.set_test_repeat(db, g, test_id, payload.repeat)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    db.commit()
+    return svc.test_view(db, t, [m.learner_id for m in svc.members_in_order(db, g.id)])
+
+
+@router.get("/{group_id}/tests/{test_id}/sheet")
+def test_sheet(group_id: str, test_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G14 · Bảng điểm để in: kết quả + tên lớp, giáo viên."""
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+        res = svc.test_results(db, g, test_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {**res, "group_name": g.name, "group_code": g.code, "teacher_name": current_user.full_name or "Giáo viên"}
 
 
 @router.delete("/{group_id}/tests/{test_id}", status_code=204)

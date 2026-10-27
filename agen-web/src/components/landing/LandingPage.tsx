@@ -5,16 +5,16 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
   ArrowRight, BadgeCheck, BookOpen, Brain, Briefcase, Check, ChevronDown, ChevronRight,
-  ClipboardCheck, Clock, Coffee, Crown, Flame, GraduationCap, Headphones, Heart, Hotel,
-  MessageCircle, Mic, PenLine, Plane, Presentation, Quote, Rocket, Route, ShieldCheck,
-  Smartphone, Sparkles, Star, Target, TrendingUp, Trophy, UserPlus, Users, Utensils, Zap,
+  ClipboardCheck, Clock, Coffee, Crown, Flame, GraduationCap, Headphones, Hotel,
+  MessageCircle, Mic, PenLine, Plane, Presentation, Rocket, Route, ShieldCheck,
+  Smartphone, Sparkles, Target, TrendingUp, Trophy, UserPlus, Users, Utensils, Zap,
   type LucideIcon,
 } from 'lucide-react';
 import GuestTrialButton from '@/components/GuestTrialButton';
 import HeroScene3D from '@/components/landing/HeroScene3D';
 import { SiteFooter, SiteHeader } from '@/components/landing/SiteChrome';
 import { LANDING_FAQS as FAQS } from '@/lib/seo/landingFaqs';
-import { SEO_PAGES } from '@/lib/seo/pages';
+import { SEO_PAGES, type SeoIcon } from '@/lib/seo/pages';
 import { SEO_ICONS } from '@/components/seo/seoIcons';
 
 // ─── Palette for icon tiles ──────────────────────────────────────────────────
@@ -30,9 +30,9 @@ type Tone = keyof typeof G;
 
 // ─── Content ─────────────────────────────────────────────────────────────────
 const STATS: { value: number; decimals?: number; suffix?: string; label: string; icon: LucideIcon; tone: Tone }[] = [
-  { value: 1247, label: 'Học viên đang học', icon: Users, tone: 'blue' },
-  { value: 4.9, decimals: 1, suffix: '/5', label: 'Đánh giá trung bình', icon: Star, tone: 'orange' },
-  { value: 98, suffix: '%', label: 'Hài lòng sau 30 ngày', icon: Heart, tone: 'pink' },
+  { value: 4, label: 'Kỹ năng Nghe – Nói – Đọc – Viết trong một lộ trình', icon: Target, tone: 'blue' },
+  { value: 10, suffix: ' phút', label: 'Kiểm tra trình độ, có lộ trình riêng ngay', icon: Clock, tone: 'orange' },
+  { value: 24, suffix: '/7', label: 'Gia sư AI Bo giải đáp bằng tiếng Việt', icon: MessageCircle, tone: 'pink' },
 ];
 
 const SKILLS: { icon: LucideIcon; tone: Tone; title: string; desc: string }[] = [
@@ -67,10 +67,12 @@ const STEPS: { icon: LucideIcon; tone: Tone; title: string; desc: string }[] = [
   { icon: Rocket, tone: 'pink', title: 'Nhận lộ trình và học ngay', desc: 'Bài học được tạo riêng theo mục tiêu và thời gian của bạn.' },
 ];
 
-const TESTIMONIALS: { name: string; meta: string; quote: string; tone: Tone }[] = [
-  { name: 'Minh Anh', meta: '16 tuổi · B2', quote: 'AI AGENT ENGLISH giúp mình từ B1 lên B2 chỉ trong 2 tháng. Phần luyện nói với AI là phần mình thích nhất.', tone: 'pink' },
-  { name: 'Bố của Hùng', meta: 'Phụ huynh', quote: 'Báo cáo hằng tuần rất rõ ràng. Biết chính xác con cần cải thiện kỹ năng nào, không phải đoán mò.', tone: 'blue' },
-  { name: 'Lan Phương', meta: '28 tuổi · B1', quote: '15 phút mỗi ngày với AI AGENT ENGLISH hiệu quả hơn cả buổi học 2 tiếng. Rất hợp với người đi làm.', tone: 'green' },
+// Who it is for — each card opens the matching usage guide (no invented testimonials or numbers on the landing page).
+const AUDIENCES: { slug: string; icon: SeoIcon; title: string; desc: string }[] = [
+  { slug: 'nguoi-hoc', icon: 'talk', title: 'Người học & người đi làm', desc: 'Lộ trình theo trình độ, 15 phút mỗi ngày, luyện nói với AI, chấm viết theo band và thi thử IELTS/TOEIC.' },
+  { slug: 'hoc-sinh', icon: 'kids', title: 'Học sinh', desc: 'Giao diện vui cùng Bo: đá quý, Blitz 60 giây, giải đấu tuần — tạo thói quen học mỗi ngày.' },
+  { slug: 'phu-huynh', icon: 'ielts', title: 'Phụ huynh', desc: 'Liên kết tài khoản của con, báo cáo hằng tuần dễ hiểu, được nhắc khi con nghỉ học.' },
+  { slug: 'giao-vien', icon: 'class', title: 'Giáo viên & trung tâm', desc: 'Tạo lớp, giao bài và bài kiểm tra, xem tiến bộ từng học viên, in bảng điểm.' },
 ];
 
 const PLANS = [
@@ -202,17 +204,12 @@ export default function LandingPage() {
               </Link>
             </div>
             <div className="hero-trust">
-              <div className="avatar-stack" aria-hidden="true">
-                {(['pink', 'blue', 'green', 'orange'] as Tone[]).map((t, i) => (
-                  <span key={t} style={{ background: `linear-gradient(135deg, ${G[t][0]}, ${G[t][1]})` }}>{'MLHT'[i]}</span>
-                ))}
-              </div>
+              <span className="lp-icon" style={{ width: 40, height: 40, borderRadius: 12, background: `linear-gradient(135deg, ${G.green[0]}, ${G.green[1]})` }} aria-hidden="true">
+                <ShieldCheck size={20} color="#fff" />
+              </span>
               <div>
-                <div className="stars" aria-label="4.9 trên 5 sao">
-                  {Array.from({ length: 5 }).map((_, i) => <Star key={i} size={14} fill="#F59E0B" color="#F59E0B" />)}
-                  <b>4.9</b>
-                </div>
-                <div className="hero-trust-text">1,247 học viên đang học cùng AI AGENT ENGLISH</div>
+                <div className="stars"><b>Miễn phí để bắt đầu</b></div>
+                <div className="hero-trust-text">Học thử ngay, không cần đăng ký</div>
               </div>
             </div>
           </motion.div>
@@ -371,26 +368,25 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── TESTIMONIALS ─────────────────────────────────────────────── */}
+      {/* ─── WHO IT IS FOR (links to the usage guides) ─────────────── */}
       <section className="lp-section">
-        <SectionHeading icon={Heart} eyebrow="Câu chuyện thật" title="Học viên nói gì về AI AGENT ENGLISH?" />
-        <div className="grid-3" style={{ gap: 20 }}>
-          {TESTIMONIALS.map((t, i) => (
-            <motion.figure key={t.name} {...stagger(i)} className="lp-card lp-quote">
-              <Quote size={28} color={G[t.tone][0]} style={{ opacity: 0.9 }} />
-              <div className="stars" aria-label="5 sao">
-                {Array.from({ length: 5 }).map((_, k) => <Star key={k} size={15} fill="#F59E0B" color="#F59E0B" />)}
-              </div>
-              <blockquote>{t.quote}</blockquote>
-              <figcaption>
-                <span className="lp-avatar" style={{ background: `linear-gradient(135deg, ${G[t.tone][0]}, ${G[t.tone][1]})` }}>{t.name.charAt(0)}</span>
-                <span>
-                  <b>{t.name}</b>
-                  <small>{t.meta}</small>
-                </span>
-              </figcaption>
-            </motion.figure>
-          ))}
+        <SectionHeading icon={Users} eyebrow="Dành cho ai" title="Một ứng dụng cho cả nhà và cả lớp" sub="Chọn vai trò để xem hướng dẫn từng bước, có ảnh chụp màn hình thật." />
+        <div className="guide-hub">
+          {AUDIENCES.map((a, i) => {
+            const { icon: Icon, colors } = SEO_ICONS[a.icon];
+            return (
+              <motion.div key={a.slug} {...stagger(i)}>
+                <Link href={`/huong-dan-su-dung/${a.slug}`} className="lp-card lp-goal">
+                  <span className="lp-icon" style={{ width: 48, height: 48, borderRadius: 14, background: `linear-gradient(135deg, ${colors[0]}, ${colors[1]})` }}>
+                    <Icon size={23} strokeWidth={2} color="#fff" />
+                  </span>
+                  <h3>{a.title}</h3>
+                  <p>{a.desc}</p>
+                  <span className="lp-goal-more">Xem hướng dẫn <ChevronRight size={15} /></span>
+                </Link>
+              </motion.div>
+            );
+          })}
         </div>
       </section>
 
