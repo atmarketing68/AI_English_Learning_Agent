@@ -2975,7 +2975,8 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 }
 @media (max-width: 480px) { .lp-hero-scene { min-height: 340px; } }
 @media (prefers-reduced-motion: reduce) {
-  .h3d *, .h3d *::after { animation: none !important; }
+  /* Keep the calm, slow motion (orbit, rings, floating cards); stop only the large/fast movements. */
+  .h3d-floor, .h3d-letter, .h3d-climber, .h3d-xp { animation: none !important; }
   .h3d-xp { opacity: 1; }
 }
 
