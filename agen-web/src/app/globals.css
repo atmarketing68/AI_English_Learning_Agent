@@ -750,7 +750,12 @@ a:hover { opacity: 0.8; }
 .lp-card:hover .lp-icon { transform: scale(1.08) rotate(-4deg); }
 
 /* Stats strip: straddles the bottom edge of the hero and floats gently */
-.lp-stats { padding-top: 0; padding-bottom: 56px; margin-top: clamp(-84px, -6vw, -44px); z-index: 3; }
+/* The part above --ov overlaps the hero (transparent); below it the strip uses the same tone as the section that follows. */
+.lp-stats {
+  --ov: clamp(44px, 6vw, 84px);
+  padding-top: 0; padding-bottom: 56px; margin-top: calc(var(--ov) * -1); z-index: 3;
+  background: linear-gradient(180deg, transparent var(--ov), var(--bg-base) var(--ov));
+}
 .lp-stats .lp-stat {
   background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
   -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
