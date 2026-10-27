@@ -10,6 +10,8 @@ export interface StreakInfo {
   protected: boolean;          // missed days will be covered by freezes
   missed_days: number;
   freeze_used_today: boolean;
+  /** G14 · the streak lost yesterday can be bought back today */
+  repair?: { lost: number; restored: number; cost: number } | null;
 }
 
 export interface Quest {
@@ -58,6 +60,12 @@ export interface ClaimResult {
 // ── API ──────────────────────────────────────────────────────────────────────
 export async function getEngagement(): Promise<Engagement> {
   const { data } = await api.get('/engagement/today');
+  return data;
+}
+
+/** G14 · Sửa chuỗi trong 24 giờ bằng đá quý. */
+export async function repairStreak(): Promise<Engagement> {
+  const { data } = await api.post('/engagement/streak/repair');
   return data;
 }
 

@@ -163,11 +163,38 @@ export interface AdminOrder {
   seats: number;
   months: number;
   amount_vnd: number;
-  status: 'pending' | 'paid' | 'failed';
+  status: 'pending' | 'paid' | 'failed' | 'refunded';
   invoice: { company_name: string; tax_code: string; address: string; email: string } | null;
   invoice_issued_at: string | null;
   created_at: string;
   paid_at: string | null;
+  currency?: 'VND' | 'USD';
+  amount_foreign?: number | null;
+  refunded_at?: string | null;
+  refund_note?: string | null;
+  /** G12 · Viettel S-Invoice */
+  einvoice_no?: string | null;
+  einvoice_lookup_code?: string | null;
+  einvoice_error?: string | null;
+}
+
+export interface EInvoiceStatus { enabled: boolean; provider: string | null; auto: string; tax_percent: number; template: string | null; series: string | null }
+
+export async function getEInvoiceStatus(): Promise<EInvoiceStatus> {
+  const res = await api.get('/admin/einvoice/status');
+  return res.data;
+}
+
+/** G12 · Issue the e-invoice of a paid order on Viettel S-Invoice. */
+export async function issueEInvoice(orderId: string): Promise<AdminOrder> {
+  const res = await api.post(`/admin/revenue/orders/${orderId}/einvoice`);
+  return res.data;
+}
+
+/** G11 · Refund a paid order (Stripe through the API unless `manual`; other gateways: record after refunding on the gateway). */
+export async function refundOrder(orderId: string, note: string, manual = false): Promise<AdminOrder> {
+  const res = await api.post(`/admin/revenue/orders/${orderId}/refund`, { note, manual });
+  return res.data;
 }
 
 export async function listOrders(invoiceOnly = false, limit = 100): Promise<AdminOrder[]> {
@@ -218,4 +245,135 @@ export async function setGeneratedExamStatus(id: string, status: 'draft' | 'appr
 
 export async function deleteGeneratedExam(id: string): Promise<void> {
   await api.delete(`/admin/exams/${id}`);
+}
+
+// ── G14 · Giữ chân học viên ───────────────────────────────────────────────────
+export interface RetentionCohort { week_start: string; signups: number; d1: number | null; d7: number | null; d30: number | null; d1_eligible: number; d7_eligible: number; d30_eligible: number }
+export interface RetentionSummary {
+  generated_for: string;
+  cohorts: RetentionCohort[];
+  funnel: { days: number; steps: { key: string; label: string; count: number; pct: number | null }[] };
+  sources: { source: string; signups: number; activated: number; paid: number; activation_pct: number | null; paid_pct: number | null }[];
+  windows: Record<'d1' | 'd7' | 'd30', string>;
+}
+export const getRetentionSummary = async (weeks = 8): Promise<RetentionSummary> => (await api.get(`/admin/retention/summary?weeks=${weeks}`)).data;
+
+// ── G13 · Đề thi thử Speaking do AI sinh ──────────────────────────────────────
+export interface GeneratedSpeakingExam {
+  id: string;
+  public_id: string;
+  exam: 'ielts' | 'toeic';
+  title: string;
+  topic: string | null;
+  status: 'draft' | 'approved' | 'rejected';
+  tasks: number;
+  eval_score: number | null;
+  eval_flagged: boolean | null;
+  created_at: string;
+  approved_at: string | null;
+}
+
+export interface SpeakingExamContent {
+  title: string;
+  description: string;
+  minutes: number;
+  tasks: { id: string; part: string; kind: string; prompt: string; prep_seconds: number; answer_seconds: number; tip_vi: string; reference: string | null; cue: string[] }[];
+}
+
+export const listGeneratedSpeakingExams = async (): Promise<GeneratedSpeakingExam[]> => (await api.get('/admin/speaking-exams')).data;
+export const generateSpeakingExam = async (payload: { exam: 'ielts' | 'toeic'; topic?: string; level?: string }): Promise<GeneratedSpeakingExam> =>
+  (await api.post('/admin/speaking-exams/generate', payload)).data;
+export const getGeneratedSpeakingExam = async (id: string): Promise<{ meta: GeneratedSpeakingExam; exam: SpeakingExamContent }> => (await api.get(`/admin/speaking-exams/${id}`)).data;
+export const setGeneratedSpeakingExamStatus = async (id: string, status: 'draft' | 'approved' | 'rejected'): Promise<GeneratedSpeakingExam> =>
+  (await api.post(`/admin/speaking-exams/${id}/status`, { status })).data;
+export const deleteGeneratedSpeakingExam = async (id: string): Promise<void> => { await api.delete(`/admin/speaking-exams/${id}`); };
+
+// ── G10 · Chi phí AI theo người dùng ──────────────────────────────────────────
+export interface AiUsageBucket { key: string; calls: number; cost_usd: number }
+
+export interface AiUsageSummary {
+  days: number;
+  usd_to_vnd: number;
+  today_usd: number;
+  week_usd: number;
+  period_usd: number;
+  period_vnd: number;
+  calls: number;
+  users_with_usage: number;
+  avg_per_user_usd: number;
+  limits: { free_usd: number; premium_usd: number };
+  by_day: AiUsageBucket[];
+  by_feature: AiUsageBucket[];
+  by_provider: AiUsageBucket[];
+  top_users: { user_id: string; email: string | null; role: string | null; premium: boolean; calls: number; cost_usd: number; cost_vnd: number }[];
+  /** G11 · today's spend against the alert thresholds */
+  /** G12 · cheaper model once today's spend passes the threshold */
+  economy?: { threshold_usd: number; active: boolean; models: Record<string, { normal: string; economy: string }> };
+  alerts?: { today_usd: number; total_threshold_usd: number; user_threshold_usd: number; total_over: boolean; users_over: { user_id: string; email: string | null; cost_usd: number }[] };
+}
+
+export async function getAiUsageSummary(days = 30): Promise<AiUsageSummary> {
+  const res = await api.get(`/admin/ai-usage/summary?days=${days}`);
+  return res.data;
+}
+
+// ── G11 · Podcast do AI sinh ──────────────────────────────────────────────────
+export interface GeneratedEpisode {
+  id: string;
+  public_id: string;
+  level: string;
+  topic: string | null;
+  title: string;
+  title_vi: string;
+  status: 'draft' | 'approved' | 'rejected';
+  lines: number;
+  questions: number;
+  youtube_id: string | null;
+  video_start: number | null;
+  video_end: number | null;
+  eval_score: number | null;
+  eval_flagged: boolean | null;
+  created_at: string;
+  approved_at: string | null;
+  /** G12 · made by the scheduled Content Factory */
+  auto?: boolean;
+}
+
+export interface GeneratedEpisodeFull {
+  meta: GeneratedEpisode;
+  episode: {
+    title: string; title_vi: string; description_vi: string; topic: string; minutes: number;
+    lines: { speaker: string; text: string; vi: string }[];
+    vocab: { word: string; definition: string }[];
+    questions: { id: string; prompt: string; options: string[]; answer: number; explanation_vi: string }[];
+  };
+}
+
+export async function listGeneratedPodcasts(status?: string): Promise<GeneratedEpisode[]> {
+  const res = await api.get('/admin/podcasts', { params: status ? { status } : {} });
+  return res.data;
+}
+
+export async function generatePodcast(payload: { level: string; topic?: string; style?: 'conversation' | 'talk'; auto_approve?: boolean }): Promise<GeneratedEpisode> {
+  const res = await api.post('/admin/podcasts/generate', payload);
+  return res.data;
+}
+
+export async function getGeneratedPodcast(id: string): Promise<GeneratedEpisodeFull> {
+  const res = await api.get(`/admin/podcasts/${id}`);
+  return res.data;
+}
+
+export async function setGeneratedPodcastStatus(id: string, status: 'draft' | 'approved' | 'rejected'): Promise<GeneratedEpisode> {
+  const res = await api.post(`/admin/podcasts/${id}/status`, { status });
+  return res.data;
+}
+
+export async function setGeneratedPodcastVideo(id: string, youtube: string | null, start?: number | null, end?: number | null): Promise<GeneratedEpisode> {
+  const res = await api.post(`/admin/podcasts/${id}/video`, { youtube, start: start ?? null, end: end ?? null });
+  return res.data;
+}
+
+export async function deleteGeneratedPodcast(id: string): Promise<void> {
+  await api.delete(`/admin/podcasts/${id}`);
 }

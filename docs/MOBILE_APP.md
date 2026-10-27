@@ -72,6 +72,9 @@ export async function registerNativePush() {
 }
 ```
 
-4. Khi đăng xuất, gọi `DELETE /notifications/device-tokens` với cùng token để thiết bị không nhận nhắc của tài khoản cũ.
+   **G13: đoạn trên đã có sẵn trong web** (`agen-web/src/lib/nativePush.ts`, gọi qua cầu nối `window.Capacitor` nên web
+   không cần cài gói npm): học viên được đăng ký tự động sau khi đăng nhập (nếu đã cho phép), phụ huynh bật ở thẻ
+   "Thông báo trên điện thoại" trên trang Phụ huynh; chạm thông báo mở trang trong `data.url`. Bạn chỉ cần cài plugin ở bước 1.
+4. Khi đăng xuất, gọi `DELETE /notifications/device-tokens` với cùng token để thiết bị không nhận nhắc của tài khoản cũ (G13: web đã tự làm khi bấm Đăng xuất).
 5. Thử: Render → Shell → `python -c "from app.services import fcm; print(fcm.enabled())"` phải in `True`; rồi chạy workflow
    *Learning reminders* — học viên có token sẽ nhận thông báo gốc, log ghi `agen.fcm` nếu lỗi.

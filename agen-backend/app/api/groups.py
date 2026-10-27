@@ -96,10 +96,41 @@ class LearnerGroupOut(BaseModel):
     group: GroupOut
     owner_name: str
     assignments: list[AssignmentOut]
+    tests: list[dict] = []            # G13 · class tests with the learner's own result ("mine")
 
 
 class LearnerHome(BaseModel):
     groups: list[LearnerGroupOut]
+
+
+class FeedbackIn(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+    target_type: str = Field(default="general", pattern="^(general|lesson|writing|exam|speaking_exam)$")
+    target_id: Optional[str] = Field(default=None, max_length=36)
+    target_label: Optional[str] = Field(default=None, max_length=200)
+
+
+class WritingGradeIn(BaseModel):
+    score: Optional[float] = Field(default=None, ge=0, le=100)     # None clears the teacher grade
+    band: Optional[float] = Field(default=None, ge=0, le=200)
+    comment: Optional[str] = Field(default=None, max_length=2000)
+    rubric: Optional[dict[str, float]] = None                      # G12 · IELTS: task, coherence, lexical, grammar
+
+
+class CertificateIn(BaseModel):
+    title: str = Field(min_length=3, max_length=200)
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
+class LearnerFeedbackOut(BaseModel):
+    id: str
+    group_name: str
+    teacher_name: str
+    target_type: str
+    target_label: Optional[str]
+    text: str
+    created_at: datetime
+    read_at: Optional[datetime]
 
 
 class StartOut(BaseModel):
@@ -187,6 +218,102 @@ def group_report_csv(group_id: str, current_user: User = Depends(get_current_use
                     headers={"Content-Disposition": f'attachment; filename="bao-cao-{safe}.csv"'})
 
 
+# ── G10 · Chi tiết thành viên, nhận xét, chứng nhận ──────────────────────────
+def _owned_member(db: Session, user: User, group_id: str, learner_id: str):
+    _owner(user)
+    try:
+        g = svc.get_owned(db, user, group_id)
+        learner = svc.member_of(db, g, learner_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return g, learner
+
+
+@router.get("/{group_id}/members/{learner_id}")
+def member_detail(group_id: str, learner_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    g, learner = _owned_member(db, current_user, group_id, learner_id)
+    from app.models.certificate import Certificate
+    detail = svc.member_detail(db, g, learner)
+    detail["group"] = _group_out(db, g).model_dump()
+    detail["certificates"] = [{"code": c.code, "title": c.title, "issued_at": c.issued_at} for c in
+                              db.query(Certificate).filter(Certificate.learner_id == learner.id, Certificate.ref_id == g.id, Certificate.revoked.is_(False)).all()]
+    return detail
+
+
+@router.get("/{group_id}/members/{learner_id}/writing/{submission_id}")
+def member_writing(group_id: str, learner_id: str, submission_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _, learner = _owned_member(db, current_user, group_id, learner_id)
+    from app.models.writing import WritingSubmission
+    w = db.query(WritingSubmission).filter(WritingSubmission.id == submission_id, WritingSubmission.learner_id == learner.id).first()
+    if not w:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết.")
+    return _writing_out(w)
+
+
+def _writing_out(w) -> dict:
+    from app.agents.writing_agent import EXAM_GENRES
+    return {"id": w.id, "prompt_title": w.prompt_title, "prompt_text": w.prompt_text, "genre": w.genre, "level": w.level, "user_text": w.user_text,
+            "word_count": w.word_count, "overall_score": w.overall_score, "grade": w.grade, "evaluation": w.evaluation or {}, "created_at": w.created_at,
+            "exam": (EXAM_GENRES.get(w.genre or "") or {}).get("exam"),
+            "teacher_score": w.teacher_score, "teacher_band": w.teacher_band, "teacher_comment": w.teacher_comment, "teacher_scored_at": w.teacher_scored_at,
+            "teacher_rubric": w.teacher_rubric}
+
+
+@router.post("/{group_id}/members/{learner_id}/writing/{submission_id}/grade")
+def grade_member_writing(group_id: str, learner_id: str, submission_id: str, payload: WritingGradeIn,
+                         current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G11 · Teacher re-grades a writing piece (overrides the AI score shown to the learner)."""
+    g, learner = _owned_member(db, current_user, group_id, learner_id)
+    from app.models.writing import WritingSubmission
+    w = db.query(WritingSubmission).filter(WritingSubmission.id == submission_id, WritingSubmission.learner_id == learner.id).first()
+    if not w:
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài viết.")
+    try:
+        svc.grade_writing(db, g, current_user, learner, w, payload.score, payload.band, payload.comment, payload.rubric)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return _writing_out(w)
+
+
+@router.post("/{group_id}/members/{learner_id}/feedback")
+def add_feedback(group_id: str, learner_id: str, payload: FeedbackIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    g, learner = _owned_member(db, current_user, group_id, learner_id)
+    try:
+        fb = svc.add_feedback(db, g, current_user, learner, payload.text, payload.target_type, payload.target_id, payload.target_label)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return {"id": fb.id, "target_type": fb.target_type, "target_id": fb.target_id, "target_label": fb.target_label, "text": fb.text, "created_at": fb.created_at, "read_at": None}
+
+
+@router.delete("/{group_id}/feedback/{feedback_id}", status_code=204)
+def delete_feedback(group_id: str, feedback_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    from app.models.teacher_feedback import TeacherFeedback
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    fb = db.query(TeacherFeedback).filter(TeacherFeedback.id == feedback_id, TeacherFeedback.group_id == g.id).first()
+    if not fb:
+        raise HTTPException(status_code=404, detail="Không tìm thấy nhận xét.")
+    db.delete(fb)
+    db.commit()
+
+
+@router.post("/{group_id}/members/{learner_id}/certificate")
+def issue_certificate(group_id: str, learner_id: str, payload: CertificateIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    g, learner = _owned_member(db, current_user, group_id, learner_id)
+    from app.api.certificates import cert_out
+    from app.services import certificates as certs
+    from app.services.notification_service import create_notification
+    cert = certs.issue(db, learner, kind="group", ref_id=g.id, title=payload.title.strip(), issuer_name=g.name, note=payload.note, issued_by_user_id=current_user.id)
+    create_notification(db, learner.id, type="certificate", title=f"Bạn nhận được chứng nhận: {cert.title}", body=f"Do {g.name} cấp. Mã xác thực {cert.code}.", icon="🏅")
+    db.commit()
+    return cert_out(cert)
+
+
 @router.delete("/{group_id}/members/{learner_id}", status_code=204)
 def remove_member(group_id: str, learner_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     _owner(current_user)
@@ -233,8 +360,32 @@ def learner_home(current_user: User = Depends(get_current_user), db: Session = D
         out.append(LearnerGroupOut(
             group=_group_out(db, g), owner_name=(owner.full_name if owner else None) or "Giáo viên",
             assignments=[_assignment_out(a) for a in svc.group_assignments(db, g.id, learner.id)],
+            tests=[t for t in svc.group_tests(db, g.id, learner.id) if t["available"] or t["mine"]["done"]],
         ))
     return LearnerHome(groups=out)
+
+
+@router.get("/learner/feedback", response_model=list[LearnerFeedbackOut])
+def learner_feedback(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G10 · Teachers' comments on my work, newest first."""
+    from app.models.group import Group
+    from app.models.teacher_feedback import TeacherFeedback
+    learner = _learner(db, current_user)
+    rows = (db.query(TeacherFeedback, Group.name, User.full_name)
+            .join(Group, Group.id == TeacherFeedback.group_id).join(User, User.id == TeacherFeedback.teacher_user_id)
+            .filter(TeacherFeedback.learner_id == learner.id).order_by(TeacherFeedback.created_at.desc()).limit(50).all())
+    return [LearnerFeedbackOut(id=f.id, group_name=gname, teacher_name=tname or "Giáo viên", target_type=f.target_type, target_label=f.target_label,
+                               text=f.text, created_at=f.created_at, read_at=f.read_at) for f, gname, tname in rows]
+
+
+@router.post("/learner/feedback/read", status_code=204)
+def mark_feedback_read(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from datetime import timezone
+    from app.models.teacher_feedback import TeacherFeedback
+    learner = _learner(db, current_user)
+    db.query(TeacherFeedback).filter(TeacherFeedback.learner_id == learner.id, TeacherFeedback.read_at.is_(None)).update(
+        {"read_at": datetime.now(timezone.utc).replace(tzinfo=None)}, synchronize_session=False)
+    db.commit()
 
 
 @router.post("/join", response_model=LearnerHome)
@@ -266,3 +417,168 @@ def start_assignment(assignment_id: str, current_user: User = Depends(get_curren
         raise HTTPException(status_code=400, detail=str(exc))
     db.commit()
     return StartOut(assignment_id=a.id, skill=a.skill, topic=a.topic, title=a.title)
+
+
+# ── G12 · Lịch câu lạc bộ nói hằng tuần của lớp ──────────────────────────────
+class ClubScheduleIn(BaseModel):
+    weekday: int = Field(ge=0, le=6)                 # 0 = Thứ Hai … 6 = Chủ nhật
+    time: str = Field(pattern=r"^\d{1,2}:\d{2}$")    # giờ Việt Nam
+    topic_id: Optional[str] = Field(default=None, max_length=40)
+
+
+def _schedule_out(db: Session, sch) -> dict:
+    from app.models.speaking_club import SpeakingRoom
+    from app.services import speaking_club as club
+    room = (db.query(SpeakingRoom).filter(SpeakingRoom.schedule_id == sch.id, SpeakingRoom.status != "finished")
+            .order_by(SpeakingRoom.scheduled_at).first())
+    topic = club.get_topic(sch.topic_id) if sch.topic_id else None
+    return {
+        "id": sch.id, "weekday": sch.weekday, "time": sch.time_local, "label": club.schedule_label(sch),
+        "topic_id": sch.topic_id, "topic_title": topic["title_vi"] if topic else "Luân phiên các chủ đề",
+        "next": None if not room else {"room_id": room.id, "code": room.code, "scheduled_at": room.scheduled_at, "status": room.status,
+                                       "registered": len(club.active_members(db, room.id)),
+                                       "topic_title": (club.get_topic(room.topic_id) or {}).get("title_vi", "")},
+    }
+
+
+@router.get("/{group_id}/club-schedules")
+def list_club_schedules(group_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    from app.models.speaking_club import GroupClubSchedule
+    from app.services import speaking_club as club
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    rows = db.query(GroupClubSchedule).filter(GroupClubSchedule.group_id == g.id, GroupClubSchedule.is_active == 1).order_by(
+        GroupClubSchedule.weekday, GroupClubSchedule.time_local).all()
+    return {"schedules": [_schedule_out(db, r) for r in rows],
+            "topics": [{"id": t["id"], "title_vi": t["title_vi"], "level": t["level"], "emoji": t["emoji"]} for t in club.TOPICS],
+            "weekdays": club.WEEKDAYS_VI}
+
+
+@router.post("/{group_id}/club-schedules")
+def add_club_schedule(group_id: str, payload: ClubScheduleIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G12 · Weekly class speaking-club slot; the next session's room is opened right away and the class is told."""
+    _owner(current_user)
+    from app.services import speaking_club as club
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+        sch = club.create_schedule(db, g, current_user, payload.weekday, payload.time, payload.topic_id)
+    except (svc.GroupError, club.ClubError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    club.ensure_group_rooms(db)
+    db.commit()
+    return _schedule_out(db, sch)
+
+
+@router.delete("/{group_id}/club-schedules/{schedule_id}", status_code=204)
+def delete_club_schedule(group_id: str, schedule_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    from app.models.speaking_club import GroupClubSchedule
+    from app.services import speaking_club as club
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    sch = db.query(GroupClubSchedule).filter(GroupClubSchedule.id == schedule_id, GroupClubSchedule.group_id == g.id).first()
+    if not sch:
+        raise HTTPException(status_code=404, detail="Không tìm thấy lịch.")
+    club.cancel_schedule(db, sch)
+    db.commit()
+
+
+# ── G13 · Bài kiểm tra lớp ───────────────────────────────────────────────────
+class GroupTestIn(BaseModel):
+    kind: str = Field(pattern="^(mock|speaking)$")
+    exam_id: str = Field(min_length=1, max_length=40)
+    title: Optional[str] = Field(default=None, max_length=140)
+    note: Optional[str] = Field(default=None, max_length=500)
+    opens_on: Optional[date] = None
+    due_on: date
+    repeat: Optional[str] = Field(default=None, pattern="^monthly$")   # G14 · lặp lại hằng tháng
+
+
+class TestRepeatIn(BaseModel):
+    repeat: Optional[str] = Field(default=None, pattern="^monthly$")
+
+
+@router.get("/tests/catalogue")
+def test_catalogue(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Published tests a teacher can assign (Listening / Reading / Speaking)."""
+    _owner(current_user)
+    return svc.test_catalogue(db)
+
+
+@router.get("/{group_id}/tests")
+def list_tests(group_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return svc.group_tests(db, g.id)
+
+
+@router.post("/{group_id}/tests")
+def create_test(group_id: str, payload: GroupTestIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    try:
+        t = svc.create_test(db, g, payload.kind, payload.exam_id, payload.opens_on, payload.due_on, payload.note, payload.title, payload.repeat)
+    except svc.GroupError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return svc.test_view(db, t, [m.learner_id for m in svc.members_in_order(db, g.id)])
+
+
+@router.get("/{group_id}/tests/{test_id}")
+def test_results(group_id: str, test_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+        return svc.test_results(db, g, test_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.post("/{group_id}/tests/{test_id}/repeat")
+def set_test_repeat(group_id: str, test_id: str, payload: TestRepeatIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G14 · Bật / tắt lặp lại hằng tháng."""
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+        t = svc.set_test_repeat(db, g, test_id, payload.repeat)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    db.commit()
+    return svc.test_view(db, t, [m.learner_id for m in svc.members_in_order(db, g.id)])
+
+
+@router.get("/{group_id}/tests/{test_id}/sheet")
+def test_sheet(group_id: str, test_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G14 · Bảng điểm để in: kết quả + tên lớp, giáo viên."""
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+        res = svc.test_results(db, g, test_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {**res, "group_name": g.name, "group_code": g.code, "teacher_name": current_user.full_name or "Giáo viên"}
+
+
+@router.delete("/{group_id}/tests/{test_id}", status_code=204)
+def delete_test(group_id: str, test_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    if not svc.delete_test(db, g, test_id):
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài kiểm tra.")
+    db.commit()

@@ -94,7 +94,9 @@ def test_naive_last_active_is_handled(db_session):
 
 # ── update_daily_challenge_progress ──────────────────────────────────────────────
 def _make_challenge(db_session, learner, **kwargs):
-    today = datetime.now(timezone.utc).date().isoformat()
+    # Challenges are keyed by the learner's local (Vietnam) day, like the service does.
+    from app.core.timeutil import local_today
+    today = local_today().isoformat()
     defaults = dict(
         learner_id=learner.id,
         date=today,

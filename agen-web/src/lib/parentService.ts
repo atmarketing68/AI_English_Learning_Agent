@@ -1,3 +1,4 @@
+import type { ClassTest } from '@/lib/groupsService';
 import api from '@/lib/api';
 
 // ── Types (mirror backend api/parent.py) ──────────────────────────────────────
@@ -34,6 +35,8 @@ export interface ChildReport {
   what_improved: string;
   what_needs_help: string;
   what_to_do: string;
+  /** G14 · class tests the child's teachers assigned, with the child's own result in `mine` */
+  class_tests?: ClassTest[];
 }
 
 // ── API Calls ────────────────────────────────────────────────────────────────
@@ -70,6 +73,9 @@ export interface ParentSettings {
   push_available: boolean;
   push_public_key: string | null;
   push_devices: number;
+  // G13 · native app (FCM) on the parent's phone
+  native_push_available?: boolean;
+  native_devices?: number;
   // G9 · Zalo OA
   zalo_available?: boolean;
   zalo_oa_link?: string | null;

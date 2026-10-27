@@ -189,6 +189,9 @@ def scheduled_content_factory(
 
     summary = generate_missing_content(db, limit=limit)
     summary["coverage"] = content_coverage(db)
+    # G12 · keep a few AI podcast drafts waiting for review (off unless PODCAST_AUTO_DRAFTS > 0)
+    from app.services.podcast_generator import run_auto_drafts
+    summary["podcasts"] = run_auto_drafts(db)
     return summary
 
 
@@ -511,6 +514,23 @@ class AdminOrder(BaseModel):
     invoice_issued_at: Optional[datetime]
     created_at: datetime
     paid_at: Optional[datetime]
+    # G10/G11
+    currency: str = "VND"
+    amount_foreign: Optional[int] = None
+    refunded_at: Optional[datetime] = None
+    refund_note: Optional[str] = None
+    # G12 · e-invoice
+    einvoice_no: Optional[str] = None
+    einvoice_lookup_code: Optional[str] = None
+    einvoice_error: Optional[str] = None
+
+
+def _admin_order(o: PaymentOrder, email, role) -> AdminOrder:
+    return AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
+                      amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
+                      invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at, currency=o.currency or "VND",
+                      amount_foreign=o.amount_foreign, refunded_at=o.refunded_at, refund_note=o.refund_note,
+                      einvoice_no=o.einvoice_no, einvoice_lookup_code=o.einvoice_lookup_code, einvoice_error=o.einvoice_error)
 
 
 @router.get("/revenue/orders", response_model=list[AdminOrder])
@@ -526,9 +546,7 @@ def revenue_orders(
     if invoice_only:
         q = q.filter(PaymentOrder.invoice_info.isnot(None))
     rows = q.order_by(PaymentOrder.created_at.desc()).limit(limit).all()
-    return [AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
-                       amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
-                       invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at) for o, email, role in rows]
+    return [_admin_order(o, email, role) for o, email, role in rows]
 
 
 class InvoiceIssuedIn(BaseModel):
@@ -550,9 +568,59 @@ def mark_invoice_issued(
     o, email, role = row
     o.invoice_issued_at = datetime.utcnow() if payload.issued else None
     db.commit()
-    return AdminOrder(order_id=o.id, email=email, role=role, provider=o.provider, plan=o.plan or PLAN_PREMIUM, seats=o.seats or 1, months=o.months,
-                      amount_vnd=o.amount_vnd, status=o.status, invoice=o.invoice_info if isinstance(o.invoice_info, dict) else None,
-                      invoice_issued_at=o.invoice_issued_at, created_at=o.created_at, paid_at=o.paid_at)
+    return _admin_order(o, email, role)
+
+
+@router.get("/einvoice/status")
+def einvoice_status(current_user: User = Depends(get_current_user)):
+    """G12 · Whether e-invoices can be issued from the orders table."""
+    _require_admin(current_user)
+    from app.services import einvoice
+    return {"enabled": einvoice.enabled(), "provider": settings.EINVOICE_PROVIDER or None, "auto": settings.EINVOICE_AUTO,
+            "tax_percent": settings.EINVOICE_TAX_PERCENT, "template": settings.VIETTEL_SINVOICE_TEMPLATE_CODE or None,
+            "series": settings.VIETTEL_SINVOICE_SERIES or None}
+
+
+@router.post("/revenue/orders/{order_id}/einvoice", response_model=AdminOrder)
+def issue_einvoice(order_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G12 · Issue the electronic invoice of a paid order on Viettel S-Invoice."""
+    _require_admin(current_user)
+    from app.services import einvoice
+    row = db.query(PaymentOrder, User.email, User.role).join(User, User.id == PaymentOrder.user_id).filter(PaymentOrder.id == order_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
+    o, email, role = row
+    try:
+        einvoice.issue(db, o)
+    except einvoice.EInvoiceError as exc:
+        db.commit()                        # keep the error on the order
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return _admin_order(o, email, role)
+
+
+class RefundIn(BaseModel):
+    note: str = Field(default="", max_length=300)
+    manual: bool = False        # Stripe: record a refund already made on the Stripe dashboard
+
+
+@router.post("/revenue/orders/{order_id}/refund", response_model=AdminOrder)
+def refund_order(order_id: str, payload: RefundIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G11 · Refund a paid order: Stripe through the API, other gateways recorded after refunding on the gateway.
+    The Premium time the order bought is taken back."""
+    _require_admin(current_user)
+    from app.services import payments
+    row = db.query(PaymentOrder, User.email, User.role).join(User, User.id == PaymentOrder.user_id).filter(PaymentOrder.id == order_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đơn hàng.")
+    o, email, role = row
+    try:
+        payments.refund_order(db, o, note=payload.note or f"Hoàn tiền bởi {current_user.email}", manual=payload.manual)
+    except payments.PaymentError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return _admin_order(o, email, role)
 
 
 # ── G9 · Đề thi thử do AI sinh (duyệt trước khi phát hành) ────────────────────
@@ -644,5 +712,223 @@ def delete_generated_exam(exam_id: str, current_user: User = Depends(get_current
     row = db.query(GeneratedExam).filter(GeneratedExam.id == exam_id).first()
     if not row:
         raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    db.delete(row)
+    db.commit()
+
+
+# ── G13 · Đề thi thử Speaking do AI sinh (duyệt trước khi phát hành) ─────────
+class GeneratedSpeakingExamOut(BaseModel):
+    id: str
+    public_id: str
+    exam: str
+    title: str
+    topic: Optional[str]
+    status: str
+    tasks: int
+    eval_score: Optional[float]
+    eval_flagged: Optional[bool]
+    created_at: datetime
+    approved_at: Optional[datetime]
+
+
+class GenerateSpeakingExamIn(BaseModel):
+    exam: str = Field(pattern="^(ielts|toeic)$")
+    topic: str = Field(default="", max_length=120)
+    level: str = Field(default="B1", pattern="^(A2|B1|B2|C1)$")
+    auto_approve: bool = False
+
+
+def _gen_speaking_out(r) -> GeneratedSpeakingExamOut:
+    from app.services.speaking_exam_generator import public_id
+    return GeneratedSpeakingExamOut(id=r.id, public_id=public_id(r), exam=r.exam, title=r.title, topic=r.topic, status=r.status,
+                                    tasks=int(r.tasks or 0), eval_score=r.eval_score, eval_flagged=r.eval_flagged,
+                                    created_at=r.created_at, approved_at=r.approved_at)
+
+
+def _speaking_row(db: Session, exam_id: str):
+    from app.models.generated_exam import GeneratedSpeakingExam
+    row = db.query(GeneratedSpeakingExam).filter(GeneratedSpeakingExam.id == exam_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    return row
+
+
+@router.get("/speaking-exams", response_model=list[GeneratedSpeakingExamOut])
+def list_generated_speaking_exams(status: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedSpeakingExam
+    q = db.query(GeneratedSpeakingExam)
+    if status:
+        q = q.filter(GeneratedSpeakingExam.status == status)
+    return [_gen_speaking_out(r) for r in q.order_by(GeneratedSpeakingExam.created_at.desc()).limit(200).all()]
+
+
+@router.post("/speaking-exams/generate", response_model=GeneratedSpeakingExamOut)
+def generate_speaking_exam(payload: GenerateSpeakingExamIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.services.speaking_exam_generator import SpeakingExamGenerationError, generate_draft
+    try:
+        row = generate_draft(db, payload.exam, payload.topic, payload.level, payload.auto_approve)
+    except SpeakingExamGenerationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(exc))
+    db.commit()
+    return _gen_speaking_out(row)
+
+
+@router.get("/speaking-exams/{exam_id}")
+def get_generated_speaking_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    row = _speaking_row(db, exam_id)
+    return {"meta": _gen_speaking_out(row).model_dump(), "exam": row.content}
+
+
+@router.post("/speaking-exams/{exam_id}/status", response_model=GeneratedSpeakingExamOut)
+def set_generated_speaking_exam_status(exam_id: str, payload: ExamStatusIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.services.speaking_exam_generator import set_status
+    row = _speaking_row(db, exam_id)
+    set_status(db, row, payload.status)
+    db.commit()
+    return _gen_speaking_out(row)
+
+
+@router.delete("/speaking-exams/{exam_id}", status_code=204)
+def delete_generated_speaking_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    db.delete(_speaking_row(db, exam_id))
+    db.commit()
+
+
+# ── G10 · AI cost tracking ────────────────────────────────────────────────────
+@router.get("/retention/summary")
+def retention_summary(weeks: int = 8, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G14 · Học viên quay lại theo tuần đăng ký, phễu 30 ngày, nguồn đăng ký 90 ngày."""
+    _require_admin(current_user)
+    from app.services.retention import summary
+    return summary(db, max(1, min(weeks, 26)))
+
+
+@router.get("/ai-usage/summary")
+def ai_usage_summary(days: int = 30, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Estimated AI spend (LLM + TTS) per day, feature, provider and top users."""
+    _require_admin(current_user)
+    from app.services import ai_usage
+    return ai_usage.summary(db, days=max(1, min(days, 90)))
+
+
+# ── G11 · Podcast do AI sinh (duyệt như đề thi) ──────────────────────────────
+class GeneratedEpisodeOut(BaseModel):
+    id: str
+    public_id: str
+    level: str
+    topic: Optional[str]
+    title: str
+    title_vi: str
+    status: str
+    lines: int
+    questions: int
+    youtube_id: Optional[str]
+    video_start: Optional[int]
+    video_end: Optional[int]
+    eval_score: Optional[float]
+    eval_flagged: Optional[bool]
+    created_at: datetime
+    approved_at: Optional[datetime]
+    auto: bool = False
+
+
+class GeneratePodcastIn(BaseModel):
+    level: str = Field(default="B1", pattern="^(A2|B1|B2|C1)$")
+    topic: str = Field(default="", max_length=120)
+    style: str = Field(default="conversation", pattern="^(conversation|talk)$")
+    auto_approve: bool = False
+
+
+class PodcastVideoIn(BaseModel):
+    youtube: Optional[str] = Field(default=None, max_length=200)
+    start: Optional[int] = Field(default=None, ge=0, le=36000)
+    end: Optional[int] = Field(default=None, ge=0, le=36000)
+
+
+def _ep_out(r) -> GeneratedEpisodeOut:
+    from app.services.podcast_generator import public_id
+    c = r.content or {}
+    return GeneratedEpisodeOut(id=r.id, public_id=public_id(r), level=r.level, topic=r.topic, title=r.title, title_vi=c.get("title_vi", ""),
+                               status=r.status, lines=len(c.get("lines", [])), questions=len(c.get("questions", [])), youtube_id=r.youtube_id,
+                               video_start=r.video_start, video_end=r.video_end, eval_score=r.eval_score, eval_flagged=r.eval_flagged,
+                               created_at=r.created_at, approved_at=r.approved_at, auto=bool(r.auto))
+
+
+def _episode_row(db: Session, episode_id: str):
+    from app.models.generated_episode import GeneratedEpisode
+    row = db.query(GeneratedEpisode).filter(GeneratedEpisode.id == episode_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy tập podcast.")
+    return row
+
+
+@router.get("/podcasts", response_model=list[GeneratedEpisodeOut])
+def list_generated_podcasts(status: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_episode import GeneratedEpisode
+    q = db.query(GeneratedEpisode)
+    if status:
+        q = q.filter(GeneratedEpisode.status == status)
+    return [_ep_out(r) for r in q.order_by(GeneratedEpisode.created_at.desc()).limit(200).all()]
+
+
+@router.post("/podcasts/generate", response_model=GeneratedEpisodeOut)
+def generate_podcast(payload: GeneratePodcastIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """One AI call → one draft episode (or approved straight away with auto_approve)."""
+    _require_admin(current_user)
+    from app.services.podcast_generator import PodcastGenerationError, generate_episode_draft
+    try:
+        row = generate_episode_draft(db, payload.level, payload.topic, payload.style, payload.auto_approve)
+    except PodcastGenerationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(exc))
+    db.commit()
+    return _ep_out(row)
+
+
+@router.get("/podcasts/{episode_id}")
+def get_generated_podcast(episode_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Full episode with answers, for review."""
+    _require_admin(current_user)
+    row = _episode_row(db, episode_id)
+    return {"meta": _ep_out(row).model_dump(), "episode": row.content}
+
+
+@router.post("/podcasts/{episode_id}/status", response_model=GeneratedEpisodeOut)
+def set_generated_podcast_status(episode_id: str, payload: ExamStatusIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.services.podcast_generator import set_status
+    row = set_status(_episode_row(db, episode_id), payload.status)
+    db.commit()
+    return _ep_out(row)
+
+
+@router.post("/podcasts/{episode_id}/video", response_model=GeneratedEpisodeOut)
+def set_generated_podcast_video(episode_id: str, payload: PodcastVideoIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Attach (or clear) a YouTube clip whose speech matches the transcript."""
+    _require_admin(current_user)
+    from app.services.podcast_generator import PodcastGenerationError, set_video
+    row = _episode_row(db, episode_id)
+    try:
+        set_video(row, payload.youtube, payload.start, payload.end)
+    except PodcastGenerationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return _ep_out(row)
+
+
+@router.delete("/podcasts/{episode_id}", status_code=204)
+def delete_generated_podcast(episode_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.media_progress import MediaProgress
+    from app.services.podcast_generator import public_id
+    row = _episode_row(db, episode_id)
+    db.query(MediaProgress).filter(MediaProgress.episode_id == public_id(row)).delete(synchronize_session=False)
     db.delete(row)
     db.commit()

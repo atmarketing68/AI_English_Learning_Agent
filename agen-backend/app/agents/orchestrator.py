@@ -8,12 +8,15 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field
 
-from app.agents import adaptive_coach, assessment_agent, exam_agent, lesson_agent, speaking_agent, speaking_exam_agent, tutor_agent, writing_agent
+from app.agents import adaptive_coach, assessment_agent, club_agent, exam_agent, lesson_agent, podcast_agent, speaking_agent, speaking_exam_agent, tutor_agent, writing_agent
 from app.agents.contracts import (
+    ClubModeratorOutput,
     CoachAdviceOutput,
     GeneratedExamOutput,
     LessonOutput,
     PlacementQuestionOutput,
+    PodcastEpisodeOutput,
+    GeneratedSpeakingExamOutput,
     RoleplayScenarioOutput,
     SpeakingExamEvaluationOutput,
     SpeakingTurnOutput,
@@ -37,6 +40,9 @@ AgentName = Literal[
     "tutor_answer",
     "speaking_exam_evaluation",
     "exam_generation",
+    "club_moderator",
+    "podcast_generation",
+    "speaking_exam_generation",
 ]
 
 
@@ -79,6 +85,9 @@ AGENT_SPECS: dict[AgentName, AgentSpec] = {
     "tutor_answer": AgentSpec(tutor_agent.answer_question, TutorAnswerOutput),
     "speaking_exam_evaluation": AgentSpec(speaking_exam_agent.evaluate_speaking_exam, SpeakingExamEvaluationOutput),
     "exam_generation": AgentSpec(exam_agent.generate_exam, GeneratedExamOutput),
+    "club_moderator": AgentSpec(club_agent.moderate_turn, ClubModeratorOutput),
+    "podcast_generation": AgentSpec(podcast_agent.generate_episode, PodcastEpisodeOutput),
+    "speaking_exam_generation": AgentSpec(speaking_exam_agent.generate_speaking_exam, GeneratedSpeakingExamOutput),
 }
 
 
@@ -90,6 +99,8 @@ def execute(request: AgentRequest) -> AgentExecutionResult:
     """
     started = time.perf_counter()
     spec = AGENT_SPECS[request.agent]
+    from app.core.usage_context import current_feature
+    feature_token = current_feature.set(request.agent)   # G10 · AI cost per feature
 
     try:
         raw_result = spec.handler(**request.payload)
@@ -141,3 +152,5 @@ def execute(request: AgentRequest) -> AgentExecutionResult:
             duration_ms=round((time.perf_counter() - started) * 1000, 1),
             completed_at=datetime.now(timezone.utc),
         )
+    finally:
+        current_feature.reset(feature_token)

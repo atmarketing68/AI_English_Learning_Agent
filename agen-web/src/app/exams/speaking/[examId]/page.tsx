@@ -42,6 +42,7 @@ export default function SpeakingExamPage() {
   const [micError, setMicError] = useState('');
   const [result, setResult] = useState<SpeakingResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [classTest, setClassTest] = useState(false);
   const recognizer = useRef<SpeechRecognizer | null>(null);
   const wantListening = useRef(false);
   const finals = useRef<string[]>([]);
@@ -63,8 +64,10 @@ export default function SpeakingExamPage() {
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
-    startSpeakingExam(examId)
-      .then(r => { setPaper(r.exam); setAttemptId(r.attempt_id); })
+    // G13 · class test id in ?test=<id> (does not use the free daily attempt; the result goes to the teacher)
+    const testId = new URLSearchParams(window.location.search).get('test');
+    startSpeakingExam(examId, testId)
+      .then(r => { setPaper(r.exam); setAttemptId(r.attempt_id); setClassTest(!!testId); })
       .catch((err: unknown) => setError(apiErrorMessage(err, 'Không mở được đề thi.')));
   }, [hydrated, isAuthenticated, router, examId]);
 
@@ -215,6 +218,7 @@ export default function SpeakingExamPage() {
       </div>
       <div className="exam-column" style={{ maxWidth: 680 }}>
         {error && <div className="alert-error" style={{ marginBottom: 12 }}><CircleAlert size={16} /> {error}</div>}
+        {classTest && idx === 0 && phase === 'intro' && <div className="class-test-note" style={{ marginBottom: 12 }}>Bài kiểm tra lớp: kết quả lần này được gửi cho giáo viên và không trừ lượt thi miễn phí.</div>}
         <section className="card" style={{ display: 'grid', gap: 12 }}>
           <div className="eyebrow">{task.part}</div>
           <h2 style={{ margin: 0, fontSize: '1.15rem' }}>{task.prompt}</h2>

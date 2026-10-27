@@ -26,3 +26,20 @@ class GeneratedExam(Base):
     eval_flagged = Column(Boolean, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     approved_at = Column(DateTime, nullable=True)
+
+
+class GeneratedSpeakingExam(Base):
+    """G13 · Đề thi thử Speaking do AI sinh (cùng schema với services/speaking_exams.EXAMS), admin duyệt."""
+    __tablename__ = "generated_speaking_exams"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    exam = Column(String(10), nullable=False)                      # ielts | toeic
+    title = Column(String(140), nullable=False)
+    topic = Column(String(120), nullable=True)
+    status = Column(String(12), nullable=False, default=STATUS_DRAFT, index=True)
+    content = Column(JSON, nullable=False)                         # {exam, title, description, minutes, tasks}
+    tasks = Column(Float, nullable=False, default=0)
+    eval_score = Column(Float, nullable=True)
+    eval_flagged = Column(Boolean, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    approved_at = Column(DateTime, nullable=True)

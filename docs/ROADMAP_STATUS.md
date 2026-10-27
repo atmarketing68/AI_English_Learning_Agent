@@ -4,7 +4,7 @@
 > Kế hoạch gốc (đã được chủ dự án duyệt): Claude Doc "Kế hoạch nâng cấp AGEN — Audit & Lộ trình"
 > https://claude.ai/artifact/7PHjES4CK5zB9i8rBxrCuT
 
-Cập nhật lần cuối: 2026-10-26 (G9).
+Cập nhật lần cuối: 2026-10-27 (G13).
 
 Web production: https://ai-english-learning-agent.atmarketing.vn · Backend: https://agen-api.onrender.com
 
@@ -82,6 +82,8 @@ Web production: https://ai-english-learning-agent.atmarketing.vn · Backend: htt
 hiện bảo vệ chuỗi nhận được khi đạt mục tiêu tuần (mỗi người tặng sẵn 1, tối đa 2).
 
 ## Việc chủ dự án còn phải làm (chưa xong, tính đến 2026-10-26)
+
+> **Danh sách đầy đủ, theo thứ tự ưu tiên, có hướng dẫn từng bước: `docs/VIEC_CAN_LAM.md`** (cập nhật mỗi giai đoạn).
 
 Khoá đã được tạo và gửi cho chủ dự án trong chat (KHÔNG có trong repo). Cần dán:
 
@@ -216,13 +218,93 @@ Chưa làm trong G8: ngân hàng đề lớn hơn (hiện 4 mini test, có thể
 
 Chưa làm trong G9: chấm phát âm Speaking bằng Azure (hiện theo từ); đề Speaking/Writing do AI sinh; gửi ZNS (tin theo mẫu, tính phí) khi hết cửa sổ 7 ngày.
 
-## G10 — gợi ý tiếp theo
+## G10 — Podcast, câu lạc bộ nói, giáo viên xem bài, Stripe + chứng nhận, chi phí AI: hoàn tất trên code
 
-Học qua video/podcast ngắn có transcript bấm từ · Câu lạc bộ nói nhóm 2–4 người với AI dẫn · Giáo viên xem chi tiết bài làm từng học viên + nhận xét · Stripe cho thẻ quốc tế + chứng nhận hoàn thành (PDF) cho doanh nghiệp · Theo dõi chi phí AI theo người dùng.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Podcast / video (`/listen`) | Không cần gì. 6 tập tĩnh A2–B2 trong `services/media_library.py` (lời thoại song ngữ, từ khoá, câu hỏi). Âm thanh là giọng đọc server theo từng nhân vật, chạm từ để tra + lưu sổ từ. Muốn kèm video: điền `youtube_id` (+ `start`/`end` giây) cho tập có lời thoại khớp video. XP chỉ lần đầu và khi cải thiện điểm; 100% được đá quý. |
+| Câu lạc bộ nói (`/club`) | Cần khoá LLM (đã có); AI lỗi thì vẫn chạy bằng câu hỏi soạn sẵn. Phòng 2–4 người (tự luyện 1 người cũng được), 8 chủ đề trong `services/speaking_club.py`, mỗi người 3 lượt. Trình duyệt hỏi đáp bằng polling 2,5 giây, không cần dịch vụ realtime. Phòng riêng chỉ vào bằng mã. |
+| Giáo viên xem bài + nhận xét | Không cần gì. Trong `/teacher/<nhóm>` bấm tên học viên → bài học, bài viết (đọc toàn văn + lỗi AI chỉ ra), thi thử, thi nói, bài tập; gửi nhận xét chung hoặc theo từng bài → học viên nhận thông báo và xem ở `/classes`. Giáo viên cũng cấp chứng nhận từ trang này. |
+| Stripe (thẻ quốc tế, USD) | 1) Tạo tài khoản Stripe, lấy **Secret key** (`sk_live_…`); 2) Developers → Webhooks → Add endpoint `https://<api>/api/v1/billing/stripe/webhook`, chọn sự kiện `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` → lấy **Signing secret** (`whsec_…`); 3) dán `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` lên Render (tuỳ chọn `USD_TO_VND`, mặc định 25.000 để thống kê doanh thu). Giá USD trong `services/payments.py` (Premium $4.99/tháng · $11.99/3 tháng · $39/năm; gia đình $8.99 · $74; theo ghế $3.99 · $34 mỗi ghế). Chỉ webhook có chữ ký đúng + đúng số tiền mới cộng Premium. Chưa có khoá thì nút thẻ quốc tế tự ẩn. |
+| Chứng nhận hoàn thành | Không cần gì. Học viên xong 1 lộ trình mục tiêu → nhận ở **Hồ sơ**; giáo viên/doanh nghiệp cấp cho thành viên. Trang công khai `/certificate/<mã>` để nhà tuyển dụng kiểm tra, nút **In / Lưu PDF** (khổ A4 ngang). |
+| Chi phí AI theo người dùng | Mặc định đã ghi (bảng `ai_usage`): mỗi lượt gọi LLM và mỗi lần tạo giọng đọc mới, ước tính theo ký tự. Xem ở `/admin` → tab **Chi phí AI**. Tuỳ chọn trên Render: đơn giá `AI_PRICE_GEMINI_IN/OUT`, `AI_PRICE_OPENAI_IN/OUT` (USD/1 triệu token), `TTS_PRICE_PER_MCHAR`; giới hạn mỗi người mỗi ngày `AI_DAILY_LIMIT_USD_FREE`, `AI_DAILY_LIMIT_USD_PREMIUM` (0 = không giới hạn; vượt thì tính năng AI trả lời bằng phương án dự phòng tới hôm sau). |
+
+Migration `z3c4d5e6f7a8` tự chạy khi deploy.
+
+Chưa làm trong G10: thêm video thật có bản quyền/khớp lời thoại; câu lạc bộ nói bằng giọng thật (WebRTC) thay cho nhận diện giọng nói + đọc to; hoàn tiền Stripe tự động; chứng nhận xuất file PDF phía server.
+
+## G11 — Podcast AI, câu lạc bộ nói hẹn giờ, giáo viên chấm lại bài viết, hoàn tiền + biên nhận, cảnh báo chi phí AI: hoàn tất trên code
+
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Podcast do AI sinh | Admin vào `/admin` → tab **Podcast AI** → chọn trình độ, dạng (hội thoại / một người dẫn), chủ đề → "Sinh bản nháp" (1 lượt AI) → đọc lời thoại + đáp án → **Duyệt**. Tập đã duyệt hiện ở mục Podcast cho mọi học viên. Muốn có video: dán link YouTube có lời nói **khớp đúng** lời thoại và cho phép nhúng (tuỳ chọn giây bắt đầu/kết thúc). Không tự lấy video có bản quyền của người khác. |
+| Câu lạc bộ nói hẹn giờ | 1) Workflow mới `.github/workflows/club-reminders.yml` chạy 10 phút/lần từ 6:00 đến 22:59 giờ VN, dùng **chung** 2 secret `REMINDER_API_URL` + `REMINDER_CRON_SECRET` đã có — không cần thêm gì. 2) Học viên tick "Hẹn giờ", chọn ngày giờ (10 phút → 14 ngày tới), chọn chủ đề; người khác bấm **Đăng ký** ở mục "Buổi nói sắp diễn ra" hoặc vào bằng mã. Trước ~15 phút mọi người nhận thông báo trong app + push (+ Zalo nếu đã liên kết). Chủ phòng mở được từ 10 phút trước giờ hẹn; phòng không ai mở tự đóng sau 2 giờ. Lưu ý: gọi 10 phút/lần giữ máy chủ Render gói free luôn thức trong khung giờ đó (vẫn trong hạn mức 750 giờ/tháng nếu chỉ có 1 dịch vụ free). |
+| Giáo viên chấm lại bài viết | Không cần gì. Trong trang học viên (`/teacher/<nhóm>` → bấm tên) → tab Bài viết → mở bài → nhập điểm /100 (và band IELTS/TOEIC với đề thi) + nhận xét → học viên nhận thông báo, thấy điểm giáo viên ở **Luyện viết → Bài viết gần đây**. |
+| Hoàn tiền + biên nhận | Admin → tab **Doanh thu** → bảng đơn hàng: **Biên nhận** (in/lưu PDF) và **Hoàn tiền**. Đơn Stripe hoàn qua API ngay; đơn VNPay/MoMo phải hoàn trên cổng trước rồi bấm để ghi nhận. Hoàn tiền trừ lại thời hạn Premium đã mua. Hoàn tiền trực tiếp trên trang Stripe cũng tự ghi nhận nếu webhook Stripe có thêm sự kiện **`charge.refunded`**. Người mua xem "Lịch sử thanh toán" + biên nhận ở `/upgrade`. Tuỳ chọn trên Render để in thông tin người bán: `SELLER_NAME`, `SELLER_TAX_CODE`, `SELLER_ADDRESS`, `SELLER_EMAIL`. Biên nhận **không** thay hoá đơn GTGT. |
+| Cảnh báo chi phí AI | Đặt trên Render: `AI_ALERT_DAILY_USD` (tổng cả app/ngày) và/hoặc `AI_ALERT_USER_DAILY_USD` (một tài khoản/ngày); 0 = tắt. Job nhắc học hằng giờ kiểm tra và email cho `ADMIN_EMAILS` (cần `RESEND_API_KEY`), mỗi ngưỡng tối đa 1 lần/ngày; tab **Chi phí AI** hiện băng cảnh báo đỏ. |
+
+Migration `a4d5e6f7a8b9` tự chạy khi deploy. Sửa kèm: 3 test thử thách hằng ngày từng đỏ khi chạy CI sau 17:00 UTC (test dùng ngày UTC, code dùng ngày giờ VN).
+
+Chưa làm trong G11: thư viện video có bản quyền (cần hợp đồng với nhà sản xuất); câu lạc bộ nói bằng giọng thật (WebRTC); hoàn tiền một phần; hoá đơn điện tử tự động.
+
+## G12 — Podcast tự động, câu lạc bộ nói hằng tuần của lớp, rubric IELTS, hoá đơn điện tử Viettel, chế độ tiết kiệm AI: hoàn tất trên code
+
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Podcast tự sinh theo lịch | Render: `PODCAST_AUTO_DRAFTS` = số bản nháp chờ duyệt muốn giữ cho mỗi trình độ (vd. `2`; `0` = tắt), tuỳ chọn `PODCAST_AUTO_LEVELS` (mặc định `A2,B1,B2`). Content Factory (2 giờ/lần) tạo tối đa 1 tập mỗi lần chạy, mỗi trình độ ≤ 1 tập/ngày, chủ đề luân phiên; vẫn phải **duyệt** ở `/admin` → Podcast AI (tập tự động có nhãn "Tự động"); admin nhận email khi có tập mới (nếu đã bật email). |
+| Câu lạc bộ nói hằng tuần của lớp | Không cần gì thêm (dùng lịch 10 phút/lần của G11). Giáo viên vào trang lớp → "Câu lạc bộ nói hằng tuần" → chọn thứ, giờ (giờ VN), chủ đề hoặc luân phiên. Phòng buổi kế tiếp tự mở, cả lớp nhận thông báo; học viên đăng ký ở **Lớp học** hoặc **Câu lạc bộ nói**; người đăng ký đầu tiên làm chủ phòng; trước 15 phút: người đăng ký được nhắc (push/Zalo), cả lớp nhận thông báo trong app. Phòng chỉ thành viên lớp vào được. |
+| Rubric IELTS 4 tiêu chí | Không cần gì. Với bài IELTS, giáo viên chấm Đáp ứng đề · Mạch lạc · Từ vựng · Ngữ pháp (0–9, bước 0,5); band tổng làm tròn theo luật IELTS, điểm /100 mặc định = band/9; học viên thấy từng tiêu chí ở **Luyện viết → Bài viết gần đây**. |
+| Hoá đơn điện tử Viettel S-Invoice | Xem mục 3.6 trong `docs/VIEC_CAN_LAM.md` (tài khoản API, mẫu số, ký hiệu, thuế suất). Admin → Doanh thu → nút **Xuất HĐĐT** từng đơn; hoặc `EINVOICE_AUTO=business` (đơn có yêu cầu hoá đơn) / `all` (mọi đơn) để job hằng giờ tự xuất cho đơn đã trả trong 3 ngày. Số hoá đơn + mã tra cứu hiện trên biên nhận. Lần đầu nên thử với tài khoản **demo** của Viettel (đặt `VIETTEL_SINVOICE_API_URL`/`LOGIN_URL` theo hướng dẫn Viettel). Hoàn tiền đơn đã có HĐĐT: lập hoá đơn điều chỉnh/huỷ trên trang Viettel. |
+| Chế độ tiết kiệm AI | Render: `AI_ECONOMY_AT_USD` (vd. `3` = từ khi cả app tốn 3 USD/ngày) + `AI_ECONOMY_GEMINI_MODEL` / `AI_ECONOMY_OPENAI_MODEL` (tên mô hình rẻ hơn, lấy từ trang giá của Google/OpenAI). Mô hình thường: `GEMINI_MODEL`, `OPENAI_MODEL`. Nếu mô hình tiết kiệm lỗi (sai tên…) hệ thống tự gọi lại bằng mô hình thường. Tab Chi phí AI hiện băng khi đang tiết kiệm. |
+
+Migration `b5e6f7a8b9c0` tự chạy khi deploy.
+
+Chưa làm trong G12: tích hợp VNPT/MISA (chỉ Viettel); tải file PDF hoá đơn từ Viettel về app; lập hoá đơn điều chỉnh tự động khi hoàn tiền; podcast tự sinh có giọng đọc riêng từng nhân vật bằng nhiều giọng neural.
+
+## G13 — Bài kiểm tra lớp, biểu đồ rubric, đề Speaking do AI sinh, phụ huynh dùng app di động: hoàn tất trên code
+
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Bài kiểm tra lớp (định kỳ, hằng tháng…) | Không cần gì. Giáo viên vào trang lớp → **Bài kiểm tra lớp** → chọn đề (Nghe/Đọc hoặc Nói, cả đề AI đã duyệt), ngày mở, hạn nộp (tối đa 60 ngày) → cả lớp nhận thông báo. Học viên làm ở **Lớp học** → "Làm bài"; lần làm **đầu tiên** trong thời hạn được tính điểm và **không trừ lượt thi miễn phí**. Giáo viên bấm vào bài để xem bảng điểm từng người (band/điểm, %, thời gian, giờ nộp), điểm TB/cao/thấp; điểm cũng vào CSV báo cáo nhóm và tab "Kiểm tra lớp" của từng học viên. Sáng ngày hết hạn (từ 8h) ai chưa làm được nhắc (trong app + push) — chạy trong cron nhắc học hằng giờ. |
+| Biểu đồ tiến bộ rubric | Không cần gì. Trang học viên của giáo viên hiện biểu đồ band IELTS Writing theo thời gian: Overall + 4 tiêu chí (lấy rubric giáo viên chấm nếu có, không thì band AI), di chuột xem từng bài, bấm để mở bài, bật/tắt từng đường, nút "Xem bảng". |
+| Đề Speaking do AI sinh, admin duyệt | Không cần khoá mới (dùng AI sẵn có). `/admin` → **Đề thi** → "Sinh đề thi thử Speaking bằng AI" (IELTS/TOEIC, trình độ, chủ đề) → xem trước → **Duyệt và phát hành**. Thời gian chuẩn bị/nói do hệ thống đặt theo đề thật; đề sai định dạng bị từ chối, không lưu. Đề đã duyệt vào thư viện thi nói (id `gen-…`) và giáo viên giao được làm bài kiểm tra lớp. |
+| Phụ huynh trên app di động | Cần app Capacitor (xem `docs/MOBILE_APP.md`) + `FIREBASE_SERVICE_ACCOUNT_JSON` trên Render (mục 4.x trong `docs/VIEC_CAN_LAM.md`). Web tự nhận ra đang chạy trong app (không cần cài thêm thư viện JS): trang Phụ huynh có thẻ **Thông báo trên điện thoại** → bật → app hỏi quyền → token gửi lên server; chạm thông báo mở đúng trang. Sau khi đăng nhập, app tự đăng ký lại token; đăng xuất thì gỡ token. Đã sửa: trước đây phụ huynh chỉ dùng app (chưa có khoá web push) không nhận cảnh báo. |
+| Hoá đơn VNPT / MISA | **Chưa làm**: hai nhà cung cấp không công bố tài liệu API công khai (cần hợp đồng + tài liệu tích hợp riêng). Khi có tài liệu từ nhà cung cấp, thêm như Viettel trong `services/einvoice.py`. |
+
+Migration `c6f7a8b9c0d1` tự chạy khi deploy.
+
+Chưa làm trong G13: đề Writing do AI sinh (đề viết hiện do agent sinh theo yêu cầu, chưa cần kho duyệt); lặp lại bài kiểm tra tự động hằng tháng (giáo viên giao từng lần); biểu đồ rubric cho Speaking.
+
+## SEO landing (cùng PR G13)
+
+Landing tách thành server page (`app/page.tsx` → metadata, canonical, Open Graph/Twitter, JSON-LD Organization · WebSite · WebApplication · FAQPage) +
+`components/landing/LandingPage.tsx` (giao diện). `robots.ts` chặn khu vực sau đăng nhập, `sitemap.ts` gồm trang chủ + 5 trang nội dung theo mục tiêu
+(`lib/seo/pages.ts`, khung `components/seo/SeoLanding.tsx`, có BreadcrumbList + FAQPage), mục "Học theo mục tiêu" trên landing và cột liên kết ở chân trang
+(`components/landing/SiteChrome.tsx`). Ảnh chia sẻ `public/og.png`. Địa chỉ gốc: `NEXT_PUBLIC_SITE_URL` (mục 4.6–4.8 trong `docs/VIEC_CAN_LAM.md`).
+
+## G14 — Tên miền, cẩm nang, hướng dẫn sử dụng có ảnh, giữ chân, tính năng học còn treo: hoàn tất trên code
+
+- **Tên miền** `aiagentenglish.com` là mặc định (`lib/seo/site.ts`, `NEXT_PUBLIC_SITE_URL` ghi đè); các bước gắn DNS ở `VIEC_CAN_LAM.md` mục 1.2b.
+- **Cẩm nang** `/cam-nang` + 8 bài dài (IELTS, TOEIC, luyện nói, từ vựng, phụ huynh, CEFR): dữ liệu `lib/seo/articles*.ts`, khung `components/seo/ArticleView.tsx`.
+- **Hướng dẫn sử dụng** `/huong-dan-su-dung` cho 4 đối tượng (người học, học sinh, phụ huynh, giáo viên), 31 ảnh chụp thật ở `public/guides/*.webp`:
+  dữ liệu `lib/seo/guides.ts`, khung `components/seo/GuideView.tsx`. Menu landing có "Cẩm nang", "Hướng dẫn" (+ menu điện thoại, cột chân trang).
+- **Landing**: bỏ số liệu/lời đánh giá chưa có thật (1.247 học viên, 4,9 sao, 98%, 3 lời chứng thực) → thay bằng thông tin đúng về sản phẩm
+  và mục "Dành cho ai" dẫn sang hướng dẫn. Khi có đánh giá thật thì thêm lại.
+- **Giữ chân (admin, tab "Giữ chân")**: `services/retention.py` — quay lại ngày 1/7/30 theo tuần đăng ký, phễu 30 ngày, nguồn 90 ngày
+  (`User.signup_source` lấy từ utm_source/ref/referrer lần đầu).
+- **Tính năng học**: bài kiểm tra lớp lặp hằng tháng (`GroupTest.repeat`, `roll_recurring_tests` trong cron giờ) · biểu đồ Speaking 4 tiêu chí ·
+  phụ huynh xem bài kiểm tra lớp của con · in bảng điểm `/teacher/<nhóm>/tests/<id>` · sửa chuỗi ngày 50 💎 (`streak_service.repair_streak`).
+
+## G15 — gợi ý tiếp theo (theo thứ tự ưu tiên)
+
+1. **Trang pháp lý công khai** — Chính sách bảo mật, Điều khoản, Hoàn tiền, Liên hệ (bắt buộc cho VNPay/MoMo, Google Play/App Store).
+2. **Theo dõi lỗi & sao lưu** — Sentry cho web + API (tự tắt khi chưa có khoá); kiểm tra sao lưu Postgres.
+3. **Test giao diện tự động trong CI** — vài kịch bản Playwright chính trên mỗi PR.
+4. Thu lời đánh giá thật trong app (sau 7 ngày học) để đưa lên landing.
+5. Khi có tài liệu nhà cung cấp: hoá đơn VNPT/MISA. Khi có máy build: phát hành app Android/iOS (`docs/MOBILE_APP.md`).
 
 ## Câu hỏi còn mở với chủ dự án
 
-- Số liệu trên landing ("1.247 học viên", "4,9 sao", lời đánh giá) là thật hay cần thay?
 - Bảng giá trên landing: giữ hay ẩn cho tới khi có thanh toán thật? Giá 99K/tháng – 799K/năm?
 - Dịch vụ chấm phát âm đến từng âm (G2 · hạng mục 9, xem `docs/G2_CHAM_PHAT_AM_SO_SANH.md`) và cổng thanh toán (G3).
 - Thêm kênh nhắc qua Zalo OA? Có làm "học thử không cần đăng ký"?

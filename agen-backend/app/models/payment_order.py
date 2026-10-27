@@ -9,6 +9,7 @@ from app.core.database import Base
 STATUS_PENDING = "pending"
 STATUS_PAID = "paid"
 STATUS_FAILED = "failed"
+STATUS_REFUNDED = "refunded"     # G11
 
 
 class PaymentOrder(Base):
@@ -17,11 +18,14 @@ class PaymentOrder(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = Column(String(36), ForeignKey("users.id"), nullable=False, index=True)
 
-    provider = Column(String(20), nullable=False)            # vnpay | momo
+    provider = Column(String(20), nullable=False)            # vnpay | momo | stripe | demo
     plan = Column(String(20), nullable=False, default="premium", server_default="premium")   # premium | family (G5)
     months = Column(Integer, nullable=False)
     seats = Column(Integer, nullable=False, default=1, server_default="1")      # G7 · team plan seats
-    amount_vnd = Column(Integer, nullable=False)
+    amount_vnd = Column(Integer, nullable=False)              # always VND (Stripe orders: converted at USD_TO_VND) for revenue stats
+    # G10 · Stripe: the amount actually charged, in the currency's minor unit (USD cents)
+    currency = Column(String(3), nullable=False, default="VND", server_default="VND")
+    amount_foreign = Column(Integer, nullable=True)
     status = Column(String(20), nullable=False, default=STATUS_PENDING)
 
     # Provider-side identifiers (transaction no, pay URL) and the raw callback.
@@ -35,3 +39,14 @@ class PaymentOrder(Base):
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     paid_at = Column(DateTime, nullable=True)
+
+    # G11 · refunds (Stripe through the API; VNPay/MoMo/demo refunded on the gateway, then recorded here)
+    refunded_at = Column(DateTime, nullable=True)
+    refund_txn = Column(String(120), nullable=True)
+    refund_note = Column(String(300), nullable=True)
+
+    # G12 · electronic invoice (Viettel S-Invoice): number, lookup code, our transaction id, last error
+    einvoice_no = Column(String(40), nullable=True)
+    einvoice_lookup_code = Column(String(60), nullable=True)
+    einvoice_txn = Column(String(40), nullable=True)
+    einvoice_error = Column(String(300), nullable=True)

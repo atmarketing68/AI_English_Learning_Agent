@@ -26,6 +26,19 @@ _QUOTA_PHRASES = (
 
 ModelT = TypeVar("ModelT", bound=BaseModel)
 
+def normal_model(provider: str) -> str:
+    return settings.GEMINI_MODEL if provider == "gemini" else settings.OPENAI_MODEL
+
+
+def economy_model(provider: str) -> str:
+    """G12 · cheaper model while economy mode is on (empty setting → normal model)."""
+    eco = settings.AI_ECONOMY_GEMINI_MODEL if provider == "gemini" else settings.AI_ECONOMY_OPENAI_MODEL
+    return eco or normal_model(provider)
+
+
+# Back-compat name used by older code/tests.
+MODELS = {"gemini": settings.GEMINI_MODEL, "openai": settings.OPENAI_MODEL}
+
 
 class LLMError(RuntimeError):
     """Raised when every configured LLM provider fails."""
@@ -62,15 +75,27 @@ def get_llm_response(prompt: str) -> str:
             is_quota=False,
         )
 
+    from app.services import ai_usage
+    if ai_usage.over_daily_limit():
+        # G10 · per-user daily AI budget: callers treat this like any quota error and fall back.
+        raise LLMError(
+            "Bạn đã dùng hết lượt AI hôm nay. Hãy quay lại vào ngày mai nhé!",
+            is_quota=True,
+        )
+
     failures: list[str] = []
     quota_hit = False
+    economy = ai_usage.economy_active()
 
     for provider in providers:
+        model = economy_model(provider) if economy else normal_model(provider)
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
-                if provider == "gemini":
-                    return _call_gemini(prompt)
-                return _call_openai(prompt)
+                caller = _call_gemini if provider == "gemini" else _call_openai
+                # keep the one-argument call for the normal model (tests and wrappers rely on it)
+                text = caller(prompt) if model == normal_model(provider) else caller(prompt, model=model)
+                ai_usage.record_llm(provider, model, prompt, text or "")
+                return text
             except Exception as exc:
                 is_quota = _is_quota_error(exc)
                 if is_quota:
@@ -80,6 +105,11 @@ def get_llm_response(prompt: str) -> str:
                     "LLM %s failed (attempt %d/%d, quota=%s): %s",
                     provider, attempt, MAX_ATTEMPTS, is_quota, exc,
                 )
+                if model != normal_model(provider):
+                    # G12 · the economy model failed (renamed, unavailable…): fall back to the normal one at once.
+                    logger.warning("Economy model %s failed; retrying with %s", model, normal_model(provider))
+                    model = normal_model(provider)
+                    continue
                 if is_quota:
                     # Retrying an exhausted quota only adds waiting; try the next provider.
                     break
@@ -97,7 +127,7 @@ def get_llm_response(prompt: str) -> str:
     raise LLMError(user_msg, is_quota=quota_hit)
 
 
-def _call_gemini(prompt: str) -> str:
+def _call_gemini(prompt: str, model: str | None = None) -> str:
     from google import genai
     from google.genai import types
     client = genai.Client(
@@ -105,16 +135,16 @@ def _call_gemini(prompt: str) -> str:
         http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_S * 1000),
     )
     # Use Chat (Interactions API) — avoids AFC warning
-    chat = client.chats.create(model="gemini-3.6-flash")
+    chat = client.chats.create(model=model or settings.GEMINI_MODEL)
     response = chat.send_message(prompt)
     return response.text
 
 
-def _call_openai(prompt: str) -> str:
+def _call_openai(prompt: str, model: str | None = None) -> str:
     from openai import OpenAI
     client = OpenAI(api_key=settings.OPENAI_API_KEY, timeout=REQUEST_TIMEOUT_S, max_retries=0)
     response = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=model or settings.OPENAI_MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.7,
     )

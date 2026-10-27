@@ -6,13 +6,14 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, useAuthHydrated } from '@/store/authStore';
 import {
-  getSubscription, upgradeToPremium, cancelSubscription, getBillingOptions, startPremiumTrial, checkout, getOrder,
+  getSubscription, upgradeToPremium, cancelSubscription, getBillingOptions, startPremiumTrial, checkout, getOrder, formatUsd,
   type SubscriptionInfo, type BillingOptions, type PaymentProvider, type InvoiceInfo,
 } from '@/lib/billingService';
 import { playSound } from '@/lib/soundEffects';
 import confetti from 'canvas-confetti';
-import { ArrowLeft, Check, CircleAlert, CircleCheck, CreditCard, FileText, Gift, LoaderCircle, Minus, Users, Wallet } from 'lucide-react';
+import { ArrowLeft, Check, CircleAlert, CircleCheck, CreditCard, FileText, Gift, Globe, LoaderCircle, Minus, Users, Wallet } from 'lucide-react';
 import { track } from '@/lib/analytics';
+import OrderHistoryCard from '@/components/billing/OrderHistoryCard';
 
 const FREE_FEATURES = [
   { label: '3 bài học AI / ngày', included: true },
@@ -135,6 +136,11 @@ export default function UpgradePage() {
       return () => clearInterval(timer);
     }
   }, [hydrated, isAuthenticated, router, returned.order, returned.status]);
+
+  // G10 · Stripe price in USD cents for the selected plan / months (team: per seat)
+  const usdTable = isParent ? options?.family_prices_usd : isTeacher ? options?.team_prices_usd : options?.prices_usd;
+  const usdUnit = usdTable?.find(p => p.months === selectedMonths)?.amount_vnd;
+  const usdCents = usdUnit != null ? usdUnit * (isTeacher ? seats : 1) : null;
 
   const handleCheckout = async (provider: PaymentProvider) => {
     setPaying(provider);
@@ -383,6 +389,11 @@ export default function UpgradePage() {
                   {paying === 'momo' ? <LoaderCircle className="animate-spin" size={18} /> : <Wallet size={18} />} Thanh toán qua Ví MoMo
                 </button>
               )}
+              {options?.providers.includes('stripe') && usdCents != null && (
+                <button className="btn btn-lg btn-outline" onClick={() => handleCheckout('stripe')} disabled={!!paying || upgrading || !invoiceValid} style={{ minWidth: 300 }}>
+                  {paying === 'stripe' ? <LoaderCircle className="animate-spin" size={18} /> : <Globe size={18} />} Thẻ quốc tế (Visa/Master) · {formatUsd(usdCents)}
+                </button>
+              )}
               {options?.demo_enabled && (
                 <button
                   className={`btn btn-lg ${options.providers.length ? 'btn-outline' : 'btn-primary'}`}
@@ -399,11 +410,13 @@ export default function UpgradePage() {
             </div>
             <p style={{ textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: 12 }}>
               {options?.providers.length
-                ? 'Thanh toán an toàn qua VNPay (thẻ ATM/QR/thẻ quốc tế) hoặc Ví MoMo. Gói được kích hoạt ngay sau khi thanh toán thành công.'
+                ? `Thanh toán an toàn qua ${[options.providers.includes('vnpay') && 'VNPay (thẻ ATM/QR)', options.providers.includes('momo') && 'Ví MoMo', options.providers.includes('stripe') && 'thẻ quốc tế qua Stripe (USD)'].filter(Boolean).join(', ')}. Gói được kích hoạt ngay sau khi thanh toán thành công.`
                 : options?.demo_enabled ? 'Demo: không có thanh toán thật — chỉ dùng cho mục đích Pilot.' : ''}
             </p>
           </div>
         )}
+
+        <OrderHistoryCard />
 
         {/* Feature Comparison */}
         <motion.div

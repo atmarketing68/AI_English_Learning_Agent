@@ -85,7 +85,8 @@ export interface SpeakingHistoryItem {
 
 export const getSpeakingCatalogue = async (): Promise<SpeakingCatalogue> => (await api.get('/speaking-exams')).data;
 export const getSpeakingHistory = async (limit = 10): Promise<SpeakingHistoryItem[]> => (await api.get(`/speaking-exams/history?limit=${limit}`)).data;
-export const startSpeakingExam = async (examId: string): Promise<{ attempt_id: string; exam: SpeakingPaper }> => (await api.post(`/speaking-exams/${examId}/start`)).data;
+export const startSpeakingExam = async (examId: string, testId?: string | null): Promise<{ attempt_id: string; exam: SpeakingPaper }> =>
+  (await api.post(`/speaking-exams/${examId}/start`, null, { params: testId ? { test: testId } : undefined })).data;
 export const answerSpeakingTask = async (attemptId: string, taskId: string, transcript: string, durationSeconds: number): Promise<{ task_id: string; words: number; pronunciation: number | null; answered: number; total: number }> =>
   (await api.post(`/speaking-exams/attempts/${attemptId}/answer`, { task_id: taskId, transcript, duration_seconds: durationSeconds })).data;
 export const finishSpeakingExam = async (attemptId: string): Promise<SpeakingResult> => (await api.post(`/speaking-exams/attempts/${attemptId}/finish`)).data;

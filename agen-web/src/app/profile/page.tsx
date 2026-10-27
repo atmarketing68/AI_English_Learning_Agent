@@ -18,6 +18,7 @@ import { getReviewSummary, type ReviewSummary } from '@/lib/reviewService';
 import { PageSkeleton } from '@/components/Skeleton';
 import ReminderCard from '@/components/engagement/ReminderCard';
 import InstallAppCard from '@/components/engagement/InstallAppCard';
+import CertificatesCard from '@/components/profile/CertificatesCard';
 import type { Achievement, User } from '@/types';
 
 const GOALS = [
@@ -178,6 +179,8 @@ export default function ProfilePage() {
             {!achievements.length && <p className="profile-muted">Hoàn thành bài học đầu tiên để nhận huy hiệu.</p>}
           </div>
         </section>
+
+        <CertificatesCard />
 
         {/* Learning settings */}
         <section className="card profile-section">

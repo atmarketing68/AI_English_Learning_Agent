@@ -96,7 +96,7 @@ def test_today_returns_three_quests_and_weekly_goal(client, db_session):
     assert len(body["weekly"]["days"]) == 7
     assert body["streak"] == {
         "current": 0, "longest": 0, "studied_today": False, "freezes": 1, "max_freezes": 2,
-        "protected": False, "missed_days": 0, "freeze_used_today": False,
+        "protected": False, "missed_days": 0, "freeze_used_today": False, "repair": None,
     }
     # Quests are pinned for the day.
     again = client.get(f"{API}/engagement/today", headers=headers).json()

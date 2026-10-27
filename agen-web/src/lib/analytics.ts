@@ -82,7 +82,34 @@ export type AnalyticsEvent =
   | 'speaking_exam_completed'
   | 'study_plan_set'
   | 'zalo_unlinked'
-  | 'exam_generated';
+  | 'exam_generated'
+  // G10
+  | 'media_opened'
+  | 'media_submitted'
+  | 'club_room_created'
+  | 'club_room_joined'
+  | 'club_turn_spoken'
+  | 'teacher_feedback_sent'
+  | 'certificate_issued'
+  | 'certificate_claimed'
+  // G11
+  | 'podcast_generated'
+  | 'club_room_scheduled'
+  | 'writing_regraded'
+  | 'order_refunded'
+  | 'receipt_opened'
+  // G12
+  | 'club_schedule_created'
+  | 'writing_rubric_graded'
+  | 'einvoice_issued'
+  // G13
+  | 'class_test_created'
+  | 'class_test_started'
+  | 'speaking_exam_generated'
+  // G14
+  | 'streak_repaired'
+  | 'class_test_repeat_set'
+  | 'class_test_sheet_printed';
 
 export function initAnalytics(): void {
   if (!KEY || typeof window === 'undefined') return;

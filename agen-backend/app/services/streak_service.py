@@ -9,15 +9,17 @@ Logic:
 """
 
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from sqlalchemy.orm import Session
 
-from app.core.timeutil import local_date, local_today
+from app.core.timeutil import LEARNER_TZ, local_date, local_today
 from app.models.learner_profile import LearnerProfile
 from app.models.achievement import DailyChallenge
 
 
 MAX_STREAK_FREEZES = 2
+STREAK_REPAIR_GEMS = 50      # G14 · giá sửa chuỗi (đá quý)
+STREAK_REPAIR_MIN = 2        # chỉ chuỗi từ 2 ngày trở lên mới đáng sửa
 
 
 @dataclass
@@ -95,7 +97,10 @@ def update_streak(learner: LearnerProfile, db: Session) -> dict:
                 learner.current_streak = (learner.current_streak or 0) + 1
                 freezes_used = missed
             else:
-                # Gap detected — reset streak
+                # Gap detected — reset streak; remember what was lost so it can be repaired today (G14)
+                if (learner.current_streak or 0) >= STREAK_REPAIR_MIN and missed == 1:
+                    learner.streak_lost_value = learner.current_streak
+                    learner.streak_lost_on = today.isoformat()
                 learner.current_streak = 1
 
     # Update longest streak
@@ -110,6 +115,46 @@ def update_streak(learner: LearnerProfile, db: Session) -> dict:
         "longest_streak": learner.longest_streak,
         "freezes_used": freezes_used,
     }
+
+
+class StreakRepairError(ValueError):
+    pass
+
+
+def repair_offer(learner: LearnerProfile, today: date | None = None) -> dict | None:
+    """G14 · Sửa chuỗi trong 24 giờ: when exactly one day was missed (and no freeze covered it),
+    the learner can buy the old streak back with gems — before or after studying today."""
+    today = today or local_today()
+    if learner.streak_lost_on == today.isoformat() and (learner.streak_lost_value or 0) >= STREAK_REPAIR_MIN:
+        lost = learner.streak_lost_value or 0
+        return {"lost": lost, "restored": lost + (learner.current_streak or 0), "cost": STREAK_REPAIR_GEMS}
+    s = streak_state(learner, today)
+    stored = learner.current_streak or 0
+    if not s.studied_today and s.current == 0 and s.missed_days == 1 and stored >= STREAK_REPAIR_MIN:
+        return {"lost": stored, "restored": stored, "cost": STREAK_REPAIR_GEMS}
+    return None
+
+
+def repair_streak(learner: LearnerProfile, today: date | None = None) -> dict:
+    """Spend the gems and restore the streak. Caller commits."""
+    today = today or local_today()
+    offer = repair_offer(learner, today)
+    if not offer:
+        raise StreakRepairError("Không có chuỗi nào để sửa lúc này.")
+    if (learner.gems or 0) < offer["cost"]:
+        raise StreakRepairError(f"Cần {offer['cost']} đá quý để sửa chuỗi, bạn đang có {learner.gems or 0}.")
+    learner.gems = (learner.gems or 0) - offer["cost"]
+    if learner.streak_lost_on == today.isoformat():
+        learner.current_streak = offer["restored"]          # already studied today: lost streak + today
+    else:
+        # Not studied yet: fill in yesterday, so today's first activity simply extends the streak.
+        yesterday_noon = datetime.combine(today - timedelta(days=1), time(12), tzinfo=LEARNER_TZ).astimezone(timezone.utc)
+        learner.last_active_at = yesterday_noon
+    learner.streak_lost_value = None
+    learner.streak_lost_on = None
+    if (learner.current_streak or 0) > (learner.longest_streak or 0):
+        learner.longest_streak = learner.current_streak
+    return {"current_streak": learner.current_streak, "gems": learner.gems, "cost": offer["cost"]}
 
 
 def update_daily_challenge_progress(learner: LearnerProfile, activity_skill: str, db: Session) -> bool:

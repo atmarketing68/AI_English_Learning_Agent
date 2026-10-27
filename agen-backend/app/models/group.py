@@ -67,6 +67,26 @@ class GroupAssignmentDone(Base):
     done_at = Column(DateTime, nullable=True)
 
 
+class GroupTest(Base):
+    """G13 · Bài kiểm tra lớp: the owner assigns one mock exam (Listening/Reading) or Speaking exam
+    to the whole group for a date window. A member's first attempt inside the window counts as the
+    result; it bypasses the free daily limit."""
+    __tablename__ = "group_tests"
+
+    id = Column(String(36), primary_key=True, default=_uuid)
+    group_id = Column(String(36), ForeignKey("groups.id"), nullable=False, index=True)
+    kind = Column(String(12), nullable=False, default="mock")        # mock | speaking
+    exam_id = Column(String(40), nullable=False)                     # id in mock_exams / speaking_exams
+    title = Column(String(140), nullable=False)
+    note = Column(Text, nullable=True)
+    opens_on = Column(Date, nullable=False)
+    due_on = Column(Date, nullable=False)
+    reminded_on = Column(Date, nullable=True)                        # "due today" reminder sent
+    repeat = Column(String(10), nullable=True)                       # G14 · "monthly" → next month's test is created when this one closes
+    next_test_id = Column(String(36), nullable=True)                 # the test created from this one
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
 def today_local() -> date:
     from app.core.timeutil import local_today
     return local_today()

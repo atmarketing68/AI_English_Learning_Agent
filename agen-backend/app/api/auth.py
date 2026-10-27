@@ -1,7 +1,7 @@
 import re
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -48,6 +48,16 @@ def _validate_password_strength(password: str) -> str:
 
 
 # ── Schemas ───────────────────────────────────────────────────────────────────
+def clean_source(value: str | None) -> str | None:
+    """G14 · keep a short, safe label for where the sign-up came from (utm_source or referrer host)."""
+    import re as _re
+    v = _re.sub(r"[^a-z0-9._-]", "", (value or "").strip().lower())[:60]
+    return v or None
+
+
+class GuestStart(BaseModel):
+    signup_source: str | None = None
+
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
@@ -56,6 +66,7 @@ class UserRegister(BaseModel):
     age: int | None = None
     grade: str | None = None
     role: str = "learner"   # learner | parent | teacher (G7 · giáo viên / doanh nghiệp)
+    signup_source: str | None = None   # G14 · first-touch source captured by the web (utm_source / referrer)
 
     @field_validator("role")
     @classmethod
@@ -129,6 +140,7 @@ def register(request: Request, payload: UserRegister, db: Session = Depends(get_
         hashed_password=get_password_hash(payload.password),
         full_name=payload.full_name,
         role=payload.role,
+        signup_source=clean_source(payload.signup_source),
     )
     db.add(user)
     db.flush()
@@ -268,7 +280,7 @@ class ClaimGuestRequest(BaseModel):
 
 @router.post("/guest", response_model=Token, status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-def start_guest(request: Request, db: Session = Depends(get_db)):
+def start_guest(request: Request, payload: GuestStart | None = Body(default=None), db: Session = Depends(get_db)):
     """Create a throw-away learner so a visitor can try the app with no sign-up.
 
     The account works like a free learner (same daily quota). /auth/claim turns it
@@ -281,6 +293,7 @@ def start_guest(request: Request, db: Session = Depends(get_db)):
         full_name="Khách học thử",
         role="learner",
         is_guest=True,
+        signup_source=clean_source(payload.signup_source if payload else None),
     )
     db.add(user)
     db.flush()

@@ -19,7 +19,7 @@ export interface SubscriptionInfo {
 export type PlanKind = 'premium' | 'family' | 'team';
 
 // G3 · real checkout + trial
-export type PaymentProvider = 'vnpay' | 'momo';
+export type PaymentProvider = 'vnpay' | 'momo' | 'stripe';
 
 export interface BillingOptions {
   prices: { months: number; amount_vnd: number }[];
@@ -37,6 +37,10 @@ export interface BillingOptions {
   team_max_seats: number;
   can_buy_team: boolean;
   seats: number;
+  // G10 · Stripe (thẻ quốc tế), giá USD cents; field name kept as amount_vnd by the API
+  prices_usd?: { months: number; amount_vnd: number }[];
+  family_prices_usd?: { months: number; amount_vnd: number }[];
+  team_prices_usd?: { months: number; amount_vnd: number }[];
 }
 
 export interface CheckoutResult {
@@ -60,12 +64,32 @@ export interface OrderInfo {
   seats: number;
   months: number;
   amount_vnd: number;
-  status: 'pending' | 'paid' | 'failed';
+  status: 'pending' | 'paid' | 'failed' | 'refunded';
   invoice?: InvoiceInfo | null;
   invoice_issued_at?: string | null;
   created_at?: string | null;
   paid_at?: string | null;
+  currency?: 'VND' | 'USD';
+  amount_foreign?: number | null;
+  refunded_at?: string | null;
 }
+
+/** G11 · Biên nhận thanh toán (không phải hoá đơn GTGT). */
+export interface Receipt {
+  number: string;
+  order: OrderInfo;
+  item: string;
+  provider_label: string;
+  provider_txn: string | null;
+  buyer: { name: string | null; email: string | null };
+  invoice: InvoiceInfo | null;
+  seller: { name: string; tax_code: string | null; address: string | null; email: string | null };
+  refund_note: string | null;
+  /** G12 · e-invoice issued on Viettel S-Invoice */
+  einvoice?: { number: string; lookup_code: string | null; series: string | null; lookup_url: string | null; seller_tax_code: string | null } | null;
+}
+
+export const getReceipt = async (orderId: string): Promise<Receipt> => (await api.get(`/billing/orders/${orderId}/receipt`)).data;
 
 export const getBillingOptions = async (): Promise<BillingOptions> => (await api.get('/billing/options')).data;
 export const startPremiumTrial = async (): Promise<SubscriptionInfo> => (await api.post('/billing/trial')).data;
@@ -103,3 +127,6 @@ export const cancelSubscription = async (): Promise<SubscriptionInfo> => {
   const res = await api.post('/billing/cancel');
   return res.data;
 };
+
+/** G10 · "$4.99" from USD cents. */
+export const formatUsd = (cents: number) => `$${(cents / 100).toFixed(2)}`;

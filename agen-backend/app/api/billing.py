@@ -79,11 +79,15 @@ class BillingOptions(BaseModel):
     team_max_seats: int = 500
     can_buy_team: bool = False        # only teacher accounts
     seats: int = 1
+    # G10 · Stripe prices (USD cents) for international cards
+    prices_usd: list[PriceOut] = []
+    family_prices_usd: list[PriceOut] = []
+    team_prices_usd: list[PriceOut] = []
 
 
 class CheckoutRequest(BaseModel):
     months: int = Field(ge=1, le=12)
-    provider: str = Field(pattern="^(vnpay|momo)$")
+    provider: str = Field(pattern="^(vnpay|momo|stripe)$")
     plan: str = Field(default="premium", pattern="^(premium|family|team)$")
     seats: int = Field(default=1, ge=1, le=500)
     invoice: InvoiceIn | None = None                 # G8 · VAT invoice request
@@ -107,13 +111,17 @@ class OrderOut(BaseModel):
     invoice_issued_at: datetime | None = None
     created_at: datetime | None = None
     paid_at: datetime | None = None
+    currency: str = "VND"
+    amount_foreign: int | None = None
+    refunded_at: datetime | None = None
 
 
 def _order_out(order: PaymentOrder) -> OrderOut:
     inv = order.invoice_info if isinstance(order.invoice_info, dict) else None
     return OrderOut(order_id=order.id, provider=order.provider, plan=order.plan or "premium", seats=order.seats or 1, months=order.months,
                     amount_vnd=order.amount_vnd, status=order.status, invoice=InvoiceIn(**inv) if inv else None,
-                    invoice_issued_at=order.invoice_issued_at, created_at=order.created_at, paid_at=order.paid_at)
+                    invoice_issued_at=order.invoice_issued_at, created_at=order.created_at, paid_at=order.paid_at,
+                    currency=order.currency or "VND", amount_foreign=order.amount_foreign, refunded_at=order.refunded_at)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -194,6 +202,9 @@ def billing_options(
         team_max_seats=payments.TEAM_MAX_SEATS,
         can_buy_team=current_user.role == "teacher",
         seats=subs.get_or_create_subscription(db, current_user.id).seats or 1,
+        prices_usd=[PriceOut(months=m, amount_vnd=a) for m, a in payments.PRICES_USD.items()],
+        family_prices_usd=[PriceOut(months=m, amount_vnd=a) for m, a in payments.FAMILY_PRICES_USD.items()],
+        team_prices_usd=[PriceOut(months=m, amount_vnd=a) for m, a in payments.TEAM_PRICES_USD.items()],
     )
 
 
@@ -230,6 +241,8 @@ def checkout(
         base = _api_base(request)
         if payload.provider == "vnpay":
             pay_url = payments.vnpay_pay_url(order, client_ip(request), f"{base}/api/v1/billing/vnpay/return")
+        elif payload.provider == "stripe":
+            pay_url = payments.stripe_checkout_url(order, f"{settings.app_url}/upgrade?order={order.id}", f"{settings.app_url}/upgrade?status=failed&order={order.id}")
         else:
             pay_url = payments.momo_pay_url(order, f"{settings.app_url}/upgrade?order={order.id}", f"{base}/api/v1/billing/momo/ipn")
     except payments.PaymentError as exc:
@@ -257,6 +270,34 @@ def my_orders(current_user: User = Depends(get_current_user), db: Session = Depe
     """G8 · The account's orders (paid first), with any VAT invoice request."""
     rows = db.query(PaymentOrder).filter(PaymentOrder.user_id == current_user.id).order_by(PaymentOrder.created_at.desc()).limit(50).all()
     return [_order_out(o) for o in rows]
+
+
+@router.get("/orders/{order_id}/receipt")
+def order_receipt(order_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """G11 · Printable payment receipt (not a VAT invoice) for the buyer or an admin."""
+    order = db.query(PaymentOrder).filter(PaymentOrder.id == order_id).first()
+    is_admin = bool(current_user.email) and current_user.email.strip().lower() in settings.admin_emails_list
+    if not order or (order.user_id != current_user.id and not is_admin):
+        raise HTTPException(status_code=404, detail="Order not found.")
+    if order.status not in ("paid", "refunded"):
+        raise HTTPException(status_code=400, detail="Đơn chưa thanh toán nên chưa có biên nhận.")
+    buyer = db.query(User).filter(User.id == order.user_id).first()
+    plan_vi = {"premium": "Premium", "family": "Gói gia đình", "team": "Gói theo ghế"}.get(order.plan or "premium", order.plan)
+    provider_vi = {"vnpay": "VNPay", "momo": "Ví MoMo", "stripe": "Thẻ quốc tế (Stripe)", "demo": "Kích hoạt thủ công"}.get(order.provider, order.provider)
+    return {
+        "number": payments.receipt_number(order), "order": _order_out(order).model_dump(),
+        "item": f"AI AGENT ENGLISH {plan_vi} · {order.months} tháng" + (f" · {order.seats} ghế" if (order.plan == "team") else ""),
+        "provider_label": provider_vi, "provider_txn": order.provider_txn if order.status in ("paid", "refunded") else None,
+        "buyer": {"name": getattr(buyer, "full_name", None), "email": getattr(buyer, "email", None)},
+        "invoice": order.invoice_info if isinstance(order.invoice_info, dict) else None,
+        "seller": {"name": settings.SELLER_NAME, "tax_code": settings.SELLER_TAX_CODE or None, "address": settings.SELLER_ADDRESS or None,
+                   "email": settings.SELLER_EMAIL or None},
+        "refund_note": order.refund_note,
+        # G12 · e-invoice issued on Viettel S-Invoice
+        "einvoice": ({"number": order.einvoice_no, "lookup_code": order.einvoice_lookup_code, "series": settings.VIETTEL_SINVOICE_SERIES or None,
+                      "lookup_url": settings.EINVOICE_LOOKUP_URL or None, "seller_tax_code": settings.VIETTEL_SINVOICE_TAX_CODE or settings.SELLER_TAX_CODE or None}
+                     if order.einvoice_no else None),
+    }
 
 
 @router.put("/orders/{order_id}/invoice", response_model=OrderOut)
@@ -300,6 +341,20 @@ async def momo_ipn(request: Request, db: Session = Depends(get_db)):
         return Response(status_code=204)
     payments.handle_momo_ipn(db, payload if isinstance(payload, dict) else {})
     return Response(status_code=204)
+
+
+@router.post("/stripe/webhook")
+async def stripe_webhook(request: Request, db: Session = Depends(get_db)):
+    """G10 · Stripe → server confirmation; only a correctly signed event credits an order."""
+    payload = await request.body()
+    if not payments.stripe_verify(payload, request.headers.get("stripe-signature", "")):
+        raise HTTPException(status_code=400, detail="Bad signature")
+    try:
+        import json as _json
+        event = _json.loads(payload.decode("utf-8"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Bad payload")
+    return {"received": True, "result": payments.handle_stripe_event(db, event if isinstance(event, dict) else {})}
 
 
 # ── Pilot mock upgrade / cancel ───────────────────────────────────────────────

@@ -21,7 +21,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       token: null,
       refreshToken: null,
       learner: null,
@@ -41,6 +41,9 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         resetAnalytics();
+        // G13 · the phone stops receiving this account's native notifications
+        const token = get().token;
+        void import('@/lib/nativePush').then(m => m.forgetNativePush(token)).catch(() => undefined);
         set({ token: null, refreshToken: null, learner: null, userRole: null, isGuest: false, isAuthenticated: false });
       },
     }),

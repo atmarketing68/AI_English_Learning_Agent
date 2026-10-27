@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   appName: 'AI AGENT ENGLISH',
   webDir: 'out',
   server: {
-    url: 'https://app.aiagentenglish.com',
+    url: 'https://aiagentenglish.com',
     cleartext: false,
   },
   ios: { contentInset: 'automatic', backgroundColor: '#0B1530' },

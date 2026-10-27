@@ -35,6 +35,10 @@ from app.api.tutor import router as tutor_router
 from app.api.speaking_exams import router as speaking_exams_router
 from app.api.study_plan import router as study_plan_router
 from app.api.zalo import router as zalo_router
+from app.api.media import router as media_router
+from app.api.club import router as club_router
+from app.api.certificates import router as certificates_router
+from app.core.usage_context import UsageContextMiddleware
 from app.services.gamification import seed_achievements
 from app.services.curriculum_seed import seed_curriculum
 
@@ -128,6 +132,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 
 app.add_middleware(SecurityHeadersMiddleware)
+# G10 · who/what is calling the AI (cost tracking); pure ASGI so contextvars reach the endpoint.
+app.add_middleware(UsageContextMiddleware)
 
 # ── Request logging middleware ────────────────────────────────────────────────
 @app.middleware("http")
@@ -181,6 +187,9 @@ app.include_router(tutor_router, prefix=PREFIX)
 app.include_router(speaking_exams_router, prefix=PREFIX)
 app.include_router(study_plan_router, prefix=PREFIX)
 app.include_router(zalo_router, prefix=PREFIX)
+app.include_router(media_router, prefix=PREFIX)
+app.include_router(club_router, prefix=PREFIX)
+app.include_router(certificates_router, prefix=PREFIX)
 
 # ── Root & Health ─────────────────────────────────────────────────────────────
 @app.get("/", tags=["Health"])

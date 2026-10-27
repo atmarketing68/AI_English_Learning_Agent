@@ -68,6 +68,8 @@ class ChildReport(BaseModel):
     what_improved: str
     what_needs_help: str
     what_to_do: str
+    # G14 · bài kiểm tra ở lớp của con (giáo viên giao), có kết quả của con
+    class_tests: list[dict] = []
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -198,6 +200,8 @@ def child_report(
     from app.services.parent_reports import build_child_report
     report = build_child_report(db, learner)
     report["skills"] = [SkillImprovement(**sk) for sk in report["skills"]]
+    from app.services.groups import learner_class_tests
+    report["class_tests"] = learner_class_tests(db, learner.id, limit=10)
     return ChildReport(**report)
 
 
@@ -212,6 +216,9 @@ class ParentSettingsOut(BaseModel):
     push_available: bool = False
     push_public_key: str | None = None
     push_devices: int = 0
+    # G13 · native app (Capacitor + FCM) on the parent's phone
+    native_push_available: bool = False
+    native_devices: int = 0
     # G9 · Zalo OA
     zalo_available: bool = False
     zalo_oa_link: str | None = None
@@ -241,7 +248,9 @@ class ParentPushOutIn(BaseModel):
 def _parent_settings_out(db: Session, parent: ParentProfile, user: User) -> ParentSettingsOut:
     from app.core.config import settings
     from app.services import zalo
+    from app.models.device_token import DeviceToken
     from app.models.push_subscription import PushSubscription
+    from app.services import fcm
     return ParentSettingsOut(
         weekly_report_email=bool(parent.weekly_report_email),
         email_available=settings.email_enabled,
@@ -251,6 +260,8 @@ def _parent_settings_out(db: Session, parent: ParentProfile, user: User) -> Pare
         push_available=settings.push_enabled,
         push_public_key=settings.VAPID_PUBLIC_KEY or None,
         push_devices=db.query(PushSubscription).filter(PushSubscription.user_id == user.id).count(),
+        native_push_available=fcm.enabled(),
+        native_devices=db.query(DeviceToken).filter(DeviceToken.user_id == user.id).count(),
         zalo_available=zalo.enabled(),
         zalo_oa_link=zalo.oa_link(),
         zalo_linked=bool(user.zalo_user_id),

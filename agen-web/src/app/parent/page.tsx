@@ -12,7 +12,9 @@ import {
 import Link from 'next/link';
 import { getSubscription, type SubscriptionInfo } from '@/lib/billingService';
 import { track } from '@/lib/analytics';
-import { BellRing, BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, MessageCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { enableNativePush, isNativeApp } from '@/lib/nativePush';
+import { testScoreLabel } from '@/lib/groupsService';
+import { BellRing, BookOpen, ClipboardCheck, Smartphone, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, MessageCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 import { apiErrorMessage } from '@/lib/apiError';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
@@ -84,9 +86,40 @@ function ParentEmailCard() {
     } finally { setPushBusy(false); }
   };
   const pushOn = prefs.push_devices > 0 && prefs.push_alerts;
+  // G13 · inside the Android/iOS app: native push (FCM) instead of web push
+  const nativeApp = isNativeApp();
+  const nativeOn = (prefs.native_devices ?? 0) > 0 && prefs.push_alerts;
+  const toggleNative = async () => {
+    setPushBusy(true); setPushError('');
+    try {
+      if (nativeOn) {
+        setPrefs(await updateParentSettings({ push_alerts: false }));
+      } else {
+        const state = await enableNativePush();
+        if (state === 'denied') setPushError('Điện thoại đang chặn thông báo của app. Mở Cài đặt → AI AGENT ENGLISH → Thông báo để cho phép rồi thử lại.');
+        else if (state !== 'on') setPushError('Chưa đăng ký được thông báo, thử lại sau ít phút.');
+        else { setPrefs(await updateParentSettings({ push_alerts: true })); track('parent_push_enabled'); }
+      }
+    } catch {
+      setPushError('Không bật được thông báo trên điện thoại này.');
+    } finally { setPushBusy(false); }
+  };
   return (
     <>
-    {prefs.push_available && parentPushSupported() && (
+    {nativeApp && prefs.native_push_available && (
+      <div className="card" style={{ marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <span className="icon-tile" style={{ flexShrink: 0, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><Smartphone size={20} strokeWidth={1.8} /></span>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontWeight: 600 }}>Thông báo trên điện thoại</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Báo ngay khi con nghỉ học 2 ngày, khi chuỗi ngày của con sắp mất (19–21h) và khi báo cáo tuần sẵn sàng. Chạm vào thông báo để mở trang này.</div>
+          {pushError && <div className="alert-error" style={{ marginTop: 8 }}>{pushError}</div>}
+        </div>
+        <button type="button" className={`btn btn-sm ${nativeOn ? 'btn-outline' : 'btn-primary'}`} onClick={toggleNative} disabled={pushBusy}>
+          {pushBusy ? <LoaderCircle className="animate-spin" size={14} /> : nativeOn ? 'Đang bật · Tắt' : 'Bật thông báo'}
+        </button>
+      </div>
+    )}
+    {!nativeApp && prefs.push_available && parentPushSupported() && (
       <div className="card" style={{ marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <span className="icon-tile" style={{ flexShrink: 0, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><BellRing size={20} strokeWidth={1.8} /></span>
         <div style={{ flex: 1, minWidth: 220 }}>
@@ -353,6 +386,29 @@ function ChildReportPanel({ learnerId, childName }: { learnerId: string; childNa
             </div>
             <div style={{ fontSize: '0.9rem', lineHeight: 1.65, color: 'var(--text-secondary)' }}>{report.what_to_do}</div>
           </motion.div>
+
+          {/* G14 · bài kiểm tra ở lớp của con */}
+          {!!report.class_tests?.length && (
+            <div style={{ padding: '16px 18px', borderRadius: 14, background: 'var(--bg-elevated)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <ClipboardCheck size={16} color="var(--agen-primary)" />
+                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Bài kiểm tra ở lớp</span>
+              </div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                {report.class_tests.map(t => (
+                  <div key={t.id} className="parent-test-row">
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{t.title}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t.group_name} · hạn {new Date(`${t.due_on}T00:00:00`).toLocaleDateString('vi-VN')}{t.avg_estimate != null ? ` · TB lớp ${testScoreLabel(t.exam, { estimate: t.avg_estimate, pct: t.avg_pct })}` : ''}</div>
+                    </div>
+                    {t.mine?.done
+                      ? <span className="plan-chip is-premium">{testScoreLabel(t.exam, t.mine)}</span>
+                      : <span className="plan-chip">{t.status === 'closed' ? 'Không làm' : t.status === 'upcoming' ? 'Sắp mở' : 'Chưa làm'}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </motion.div>
@@ -469,7 +525,7 @@ export default function ParentDashboardPage() {
                     <div style={{ textAlign: 'left' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.display_name}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <span style={{ padding: '1px 7px', borderRadius: 99, background: tint(levelColor, 14), color: levelColor, fontWeight: 600 }}>{c.overall_level}</span>
+                        <span style={{ padding: '1px 7px', borderRadius: 99, background: tint(levelColor, 14), color: levelColor, fontWeight: 600 }}>{c.overall_level.replace('PRE_', 'Pre-')}</span>
                         {c.relationship_label && <span>{c.relationship_label}</span>}
                         <span>{c.total_xp} XP</span>
                         {c.premium_source && <span style={{ color: 'var(--agen-accent)', fontWeight: 600 }}>Premium</span>}

@@ -25,6 +25,7 @@ class SpeakingExamAttempt(Base):
     feedback = Column(JSON, nullable=True)                         # agent output (task feedback, tips) or heuristic
     fallback = Column(Integer, nullable=False, default=0)          # 1 when the band came from the heuristic
     xp_earned = Column(Integer, nullable=False, default=0)
+    group_test_id = Column(String(36), nullable=True, index=True)  # G13 · taken as a class test
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     finished_at = Column(DateTime, nullable=True)

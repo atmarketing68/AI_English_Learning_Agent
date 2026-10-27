@@ -96,6 +96,13 @@ class HistoryItem(BaseModel):
     word_count: int
     xp_earned: int
     created_at: datetime
+    # G11 · teacher re-grade (overrides the AI score when present)
+    band: Optional[float] = None
+    teacher_score: Optional[float] = None
+    teacher_band: Optional[float] = None
+    teacher_comment: Optional[str] = None
+    teacher_scored_at: Optional[datetime] = None
+    teacher_rubric: Optional[dict] = None        # G12 · IELTS criteria
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -264,6 +271,9 @@ def get_writing_history(
             id=s.id, prompt_title=s.prompt_title, genre=s.genre or "",
             level=s.level, overall_score=s.overall_score, grade=s.grade,
             word_count=s.word_count, xp_earned=s.xp_earned, created_at=s.created_at,
+            band=((s.evaluation or {}).get("exam_band") or {}).get("overall") if isinstance(s.evaluation, dict) else None,
+            teacher_score=s.teacher_score, teacher_band=s.teacher_band, teacher_comment=s.teacher_comment,
+            teacher_scored_at=s.teacher_scored_at, teacher_rubric=s.teacher_rubric,
         )
         for s in submissions
     ]

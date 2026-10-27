@@ -127,7 +127,9 @@ def run_parent_digests(db: Session, now: datetime | None = None) -> dict:
     now_local = now.astimezone(LEARNER_TZ)
     today: date = now_local.date()
     stats = {"email_enabled": settings.email_enabled, "push_enabled": settings.push_enabled, "zalo_enabled": settings.zalo_enabled, "parents": 0, "weekly_sent": 0, "alerts_sent": 0, "push_sent": 0}
-    if not settings.email_enabled and not settings.push_enabled and not settings.zalo_enabled:
+    # G13 · native app push (FCM) alone is enough to alert parents, even without web push keys
+    can_alert = settings.push_enabled or settings.zalo_enabled or settings.fcm_enabled
+    if not settings.email_enabled and not can_alert:
         return stats
 
     parents = (
@@ -145,7 +147,7 @@ def run_parent_digests(db: Session, now: datetime | None = None) -> dict:
         children = _children(db, parent)
         if weekly_window and parent.last_weekly_report_week != this_week and children:
             sent_email = settings.email_enabled and parent.weekly_report_email and send_weekly_report(db, parent, user, now)
-            pushed = push_weekly_ready(db, parent, user, ", ".join(l.display_name for _, l in children)) if (settings.push_enabled or settings.zalo_enabled) else 0
+            pushed = push_weekly_ready(db, parent, user, ", ".join(l.display_name for _, l in children)) if can_alert else 0
             if sent_email or pushed:
                 parent.last_weekly_report_week = this_week
                 stats["weekly_sent"] += 1 if sent_email else 0
@@ -154,7 +156,7 @@ def run_parent_digests(db: Session, now: datetime | None = None) -> dict:
 
         for link, learner in children:
             # Streak at risk tonight (push only, once per day per child).
-            if (settings.push_enabled or settings.zalo_enabled) and streak_window and parent.push_alerts and link.last_streak_alert_on != today.isoformat():
+            if can_alert and streak_window and parent.push_alerts and link.last_streak_alert_on != today.isoformat():
                 active_today = learner.last_active_at is not None and local_date(learner.last_active_at) >= today
                 streak = effective_streak(learner)
                 if not active_today and streak >= STREAK_ALERT_MIN_STREAK:
@@ -174,7 +176,7 @@ def run_parent_digests(db: Session, now: datetime | None = None) -> dict:
             if already and date.fromisoformat(already) >= last_active:
                 continue            # alerted once for this quiet spell
             sent_email = settings.email_enabled and parent.weekly_report_email and send_inactivity_alert(db, parent, user, learner, idle_days)
-            pushed = push_inactivity(db, parent, user, learner, idle_days) if (settings.push_enabled or settings.zalo_enabled) else 0
+            pushed = push_inactivity(db, parent, user, learner, idle_days) if can_alert else 0
             if sent_email or pushed:
                 link.last_inactivity_alert_on = today.isoformat()
                 stats["alerts_sent"] += 1 if sent_email else 0

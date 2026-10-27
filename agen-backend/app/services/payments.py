@@ -28,7 +28,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.payment_order import STATUS_FAILED, STATUS_PAID, STATUS_PENDING, PaymentOrder
+from app.models.payment_order import STATUS_FAILED, STATUS_PAID, STATUS_PENDING, STATUS_REFUNDED, PaymentOrder
 from app.models.subscription import PLAN_FAMILY, PLAN_PREMIUM, PLAN_TEAM, Subscription
 from app.services import subscription_service as subs
 
@@ -44,6 +44,12 @@ TEAM_PRICES_VND: dict[int, int] = {1: 79_000, 12: 690_000}
 TEAM_MIN_SEATS = 5
 TEAM_MAX_SEATS = 500
 TRIAL_DAYS = 7
+# G10 · Stripe (international cards), USD cents. Team prices are per seat.
+PRICES_USD: dict[int, int] = {1: 499, 3: 1199, 12: 3900}
+FAMILY_PRICES_USD: dict[int, int] = {1: 899, 12: 7400}
+TEAM_PRICES_USD: dict[int, int] = {1: 399, 12: 3400}
+STRIPE_API = "https://api.stripe.com/v1"
+STRIPE_SIGNATURE_TOLERANCE_S = 300
 
 
 def price_for(plan: str, months: int, seats: int = 1) -> int | None:
@@ -53,6 +59,17 @@ def price_for(plan: str, months: int, seats: int = 1) -> int | None:
             return None
         return unit * seats
     table = FAMILY_PRICES_VND if plan == PLAN_FAMILY else PRICES_VND
+    return table.get(months)
+
+
+def price_usd_for(plan: str, months: int, seats: int = 1) -> int | None:
+    """USD cents for a Stripe order, None when the plan/months/seats combination is not sold."""
+    if plan == PLAN_TEAM:
+        unit = TEAM_PRICES_USD.get(months)
+        if unit is None or not (TEAM_MIN_SEATS <= seats <= TEAM_MAX_SEATS):
+            return None
+        return unit * seats
+    table = FAMILY_PRICES_USD if plan == PLAN_FAMILY else PRICES_USD
     return table.get(months)
 
 
@@ -69,12 +86,18 @@ def momo_enabled() -> bool:
     return bool(settings.MOMO_PARTNER_CODE and settings.MOMO_ACCESS_KEY and settings.MOMO_SECRET_KEY)
 
 
+def stripe_enabled() -> bool:
+    return settings.stripe_enabled
+
+
 def providers() -> list[str]:
     out = []
     if vnpay_enabled():
         out.append("vnpay")
     if momo_enabled():
         out.append("momo")
+    if stripe_enabled():
+        out.append("stripe")
     return out
 
 
@@ -89,12 +112,17 @@ def _plan_label(order: PaymentOrder) -> str:
 # ── Orders ───────────────────────────────────────────────────────────────────
 def create_order(db: Session, user_id: str, provider: str, months: int, plan: str = PLAN_PREMIUM, seats: int = 1) -> PaymentOrder:
     seats = seats if plan == PLAN_TEAM else 1
-    amount = price_for(plan, months, seats)
+    if provider == "stripe":
+        cents = price_usd_for(plan, months, seats)
+        amount = cents * settings.USD_TO_VND // 100 if cents is not None else None
+    else:
+        cents, amount = None, price_for(plan, months, seats)
     if amount is None:
         raise PaymentError("Gói không hợp lệ.")
     if provider not in providers():
         raise PaymentError("Cổng thanh toán này chưa được bật.")
-    order = PaymentOrder(user_id=user_id, provider=provider, plan=plan, months=months, seats=seats, amount_vnd=amount)
+    order = PaymentOrder(user_id=user_id, provider=provider, plan=plan, months=months, seats=seats, amount_vnd=amount,
+                         currency="USD" if provider == "stripe" else "VND", amount_foreign=cents)
     db.add(order)
     db.flush()
     return order
@@ -281,6 +309,89 @@ def handle_momo_ipn(db: Session, payload: dict) -> bool:
     return False
 
 
+# ── G10 · Stripe Checkout ────────────────────────────────────────────────────
+def stripe_checkout_url(order: PaymentOrder, success_url: str, cancel_url: str) -> str:
+    """Create a Checkout Session (one-time payment) and return its hosted URL."""
+    if not stripe_enabled():
+        raise PaymentError("Thanh toán thẻ quốc tế chưa được bật.")
+    form = {
+        "mode": "payment",
+        "success_url": success_url,
+        "cancel_url": cancel_url,
+        "client_reference_id": order.id,
+        "metadata[order_id]": order.id,
+        "payment_intent_data[metadata][order_id]": order.id,
+        "line_items[0][quantity]": "1",
+        "line_items[0][price_data][currency]": "usd",
+        "line_items[0][price_data][unit_amount]": str(order.amount_foreign),
+        "line_items[0][price_data][product_data][name]": f"AI AGENT ENGLISH {_plan_label(order)} · {order.months} month(s)",
+    }
+    try:
+        resp = httpx.post(f"{STRIPE_API}/checkout/sessions", data=form, auth=(settings.STRIPE_SECRET_KEY, ""), timeout=15)
+        data = resp.json()
+    except Exception as exc:
+        raise PaymentError(f"Stripe không phản hồi: {exc}") from exc
+    if resp.status_code >= 400 or not data.get("url"):
+        raise PaymentError(f"Stripe từ chối tạo phiên thanh toán: {(data.get('error') or {}).get('message', resp.status_code)}")
+    order.provider_txn = (data.get("id") or "")[:120] or None
+    return data["url"]
+
+
+def stripe_verify(payload: bytes, signature_header: str, now: int | None = None) -> bool:
+    """Stripe-Signature: t=<ts>,v1=<hex hmac-sha256 of "t.payload">; rejects stale timestamps."""
+    if not settings.STRIPE_WEBHOOK_SECRET or not signature_header:
+        return False
+    parts: dict[str, list[str]] = {}
+    for item in signature_header.split(","):
+        k, _, v = item.strip().partition("=")
+        parts.setdefault(k, []).append(v)
+    try:
+        ts = int(parts.get("t", ["0"])[0])
+    except ValueError:
+        return False
+    import time as _time
+    if abs((now if now is not None else int(_time.time())) - ts) > STRIPE_SIGNATURE_TOLERANCE_S:
+        return False
+    expected = hmac.new(settings.STRIPE_WEBHOOK_SECRET.encode(), f"{ts}.".encode() + payload, hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(expected, sig) for sig in parts.get("v1", []))
+
+
+def handle_stripe_event(db: Session, event: dict) -> str:
+    """Credit a paid Checkout Session; mark expired ones failed. Returns what happened."""
+    kind = event.get("type", "")
+    obj = (event.get("data") or {}).get("object") or {}
+    order_id = (obj.get("metadata") or {}).get("order_id") or obj.get("client_reference_id")
+    intent = obj.get("payment_intent") if kind == "charge.refunded" else None
+    if not order_id and not intent:
+        return "ignored"
+    q = db.query(PaymentOrder).filter(PaymentOrder.provider == "stripe")
+    # a Charge may not carry the PaymentIntent's metadata: fall back to the stored intent id
+    order = (q.filter(PaymentOrder.id == order_id).first() if order_id else None) or (q.filter(PaymentOrder.provider_txn == intent).first() if intent else None)
+    if not order:
+        return "unknown_order"
+    if kind in ("checkout.session.completed", "checkout.session.async_payment_succeeded"):
+        if obj.get("payment_status") != "paid":
+            return "pending"
+        if int(obj.get("amount_total") or 0) != int(order.amount_foreign or -1) or (obj.get("currency") or "").lower() != "usd":
+            logger.warning("Stripe amount mismatch for order %s: %s %s", order.id, obj.get("amount_total"), obj.get("currency"))
+            mark_failed(db, order, {"stripe_event": kind, "reason": "amount_mismatch"})
+            return "amount_mismatch"
+        return "paid" if mark_paid(db, order, obj.get("payment_intent") or obj.get("id"), {"stripe_event": kind, "session": obj.get("id")}) else "already_paid"
+    if kind == "charge.refunded":
+        # G11 · refunded from the Stripe dashboard (or echo of our own refund call)
+        if order.status != STATUS_PAID:
+            return "already_refunded" if order.status == STATUS_REFUNDED else "ignored"
+        if not obj.get("refunded"):
+            return "partial_refund"
+        record_refund(db, order, txn=((obj.get("refunds") or {}).get("data") or [{}])[0].get("id") or obj.get("id"), note="Hoàn tiền từ Stripe")
+        db.commit()
+        return "refunded"
+    if kind in ("checkout.session.expired", "checkout.session.async_payment_failed"):
+        mark_failed(db, order, {"stripe_event": kind})
+        return "failed"
+    return "ignored"
+
+
 def status_of(order: PaymentOrder) -> str:
     return order.status
 
@@ -289,9 +400,66 @@ def new_id() -> str:
     return str(uuid.uuid4())
 
 
+# ── G11 · Hoàn tiền ──────────────────────────────────────────────────────────
+def record_refund(db: Session, order: PaymentOrder, txn: str | None = None, note: str | None = None) -> PaymentOrder:
+    """Mark a paid order refunded and take back the Premium time it bought (caller commits)."""
+    if order.status != STATUS_PAID:
+        raise PaymentError("Chỉ hoàn tiền được đơn đã thanh toán.")
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    order.status = STATUS_REFUNDED
+    order.refunded_at = now
+    order.refund_txn = (txn or "")[:120] or None
+    order.refund_note = (note or "").strip()[:300] or None
+    sub = db.query(Subscription).filter(Subscription.user_id == order.user_id).first()
+    if sub and sub.current_period_end is not None:
+        sub.current_period_end = sub.current_period_end - timedelta(days=30 * (order.months or 0))
+        if sub.current_period_end <= now:
+            sub.plan = subs.PLAN_FREE
+            sub.current_period_end = None
+            sub.seats = 1
+    return order
+
+
+def stripe_refund(order: PaymentOrder) -> str:
+    """Full refund of a Stripe order through the API; returns the refund id."""
+    if not stripe_enabled():
+        raise PaymentError("Chưa cấu hình Stripe nên không hoàn tiền tự động được.")
+    intent = order.provider_txn or ""
+    if not intent.startswith("pi_"):
+        raise PaymentError("Đơn Stripe này không có mã PaymentIntent; hãy hoàn tiền trên trang Stripe rồi đánh dấu thủ công.")
+    try:
+        resp = httpx.post(f"{STRIPE_API}/refunds", data={"payment_intent": intent, "metadata[order_id]": order.id},
+                          auth=(settings.STRIPE_SECRET_KEY, ""), timeout=15)
+        data = resp.json()
+    except Exception as exc:
+        raise PaymentError(f"Stripe không phản hồi: {exc}") from exc
+    if resp.status_code >= 400 or not data.get("id"):
+        raise PaymentError(f"Stripe từ chối hoàn tiền: {(data.get('error') or {}).get('message', resp.status_code)}")
+    return data["id"]
+
+
+def refund_order(db: Session, order: PaymentOrder, note: str | None = None, manual: bool = False) -> PaymentOrder:
+    """Admin refund: Stripe orders are refunded through the API unless `manual`; other gateways are
+    refunded by the operator on the gateway first, then recorded here. Caller commits."""
+    if order.status != STATUS_PAID:
+        raise PaymentError("Chỉ hoàn tiền được đơn đã thanh toán.")
+    txn = None
+    if order.provider == "stripe" and not manual:
+        txn = stripe_refund(order)
+    return record_refund(db, order, txn=txn, note=note)
+
+
+def receipt_number(order: PaymentOrder) -> str:
+    """Stable, human-friendly receipt number: BN-<yymmdd>-<first 6 of the order id>."""
+    when = order.paid_at or order.created_at or datetime.now(timezone.utc)
+    return f"BN-{when.strftime('%y%m%d')}-{order.id.replace('-', '')[:6].upper()}"
+
+
 __all__ = [
     "PRICES_VND", "FAMILY_PRICES_VND", "FAMILY_MAX_CHILDREN", "TEAM_PRICES_VND", "TEAM_MIN_SEATS", "TEAM_MAX_SEATS", "price_for", "TRIAL_DAYS", "PaymentError", "providers", "vnpay_enabled", "momo_enabled",
     "create_order", "mark_paid", "mark_failed", "trial_available", "start_trial",
     "vnpay_pay_url", "vnpay_verify", "handle_vnpay_callback",
     "momo_create_request", "momo_pay_url", "momo_verify", "handle_momo_ipn", "status_of", "new_id", "json",
+    "PRICES_USD", "FAMILY_PRICES_USD", "TEAM_PRICES_USD", "price_usd_for", "stripe_enabled", "stripe_checkout_url", "stripe_verify", "handle_stripe_event",
+    "record_refund", "stripe_refund", "refund_order", "receipt_number",
 ]

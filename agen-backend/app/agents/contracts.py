@@ -214,3 +214,55 @@ class GeneratedExamOutput(BaseModel):
     description: str = Field(min_length=1)
     minutes: int = Field(ge=5, le=30)
     sections: list[ExamSectionOutput] = Field(min_length=1, max_length=5)
+
+
+# ── G13 · AI-generated Speaking mock test (same shape as services/speaking_exams.EXAMS) ──
+class GeneratedSpeakingTaskOutput(BaseModel):
+    part: str = Field(min_length=1, max_length=40)
+    kind: Literal["question", "cue_card", "read_aloud", "opinion"] = "question"
+    prompt: str = Field(min_length=1, max_length=600)
+    tip_vi: str = Field(default="", max_length=300)
+    reference: str | None = Field(default=None, max_length=900)
+    cue: list[str] = Field(default_factory=list, max_length=5)
+
+
+class GeneratedSpeakingExamOutput(BaseModel):
+    title: str = Field(min_length=1, max_length=140)
+    description: str = Field(min_length=1, max_length=600)
+    tasks: list[GeneratedSpeakingTaskOutput] = Field(min_length=4, max_length=12)
+
+
+# ── G10 · Speaking club host ──────────────────────────────────────────────────
+class ClubModeratorOutput(BaseModel):
+    feedback_vi: str = Field(min_length=1, max_length=400)
+    corrected: str = Field(default="", max_length=600)
+    reply: str = Field(min_length=1, max_length=600)
+
+
+# ── G11 · AI-generated podcast episode (same shape as services/media_library.EPISODES) ──
+class PodcastLineOutput(BaseModel):
+    speaker: str = Field(min_length=1, max_length=40)
+    text: str = Field(min_length=1, max_length=400)
+    vi: str = Field(min_length=1, max_length=400)
+
+
+class PodcastVocabOutput(BaseModel):
+    word: str = Field(min_length=1, max_length=60)
+    definition: str = Field(min_length=1, max_length=120)
+
+
+class PodcastQuestionOutput(BaseModel):
+    prompt: str = Field(min_length=1, max_length=300)
+    options: list[str] = Field(min_length=3, max_length=4)
+    answer: int = Field(ge=0, le=3)
+    explanation_vi: str = Field(min_length=1, max_length=300)
+
+
+class PodcastEpisodeOutput(BaseModel):
+    title: str = Field(min_length=1, max_length=80)
+    title_vi: str = Field(min_length=1, max_length=100)
+    description_vi: str = Field(min_length=1, max_length=300)
+    topic: str = Field(min_length=1, max_length=40)
+    lines: list[PodcastLineOutput] = Field(min_length=6, max_length=24)
+    vocab: list[PodcastVocabOutput] = Field(min_length=3, max_length=8)
+    questions: list[PodcastQuestionOutput] = Field(min_length=3, max_length=6)

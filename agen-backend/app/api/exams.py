@@ -63,6 +63,7 @@ class QuestionResult(BaseModel):
 class SubmitIn(BaseModel):
     answers: dict[str, Any] = Field(default_factory=dict)
     seconds: Optional[int] = Field(default=None, ge=0, le=7200)
+    group_test_id: Optional[str] = Field(default=None, max_length=36)   # G13 · taken as a class test
 
 
 class SubmitOut(BaseModel):
@@ -78,6 +79,7 @@ class SubmitOut(BaseModel):
     xp_earned: int
     gems_earned: int
     best_estimate: float
+    class_test: bool = False
 
 
 class AttemptOut(BaseModel):
@@ -102,7 +104,9 @@ def _learner(db: Session, user: User) -> LearnerProfile:
 
 
 def _attempts_today(db: Session, learner_id: str) -> int:
-    return db.query(ExamAttempt).filter(ExamAttempt.learner_id == learner_id, ExamAttempt.created_at >= local_day_start_utc()).count()
+    # G13 · class tests do not use up the free daily attempt
+    return db.query(ExamAttempt).filter(ExamAttempt.learner_id == learner_id, ExamAttempt.created_at >= local_day_start_utc(),
+                                         ExamAttempt.group_test_id.is_(None)).count()
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -137,13 +141,21 @@ def history(limit: int = 20, current_user: User = Depends(get_current_user), db:
                        correct=r.correct, total=r.total, pct=r.pct, estimate=r.estimate, seconds=r.seconds, created_at=r.created_at) for r in rows]
 
 
+def _class_test(db: Session, learner_id: str, test_id: Optional[str], exam_id: str):
+    from app.services.groups import open_test_for
+    return open_test_for(db, learner_id, test_id, "mock", exam_id)
+
+
 @router.get("/{exam_id}")
-def get_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """The test without answers. Free accounts: one test a day."""
+def get_exam(exam_id: str, test: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """The test without answers. Free accounts: one test a day — a class test (G13, ?test=<id>) does not count."""
     learner = _learner(db, current_user)
     exam = bank.get_exam(exam_id, db)
     if not exam:
         raise HTTPException(status_code=404, detail="Không tìm thấy đề thi.")
+    class_test = _class_test(db, learner.id, test, exam_id)
+    if class_test:
+        return {**bank.public_exam(exam), "class_test": {"id": class_test.id, "title": class_test.title, "due_on": class_test.due_on.isoformat()}}
     if not is_premium(db, current_user.id) and _attempts_today(db, learner.id) >= bank.FREE_DAILY_ATTEMPTS:
         raise HTTPException(status_code=403, detail=f"Gói miễn phí làm được {bank.FREE_DAILY_ATTEMPTS} đề thi thử mỗi ngày. Nâng cấp Premium để thi không giới hạn.")
     return bank.public_exam(exam)
@@ -155,7 +167,8 @@ def submit(exam_id: str, payload: SubmitIn, current_user: User = Depends(get_cur
     exam = bank.get_exam(exam_id, db)
     if not exam:
         raise HTTPException(status_code=404, detail="Không tìm thấy đề thi.")
-    if not is_premium(db, current_user.id) and _attempts_today(db, learner.id) >= bank.FREE_DAILY_ATTEMPTS:
+    class_test = _class_test(db, learner.id, payload.group_test_id, exam_id)
+    if not class_test and not is_premium(db, current_user.id) and _attempts_today(db, learner.id) >= bank.FREE_DAILY_ATTEMPTS:
         raise HTTPException(status_code=403, detail=f"Gói miễn phí làm được {bank.FREE_DAILY_ATTEMPTS} đề thi thử mỗi ngày. Nâng cấp Premium để thi không giới hạn.")
 
     result = bank.grade(exam, payload.answers)
@@ -165,6 +178,7 @@ def submit(exam_id: str, payload: SubmitIn, current_user: User = Depends(get_cur
         learner_id=learner.id, exam_id=exam["id"], exam=exam["exam"], skill=exam["skill"],
         correct=result["correct"], total=result["total"], pct=result["pct"], estimate=result["estimate"],
         sections=result["sections"], answers={k: v for k, v in payload.answers.items() if k.startswith("q")}, seconds=payload.seconds, xp_earned=xp,
+        group_test_id=class_test.id if class_test else None,
     )
     db.add(attempt)
     learner.total_xp = (learner.total_xp or 0) + xp
@@ -182,5 +196,5 @@ def submit(exam_id: str, payload: SubmitIn, current_user: User = Depends(get_cur
     return SubmitOut(
         attempt_id=attempt.id, exam=exam["exam"], skill=exam["skill"], correct=result["correct"], total=result["total"], pct=result["pct"], estimate=result["estimate"],
         sections=[SectionResult(**s) for s in result["sections"]], details=[QuestionResult(**d) for d in result["details"]],
-        xp_earned=xp, gems_earned=gems, best_estimate=max(r.estimate for r in best),
+        xp_earned=xp, gems_earned=gems, best_estimate=max(r.estimate for r in best), class_test=class_test is not None,
     )
