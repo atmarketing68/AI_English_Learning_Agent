@@ -92,6 +92,18 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
 - [ ] **4.4 Giọng đọc miễn phí tự host (Voicebox)** — chỉ khi có máy chạy 24/7: `VOICEBOX_URL`, `VOICEBOX_PROFILE_ID` (+ `VOICEBOX_PROFILE_ID_MALE`, `VOICEBOX_API_KEY`). Chi tiết ở `docs/ROADMAP_STATUS.md` mục G2.
 - [ ] **4.5 Podcast tự sinh theo lịch** — Render: `PODCAST_AUTO_DRAFTS=2` (giữ 2 bản nháp chờ duyệt mỗi trình độ; `0` = tắt), tuỳ chọn `PODCAST_AUTO_LEVELS` (mặc định `A2,B1,B2`). Mỗi ngày vào `/admin` → **Podcast AI** nghe thử và duyệt các tập có nhãn "Tự động".
 
+## Mức 4b — SEO (để Google lập chỉ mục đúng tên miền)
+
+- [ ] **4.6 Địa chỉ chính thức của web** — Vercel: `NEXT_PUBLIC_SITE_URL` = tên miền thật, có `https://`, không có `/` cuối (vd. `https://aiagentenglish.com`) → Redeploy.
+  Chưa đặt thì app dùng tên miền production Vercel tự cấp. Kiểm tra: mở `<web>/robots.txt` và `<web>/sitemap.xml` — địa chỉ trong đó phải là tên miền thật.
+- [ ] **4.7 Google Search Console** — search.google.com/search-console → Thêm tài sản (*Tiền tố URL* = tên miền ở 4.6) → chọn xác minh bằng **Thẻ HTML** → chép giá trị `content="…"` →
+  Vercel: `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` = giá trị đó → Redeploy → bấm Xác minh. Sau đó: **Sơ đồ trang web** → gửi `sitemap.xml`; **Kiểm tra URL** từng trang ở 4.8 → Yêu cầu lập chỉ mục.
+  (Nếu xác minh bằng DNS ở nhà cung cấp tên miền thì bỏ qua biến này.)
+- [ ] **4.8 Các trang nội dung đã có** (có trong sitemap): `/luyen-thi-ielts`, `/luyen-thi-toeic`, `/tieng-anh-cho-tre-em`, `/tieng-anh-giao-tiep`, `/lop-hoc-va-doanh-nghiep`.
+  Sửa chữ: `agen-web/src/lib/seo/pages.ts` (tiêu đề, mô tả, nội dung, hỏi đáp). Ảnh chia sẻ mạng xã hội: `agen-web/public/og.png` (1200×630) — thay bằng ảnh thương hiệu nếu muốn.
+  Khu vực sau đăng nhập đã chặn trong `robots.txt`; trang Đăng nhập/Đăng ký đặt `noindex`.
+- Nên quyết sớm (ảnh hưởng uy tín với Google): số liệu "1.247 học viên", "4,9 sao", "98% hài lòng" và 3 lời đánh giá trên landing — nếu chưa có thật nên thay bằng số liệu thật hoặc bỏ. Code **không** khai báo điểm đánh giá (AggregateRating) cho Google vì chưa có nguồn thật.
+
 ## Mức 5 — Kiểm soát chi phí AI (khuyên đặt khi có người dùng thật)
 
 - [ ] **5.1 Cảnh báo chi phí** — Render: `AI_ALERT_DAILY_USD` (vd. `5` = báo khi cả app tốn quá 5 USD/ngày), `AI_ALERT_USER_DAILY_USD` (vd. `0.5` = báo khi 1 tài khoản tốn quá 0,5 USD/ngày). Email gửi tới `ADMIN_EMAILS` (cần mục 2.2), tối đa 1 lần/ngày mỗi ngưỡng.

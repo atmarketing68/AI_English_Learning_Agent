@@ -267,9 +267,16 @@ Migration `c6f7a8b9c0d1` tự chạy khi deploy.
 
 Chưa làm trong G13: đề Writing do AI sinh (đề viết hiện do agent sinh theo yêu cầu, chưa cần kho duyệt); lặp lại bài kiểm tra tự động hằng tháng (giáo viên giao từng lần); biểu đồ rubric cho Speaking.
 
+## SEO landing (cùng PR G13)
+
+Landing tách thành server page (`app/page.tsx` → metadata, canonical, Open Graph/Twitter, JSON-LD Organization · WebSite · WebApplication · FAQPage) +
+`components/landing/LandingPage.tsx` (giao diện). `robots.ts` chặn khu vực sau đăng nhập, `sitemap.ts` gồm trang chủ + 5 trang nội dung theo mục tiêu
+(`lib/seo/pages.ts`, khung `components/seo/SeoLanding.tsx`, có BreadcrumbList + FAQPage), mục "Học theo mục tiêu" trên landing và cột liên kết ở chân trang
+(`components/landing/SiteChrome.tsx`). Ảnh chia sẻ `public/og.png`. Địa chỉ gốc: `NEXT_PUBLIC_SITE_URL` (mục 4.6–4.8 trong `docs/VIEC_CAN_LAM.md`).
+
 ## G14 — gợi ý tiếp theo
 
-SEO landing + trang nội dung (đang làm) · Kiểm tra định kỳ tự lặp theo tháng · Biểu đồ tiến bộ Speaking theo 4 tiêu chí · Phụ huynh xem bài kiểm tra lớp của con · Xuất PDF bảng điểm bài kiểm tra.
+Blog/hướng dẫn học (bài viết dài theo từ khoá) · Kiểm tra định kỳ tự lặp theo tháng · Biểu đồ tiến bộ Speaking theo 4 tiêu chí · Phụ huynh xem bài kiểm tra lớp của con · Xuất PDF bảng điểm bài kiểm tra.
 
 ## Câu hỏi còn mở với chủ dự án
 
