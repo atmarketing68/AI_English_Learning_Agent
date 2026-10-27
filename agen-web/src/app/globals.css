@@ -3322,3 +3322,11 @@ a.member-cert:hover { color: var(--agen-primary); }
 }
 @media (max-width: 899px) { .lp-cta-media::after { background: rgba(0,70,190,0.7); } }
 :root:not([data-skin="vivid"]) .page-banner { min-height: clamp(150px, 16vw, 200px); }
+
+/* Art-only banner (pages that keep their own title card) and public-page hero art */
+.page-banner-art { min-height: clamp(120px, 15vw, 190px); margin-bottom: var(--spacing-md); }
+.page-banner-art .page-banner-media::after { background: none; }
+.page-banner-art .page-banner-media img { object-position: 85% 38%; }
+@media (max-width: 700px) { .page-banner-art .page-banner-media { order: 0; aspect-ratio: 21 / 9; } }
+.seo-hero-art { position: relative; max-width: 980px; margin: clamp(28px, 4vw, 44px) auto 0; aspect-ratio: 21 / 9; border-radius: 24px; overflow: hidden; box-shadow: var(--shadow-md); }
+.seo-hero-art img { object-fit: cover; }

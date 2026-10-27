@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G9 · Kế hoạch ôn thi: đặt ngày thi + band mục tiêu, xem điểm hiện tại, tuần nào học gì, có đúng tiến độ không. */
 import { useEffect, useState } from 'react';
@@ -72,6 +73,7 @@ export default function PlanPage() {
     <main className="friends-page">
       <div className="friends-column" style={{ maxWidth: 760 }}>
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Trang chủ</Link>
+        <PageBanner image="banner-plan" priority />
         <section className="card friends-hero">
           <span className="icon-tile" style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><CalendarDays size={28} strokeWidth={1.7} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>

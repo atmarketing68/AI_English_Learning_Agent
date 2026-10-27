@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G8 · Hỏi Bo — chatbot ngữ pháp bằng tiếng Việt, có ví dụ nghe được. */
 import { useEffect, useRef, useState } from 'react';
@@ -87,6 +88,7 @@ export default function TutorPage() {
     <main className="friends-page tutor-page">
       <div className="friends-column" style={{ maxWidth: 720 }}>
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Trang chủ</Link>
+        <PageBanner image="banner-tutor" priority />
         <section className="card friends-hero">
           <span className="icon-tile" style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><MessageCircleQuestion size={28} strokeWidth={1.7} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>

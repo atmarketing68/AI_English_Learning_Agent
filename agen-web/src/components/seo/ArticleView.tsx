@@ -1,5 +1,6 @@
 /** Cẩm nang · một bài viết: mục lục, nội dung, mẹo, bảng, hỏi đáp, CTA + JSON-LD (Article, BreadcrumbList, FAQPage). */
 import Link from 'next/link';
+import SeoHeroArt from '@/components/seo/SeoHeroArt';
 import { ArrowRight, BookOpen, ChevronDown, ChevronRight, Clock, Lightbulb } from 'lucide-react';
 import { SiteFooter, SiteHeader } from '@/components/landing/SiteChrome';
 import { ARTICLE_BY_SLUG } from '@/lib/seo/articles';
@@ -53,6 +54,7 @@ export default function ArticleView({ article: a }: { article: Article }) {
             <span>{SITE_NAME}</span>
           </div>
         </div>
+        <SeoHeroArt name="seo-cam-nang" />
       </section>
 
       <section className="lp-section" style={{ paddingTop: 40 }}>

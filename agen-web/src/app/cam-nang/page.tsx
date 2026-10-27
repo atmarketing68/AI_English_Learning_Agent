@@ -1,5 +1,6 @@
 /** Cẩm nang học tiếng Anh: danh sách bài viết theo chủ đề + lối vào hướng dẫn sử dụng. */
 import type { Metadata } from 'next';
+import SeoHeroArt from '@/components/seo/SeoHeroArt';
 import Link from 'next/link';
 import { BookOpen, ChevronRight, Clock, LifeBuoy } from 'lucide-react';
 import { SiteFooter, SiteHeader } from '@/components/landing/SiteChrome';
@@ -48,6 +49,7 @@ export default function CamNangPage() {
             <Link href="/huong-dan-su-dung" className="btn btn-ghost btn-lg"><LifeBuoy size={18} /> Hướng dẫn dùng ứng dụng</Link>
           </div>
         </div>
+        <SeoHeroArt name="seo-cam-nang" />
       </section>
 
       {ORDER.map(cat => {

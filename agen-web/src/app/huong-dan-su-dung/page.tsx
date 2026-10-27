@@ -1,5 +1,6 @@
 /** Hướng dẫn sử dụng: chọn đối tượng (người học, học sinh, phụ huynh, giáo viên) + lối vào cẩm nang học. */
 import type { Metadata } from 'next';
+import SeoHeroArt from '@/components/seo/SeoHeroArt';
 import Link from 'next/link';
 import { BookOpen, ChevronRight, LifeBuoy } from 'lucide-react';
 import { SiteFooter, SiteHeader } from '@/components/landing/SiteChrome';
@@ -43,6 +44,7 @@ export default function GuidesHub() {
           <h1>Bắt đầu với AI AGENT ENGLISH</h1>
           <p>Chọn vai trò của bạn để xem từng bước, kèm ảnh chụp màn hình thật của ứng dụng.</p>
         </div>
+        <SeoHeroArt name="seo-huong-dan" />
       </section>
 
       <section className="lp-section" style={{ paddingTop: 48 }}>

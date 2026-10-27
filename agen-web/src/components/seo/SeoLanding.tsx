@@ -3,6 +3,7 @@
  * các bước, hỏi đáp, CTA, trang liên quan + JSON-LD (WebPage, BreadcrumbList, FAQPage).
  */
 import type { Metadata } from 'next';
+import SeoHeroArt from '@/components/seo/SeoHeroArt';
 import Link from 'next/link';
 import { ArrowRight, BadgeCheck, Check, ChevronDown, ChevronRight, Trophy } from 'lucide-react';
 import { SiteFooter, SiteHeader } from '@/components/landing/SiteChrome';
@@ -61,6 +62,7 @@ export default function SeoLanding({ slug }: { slug: string }) {
             <Link href="/#bang-gia" className="hero-link">Xem bảng giá <ChevronRight size={18} /></Link>
           </div>
         </div>
+        <SeoHeroArt name={({ 'luyen-thi-ielts': 'seo-ielts', 'luyen-thi-toeic': 'seo-toeic', 'tieng-anh-cho-tre-em': 'seo-kids', 'tieng-anh-giao-tiep': 'seo-speaking', 'lop-hoc-va-doanh-nghiep': 'seo-business' } as Record<string, string>)[slug] ?? 'seo-cam-nang'} />
       </section>
 
       <section className="lp-section" style={{ paddingTop: 56 }}>

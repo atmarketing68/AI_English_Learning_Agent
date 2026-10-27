@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G10 · Thư viện podcast / video ngắn: nghe hội thoại thật, bấm từ để tra, trả lời câu hỏi. */
 import { useEffect, useMemo, useState } from 'react';
@@ -33,6 +34,7 @@ export default function ListenLibraryPage() {
   return (
     <main className="friends-page">
       <div className="friends-column" style={{ maxWidth: 820 }}>
+        <PageBanner image="banner-listen" priority />
         <section className="card friends-hero">
           <span className="icon-tile" style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--bg-tint)', color: 'var(--skill-listening)' }}><Headphones size={28} strokeWidth={1.7} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>

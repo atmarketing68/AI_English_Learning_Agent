@@ -1,5 +1,6 @@
 /** Hướng dẫn sử dụng · một đối tượng: các bước có ảnh chụp thật, mẹo, hỏi đáp + JSON-LD (Article, BreadcrumbList, FAQPage). */
 import Image from 'next/image';
+import SeoHeroArt from '@/components/seo/SeoHeroArt';
 import Link from 'next/link';
 import { ArrowRight, BookOpen, ChevronDown, ChevronRight, Lightbulb } from 'lucide-react';
 import { SiteFooter, SiteHeader } from '@/components/landing/SiteChrome';
@@ -61,6 +62,7 @@ export default function GuideView({ guide: g }: { guide: Guide }) {
           <h1>{g.h1}</h1>
           <p>{g.lead}</p>
         </div>
+        <SeoHeroArt name="seo-huong-dan" />
       </section>
 
       <section className="lp-section" style={{ paddingTop: 40 }}>

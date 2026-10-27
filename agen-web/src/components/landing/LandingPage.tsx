@@ -44,8 +44,8 @@ const SKILLS: { icon: LucideIcon; tone: Tone; title: string; desc: string; img: 
 ];
 
 const FEATURES: { icon: LucideIcon; tone: Tone; title: string; desc: string; img?: string }[] = [
-  { icon: TrendingUp, tone: 'green', title: 'Thích ứng thông minh', desc: 'Độ khó tự điều chỉnh theo kết quả thực tế. Học đúng thứ bạn cần.' },
-  { icon: Flame, tone: 'orange', title: 'Động lực mỗi ngày', desc: 'XP, chuỗi ngày học, thành tựu và bảng xếp hạng giữ bạn đều đặn.' },
+  { icon: TrendingUp, tone: 'green', title: 'Thích ứng thông minh', desc: 'Độ khó tự điều chỉnh theo kết quả thực tế. Học đúng thứ bạn cần.', img: 'feature-adaptive' },
+  { icon: Flame, tone: 'orange', title: 'Động lực mỗi ngày', desc: 'XP, chuỗi ngày học, thành tựu và bảng xếp hạng giữ bạn đều đặn.', img: 'feature-motivation' },
   { icon: Users, tone: 'purple', title: 'Báo cáo phụ huynh', desc: 'Báo cáo hằng tuần dễ hiểu, biết rõ con cần cải thiện điều gì.', img: 'feature-parent' },
 ];
 
@@ -327,6 +327,7 @@ export default function LandingPage() {
             <IconTile icon={Smartphone} tone="blue" />
             <h3>Học mọi lúc, mọi nơi</h3>
             <p>Chỉ cần trình duyệt trên điện thoại hoặc máy tính. Mỗi ngày 5–30 phút là đủ.</p>
+            <Media name="feature-anywhere" />
           </motion.div>
         </div>
       </section>
