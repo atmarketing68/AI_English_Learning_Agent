@@ -749,6 +749,18 @@ a:hover { opacity: 0.8; }
 }
 .lp-card:hover .lp-icon { transform: scale(1.08) rotate(-4deg); }
 
+/* Stats strip: straddles the bottom edge of the hero and floats gently */
+.lp-stats { padding-top: 0; padding-bottom: 56px; margin-top: clamp(-84px, -6vw, -44px); z-index: 3; }
+.lp-stats .lp-stat {
+  background: color-mix(in srgb, var(--bg-surface) 92%, transparent);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  border-color: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 30px 60px -28px rgba(8, 30, 90, 0.55), 0 2px 0 rgba(255, 255, 255, 0.6) inset;
+  animation: lp-stat-float 6s ease-in-out infinite alternate; animation-delay: calc(var(--i, 0) * -1.6s);
+}
+@keyframes lp-stat-float { from { translate: 0 0; } to { translate: 0 -7px; } }
+.lp-stats .lp-icon { animation: lp-stat-pulse 4.5s ease-in-out infinite; animation-delay: calc(var(--i, 0) * -1.2s); }
+@keyframes lp-stat-pulse { 0%, 100% { filter: saturate(1); } 50% { filter: saturate(1.35) brightness(1.06); } }
 .lp-stat { display: flex; align-items: center; gap: 18px; }
 .lp-stat-value { font-size: clamp(1.9rem, 3.4vw, 2.6rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
 .lp-stat-label { font-size: 0.9rem; color: var(--text-muted); margin-top: 6px; }
@@ -2760,7 +2772,7 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 .lp-hero-orb-c { width: 300px; height: 300px; left: -120px; top: 10%; background: radial-gradient(circle, #22C55E, transparent 65%); opacity: 0.3; animation: orb-a 24s ease-in-out infinite alternate-reverse; }
 .lp-hero-inner {
   position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; align-items: center;
-  padding: clamp(56px, 8vw, 110px) var(--page-gutter) clamp(56px, 8vw, 96px); max-width: 1280px; margin: 0 auto;
+  padding: clamp(56px, 8vw, 110px) var(--page-gutter) clamp(104px, 12vw, 160px); max-width: 1280px; margin: 0 auto;
 }
 @media (min-width: 960px) { .lp-hero-inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; } .lp-hero-copy { padding-right: 8px; } }
 .lp-hero-copy h1 { color: #fff; font-size: clamp(2.3rem, 4.6vw, 4.25rem); font-weight: 700; line-height: 1.06; letter-spacing: -0.04em; margin-bottom: 20px; }
