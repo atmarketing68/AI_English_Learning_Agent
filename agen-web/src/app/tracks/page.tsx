@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G3 · Khoá theo mục tiêu — IELTS, TOEIC, phỏng vấn. */
 import { useEffect, useState } from 'react';
@@ -26,11 +27,12 @@ export default function TracksPage() {
     <main className="tracks-page">
       <div className="tracks-column">
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Trang chủ</Link>
-        <div className="eyebrow" style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Target size={14} /> Khoá theo mục tiêu</div>
-        <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', margin: '4px 0 6px' }}>Học đúng thứ bạn cần</h1>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
-          Mỗi khoá là một chuỗi bài học theo thứ tự, bám sát dạng đề hoặc tình huống thật. Bài tiếp theo mở khoá khi bạn hoàn thành bài trước.
-        </p>
+        <PageBanner
+          image="banner-tracks" priority
+          eyebrow={<><Target size={14} /> Khoá theo mục tiêu</>}
+          title="Học đúng thứ bạn cần"
+          sub="Mỗi khoá là một chuỗi bài học theo thứ tự, bám sát dạng đề hoặc tình huống thật. Bài tiếp theo mở khoá khi bạn hoàn thành bài trước."
+        />
         {error && <div className="alert-error" style={{ marginBottom: 16 }}><CircleAlert size={16} /> {error}</div>}
         {!tracks && !error && <PageSkeleton cards={3} />}
         <div className="tracks-grid">

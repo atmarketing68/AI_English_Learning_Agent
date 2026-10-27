@@ -3250,3 +3250,75 @@ a.member-cert:hover { color: var(--agen-primary); }
 .guide-hub { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
 .lp-nav-actions { display: flex; align-items: center; gap: 16px; font-size: 0.88rem; }
 @media (max-width: 480px) { .lp-nav-inner { gap: 10px; } .lp-nav-actions { gap: 6px; } }
+
+/* ============================================
+   PAGE BANNER (illustrated header of learner pages)
+   ============================================ */
+.page-banner {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  min-height: clamp(190px, 21vw, 250px);
+  margin-bottom: var(--spacing-xl);
+  border-radius: var(--radius-xl);
+  background: #EAF3FF;
+  color: #1D1D1F;
+  box-shadow: var(--shadow-md);
+}
+.page-banner-media { position: absolute; inset: 0; }
+.page-banner-media img { object-fit: cover; object-position: 85% 35%; }
+.page-banner-media::after {
+  /* keeps the title readable where the artwork gets close on narrower screens */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(234,243,255,0.9) 0%, rgba(234,243,255,0.55) 38%, rgba(234,243,255,0) 62%);
+}
+.page-banner-text {
+  position: relative;
+  max-width: min(560px, 62%);
+  padding: clamp(20px, 4vw, 40px);
+}
+.page-banner-text h1,
+.page-banner-text h2 { color: #1D1D1F; margin: 0; font-size: clamp(1.7rem, 3.6vw, 2.5rem); }
+.page-banner-text p { color: #3A3A3C; margin: 8px 0 0; font-size: clamp(0.92rem, 1.5vw, 1.05rem); }
+.page-banner-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--agen-primary);
+}
+.page-banner-extra { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+@media (max-width: 700px) {
+  .page-banner { flex-direction: column; align-items: stretch; min-height: 0; }
+  .page-banner-media { position: relative; inset: auto; order: 2; aspect-ratio: 21 / 9; }
+  .page-banner-media::after { background: linear-gradient(180deg, #EAF3FF 0%, rgba(234,243,255,0) 40%); }
+  .page-banner-text { max-width: none; padding: 20px 20px 4px; }
+}
+
+/* Landing-page illustrations */
+.lp-media { position: relative; aspect-ratio: 4 / 3; border-radius: 16px; overflow: hidden; background: #EAF3FF; }
+.lp-media img { object-fit: cover; transition: transform 0.6s var(--ease-out); }
+.lp-card:hover .lp-media img { transform: scale(1.05); }
+.lp-media-icon { position: absolute; left: 12px; bottom: 12px; }
+.lp-feature .lp-media { margin-top: 16px; }
+.lp-step .lp-media { margin-bottom: 20px; }
+.lp-cta-media { position: absolute; inset: 0; }
+.lp-cta-media img { object-fit: cover; object-position: 78% center; }
+.lp-cta-media::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(0,70,190,0.82) 0%, rgba(0,88,214,0.55) 45%, rgba(0,88,214,0.05) 75%);
+}
+@media (min-width: 900px) {
+  .lp-cta { text-align: left; }
+  .lp-cta-inner { margin: 0 0 0 clamp(8px, 4vw, 56px); max-width: 560px; }
+  .lp-cta-points { justify-content: flex-start; }
+}
+@media (max-width: 899px) { .lp-cta-media::after { background: rgba(0,70,190,0.7); } }
+:root:not([data-skin="vivid"]) .page-banner { min-height: clamp(150px, 16vw, 200px); }

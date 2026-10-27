@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -128,10 +129,10 @@ export default function WritingPracticePage() {
       <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
         <div style={{ maxWidth: 600, width: '100%' }}>
           <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 20 }}><ArrowLeft size={16} /> Dashboard</Link>
-          <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.5rem)', marginBottom: 10 }}>Luyện viết</h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
-            Chọn một chủ đề để bắt đầu. AI sẽ tạo đề bài phù hợp với trình độ của bạn và chấm điểm chi tiết.
-          </p>
+          <PageBanner
+            image="banner-writing" priority title="Luyện viết"
+            sub="Chọn một chủ đề để bắt đầu. AI sẽ tạo đề bài phù hợp với trình độ của bạn và chấm điểm chi tiết."
+          />
           
           {error && <div className="alert-error" style={{ marginBottom: 16 }}><CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}</div>}
 

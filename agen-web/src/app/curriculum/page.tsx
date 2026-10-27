@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -135,18 +136,13 @@ export default function CurriculumPage() {
           >
             <ArrowLeft size={16} /> Dashboard
           </Link>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: 'clamp(1.9rem, 4vw, 2.5rem)' }}>Lộ trình học tập</h1>
-              <p style={{ color: 'var(--text-muted)', marginTop: 4 }}>
-                Cấp độ <span className="level-badge">{map.level}</span> — học theo thứ tự để mở khóa bài tiếp theo
-              </p>
-            </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', fontWeight: 600, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>{map.progress_pct}%</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{map.completed_lessons}/{map.total_lessons} bài</div>
-            </div>
-          </div>
+          <PageBanner
+            image="banner-curriculum" priority
+            title="Lộ trình học tập"
+            sub={<>Cấp độ <span className="level-badge">{map.level}</span> — học theo thứ tự để mở khóa bài tiếp theo</>}
+          >
+            <span className="xp-badge">{map.progress_pct}% · {map.completed_lessons}/{map.total_lessons} bài</span>
+          </PageBanner>
         </div>
 
         {/* Overall progress bar */}

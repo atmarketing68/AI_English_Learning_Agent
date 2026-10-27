@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /**
  * G2 · Luyện nói 3 bước với AI Coach có nhân vật.
@@ -315,10 +316,10 @@ export default function SpeakingPracticePage() {
     return (
       <main className="speak-page">
         <div className="speak-column">
-          <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', marginBottom: 6 }}>Luyện nói</h1>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: 20 }}>
-            Chọn một tình huống quen thuộc: học cụm từ → nói lặp lại có chấm → hội thoại với nhân vật AI.
-          </p>
+          <PageBanner
+            image="banner-speaking" priority title="Luyện nói"
+            sub="Chọn một tình huống quen thuộc: học cụm từ → nói lặp lại có chấm → hội thoại với nhân vật AI."
+          />
           {loadError && <div className="alert-error" style={{ marginBottom: 16 }}><CircleAlert size={16} /> {loadError}</div>}
           {errorBox}
           {!catalogue && !loadError && <PageSkeleton />}

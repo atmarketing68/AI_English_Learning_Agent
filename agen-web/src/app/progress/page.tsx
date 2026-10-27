@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -134,12 +135,8 @@ export default function ProgressPage() {
         {/* ── Header ── */}
         <div className="animate-fade-in-up" style={{ marginBottom: 'var(--spacing-xl)' }}>
           <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Dashboard</Link>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.5rem)' }}>Tiến bộ</h1>
-              <p style={{ color: 'var(--text-muted)', marginTop: 6 }}>Phân tích hành trình học và so sánh với cộng đồng.</p>
-            </div>
-            
+          <PageBanner image="banner-progress" priority title="Tiến bộ" sub="Phân tích hành trình học và so sánh với cộng đồng." />
+          <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
             {/* Tabs */}
             <div className="segmented">
               <button

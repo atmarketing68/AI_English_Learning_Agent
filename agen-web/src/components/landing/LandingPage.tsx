@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
@@ -35,17 +36,17 @@ const STATS: { value: number; decimals?: number; suffix?: string; label: string;
   { value: 24, suffix: '/7', label: 'Gia sư AI Bo giải đáp bằng tiếng Việt', icon: MessageCircle, tone: 'pink' },
 ];
 
-const SKILLS: { icon: LucideIcon; tone: Tone; title: string; desc: string }[] = [
-  { icon: Headphones, tone: 'sky', title: 'Listening', desc: 'Nghe hội thoại thật với giọng đọc tự nhiên, kèm transcript.' },
-  { icon: Mic, tone: 'pink', title: 'Speaking', desc: 'Nhập vai cùng AI, được sửa câu và gợi ý ngay khi nói.' },
-  { icon: BookOpen, tone: 'green', title: 'Reading', desc: 'Bài đọc theo trình độ, từ vựng nổi bật và câu hỏi hiểu bài.' },
-  { icon: PenLine, tone: 'purple', title: 'Writing', desc: 'Viết đoạn văn, email và nhận chấm điểm chi tiết từng lỗi.' },
+const SKILLS: { icon: LucideIcon; tone: Tone; title: string; desc: string; img: string }[] = [
+  { icon: Headphones, tone: 'sky', title: 'Listening', desc: 'Nghe hội thoại thật với giọng đọc tự nhiên, kèm transcript.', img: 'skill-listening' },
+  { icon: Mic, tone: 'pink', title: 'Speaking', desc: 'Nhập vai cùng AI, được sửa câu và gợi ý ngay khi nói.', img: 'skill-speaking' },
+  { icon: BookOpen, tone: 'green', title: 'Reading', desc: 'Bài đọc theo trình độ, từ vựng nổi bật và câu hỏi hiểu bài.', img: 'skill-reading' },
+  { icon: PenLine, tone: 'purple', title: 'Writing', desc: 'Viết đoạn văn, email và nhận chấm điểm chi tiết từng lỗi.', img: 'skill-writing' },
 ];
 
-const FEATURES: { icon: LucideIcon; tone: Tone; title: string; desc: string }[] = [
+const FEATURES: { icon: LucideIcon; tone: Tone; title: string; desc: string; img?: string }[] = [
   { icon: TrendingUp, tone: 'green', title: 'Thích ứng thông minh', desc: 'Độ khó tự điều chỉnh theo kết quả thực tế. Học đúng thứ bạn cần.' },
   { icon: Flame, tone: 'orange', title: 'Động lực mỗi ngày', desc: 'XP, chuỗi ngày học, thành tựu và bảng xếp hạng giữ bạn đều đặn.' },
-  { icon: Users, tone: 'purple', title: 'Báo cáo phụ huynh', desc: 'Báo cáo hằng tuần dễ hiểu, biết rõ con cần cải thiện điều gì.' },
+  { icon: Users, tone: 'purple', title: 'Báo cáo phụ huynh', desc: 'Báo cáo hằng tuần dễ hiểu, biết rõ con cần cải thiện điều gì.', img: 'feature-parent' },
 ];
 
 const LEVELS = ['Pre-A1', 'A1', 'A2', 'B1', 'B2'];
@@ -61,10 +62,10 @@ const TOPICS: { icon: LucideIcon; label: string }[] = [
   { icon: MessageCircle, label: 'Giao tiếp hằng ngày' },
 ];
 
-const STEPS: { icon: LucideIcon; tone: Tone; title: string; desc: string }[] = [
-  { icon: UserPlus, tone: 'blue', title: 'Học thử hoặc tạo tài khoản', desc: 'Học thử ngay không cần đăng ký; lưu tài khoản bằng email khi muốn giữ tiến bộ.' },
-  { icon: ClipboardCheck, tone: 'purple', title: 'Kiểm tra đầu vào 8 phút', desc: '14 câu hỏi về đọc, nghe và nói để AI AGENT ENGLISH xác định đúng trình độ của bạn.' },
-  { icon: Rocket, tone: 'pink', title: 'Nhận lộ trình và học ngay', desc: 'Bài học được tạo riêng theo mục tiêu và thời gian của bạn.' },
+const STEPS: { icon: LucideIcon; tone: Tone; title: string; desc: string; img: string }[] = [
+  { icon: UserPlus, tone: 'blue', title: 'Học thử hoặc tạo tài khoản', desc: 'Học thử ngay không cần đăng ký; lưu tài khoản bằng email khi muốn giữ tiến bộ.', img: 'step-1' },
+  { icon: ClipboardCheck, tone: 'purple', title: 'Kiểm tra đầu vào 8 phút', desc: '14 câu hỏi về đọc, nghe và nói để AI AGENT ENGLISH xác định đúng trình độ của bạn.', img: 'step-2' },
+  { icon: Rocket, tone: 'pink', title: 'Nhận lộ trình và học ngay', desc: 'Bài học được tạo riêng theo mục tiêu và thời gian của bạn.', img: 'step-3' },
 ];
 
 // Who it is for — each card opens the matching usage guide (no invented testimonials or numbers on the landing page).
@@ -114,6 +115,15 @@ function IconTile({ icon: Icon, tone, size = 52 }: { icon: LucideIcon; tone: Ton
     >
       <Icon size={size * 0.48} strokeWidth={2} color="#fff" />
     </span>
+  );
+}
+
+function Media({ name, children }: { name: string; children?: React.ReactNode }) {
+  return (
+    <div className="lp-media">
+      <Image src={`/img/${name}.webp`} alt="" fill sizes="(max-width: 700px) 90vw, 360px" />
+      {children}
+    </div>
   );
 }
 
@@ -246,7 +256,7 @@ export default function LandingPage() {
         <div className="grid-4" style={{ gap: 20 }}>
           {SKILLS.map((s, i) => (
             <motion.div key={s.title} {...stagger(i)} className="lp-card lp-skill" style={{ ['--tone' as string]: G[s.tone][0] }}>
-              <IconTile icon={s.icon} tone={s.tone} size={56} />
+              <Media name={s.img}><span className="lp-media-icon"><IconTile icon={s.icon} tone={s.tone} size={44} /></span></Media>
               <h3>{s.title}</h3>
               <p>{s.desc}</p>
               <span className="lp-skill-glow" aria-hidden="true" />
@@ -285,6 +295,7 @@ export default function LandingPage() {
               <IconTile icon={f.icon} tone={f.tone} />
               <h3>{f.title}</h3>
               <p>{f.desc}</p>
+              {f.img && <Media name={f.img} />}
             </motion.div>
           ))}
 
@@ -335,6 +346,7 @@ export default function LandingPage() {
         <div className="lp-steps grid-3" style={{ gap: 24 }}>
           {STEPS.map((s, i) => (
             <motion.div key={s.title} {...stagger(i)} className="lp-card lp-step">
+              <Media name={s.img} />
               <div className="lp-step-top">
                 <IconTile icon={s.icon} tone={s.tone} size={60} />
                 <span className="lp-step-num">0{i + 1}</span>
@@ -427,6 +439,9 @@ export default function LandingPage() {
       {/* ─── CTA ──────────────────────────────────────────────────────── */}
       <section className="lp-section" style={{ paddingTop: 0 }}>
         <motion.div {...reveal} className="lp-cta">
+          <div className="lp-cta-media" aria-hidden="true">
+            <Image src="/img/cta-banner.webp" alt="" fill sizes="(max-width: 1200px) 100vw, 1200px" />
+          </div>
           <span className="lp-blob lp-blob-1" aria-hidden="true" />
           <span className="lp-blob lp-blob-2" aria-hidden="true" />
           <span className="lp-blob lp-blob-3" aria-hidden="true" />
