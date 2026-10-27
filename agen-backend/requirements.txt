@@ -17,3 +17,4 @@ celery[redis]==5.4.0
 tzdata==2026.5
 pytest==8.3.5
 pywebpush==2.5.0
+edge-tts==7.3.1

@@ -63,8 +63,12 @@ def record_llm(provider: str, model: str, prompt: str, response: str) -> None:
     record(provider, model, len(prompt or ""), len(response or ""), llm_cost_usd(provider, len(prompt or ""), len(response or "")))
 
 
+FREE_TTS_PROVIDERS = {"voicebox", "edge"}      # self-hosted / keyless voices cost nothing
+
+
 def record_tts(provider: str, model: str, text: str) -> None:
-    record(provider, model, len(text or ""), 0, tts_cost_usd(len(text or "")), feature="tts")
+    cost = 0.0 if provider in FREE_TTS_PROVIDERS else tts_cost_usd(len(text or ""))
+    record(provider, model, len(text or ""), 0, cost, feature="tts")
 
 
 def _day_start() -> datetime:

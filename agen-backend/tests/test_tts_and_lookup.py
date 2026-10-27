@@ -156,3 +156,49 @@ def test_lookup_llm_failure_is_502_or_429(client, monkeypatch):
     monkeypatch.setattr(dictionary_service, "lookup_word", boom)
     headers = _register_login(client, "nb3@example.com")
     assert client.get(f"{API}/review/lookup", params={"word": "hello"}, headers=headers).status_code == 429
+
+
+def test_edge_provider_comes_before_llm_providers(monkeypatch):
+    monkeypatch.setattr(settings, "EDGE_TTS_ENABLED", True)
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "g")
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "o")
+    monkeypatch.setattr(settings, "TTS_PROVIDER", "auto")
+    assert tts_service.providers() == ["edge", "gemini", "openai"]
+    monkeypatch.setattr(settings, "TTS_PROVIDER", "edge")
+    assert tts_service.providers() == ["edge"]
+    monkeypatch.setattr(settings, "TTS_PROVIDER", "auto")
+    monkeypatch.setattr(settings, "EDGE_TTS_ENABLED", False)
+    assert tts_service.providers() == ["gemini", "openai"]
+
+
+def test_edge_failure_falls_through_to_next_provider(monkeypatch, tmp_path):
+    """Edge down (blocked IP, network) → Gemini; both down → None so the browser voice takes over."""
+    used = []
+
+    def edge_down(text, voice, lang="en"):
+        used.append("edge")
+        raise RuntimeError("blocked")
+
+    def gemini_ok(text, voice, lang="en"):
+        used.append("gemini")
+        return b"RIFFfakeWAVE", "audio/wav"
+
+    monkeypatch.setattr(settings, "EDGE_TTS_ENABLED", True)
+    monkeypatch.setattr(settings, "GEMINI_API_KEY", "g")
+    monkeypatch.setattr(settings, "OPENAI_API_KEY", "")
+    monkeypatch.setattr(settings, "TTS_PROVIDER", "auto")
+    monkeypatch.setattr(settings, "TTS_CACHE_DIR", str(tmp_path / "tts"))
+    monkeypatch.setattr(settings, "TTS_DAILY_CHAR_LIMIT", 1000)
+    monkeypatch.setitem(tts_service._budget, "day", "")
+    monkeypatch.setitem(tts_service._budget, "chars", 0)
+    monkeypatch.setattr(tts_service, "_CALLERS", {"edge": edge_down, "gemini": gemini_ok})
+    res = tts_service.synthesize("The bus is late.", "female")
+    assert res and res.provider == "gemini" and used == ["edge", "gemini"]
+
+    monkeypatch.setattr(tts_service, "_CALLERS", {"edge": edge_down, "gemini": edge_down})
+    assert tts_service.synthesize("A different sentence.", "female") is None
+
+
+def test_edge_voice_names_cover_both_languages():
+    for lang in ("en", "vi"):
+        assert set(tts_service.EDGE_VOICES[lang]) == {"female", "male"}

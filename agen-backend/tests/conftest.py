@@ -87,3 +87,10 @@ def client(db_engine):
             yield test_client
     finally:
         app.dependency_overrides.pop(get_db, None)
+
+
+@pytest.fixture(autouse=True)
+def _no_edge_tts(monkeypatch):
+    """Edge TTS is on by default in production; tests must never reach the network."""
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "EDGE_TTS_ENABLED", False)
