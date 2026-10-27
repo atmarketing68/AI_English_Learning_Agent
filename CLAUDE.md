@@ -2,6 +2,8 @@
 
 App học tiếng Anh bằng AI cho người Việt. **Đọc `docs/ROADMAP_STATUS.md` trước** — nó ghi việc đã xong,
 việc chủ dự án còn phải làm và hạng mục tiếp theo. Cập nhật file đó khi xong mỗi hạng mục.
+**Đọc `docs/HANDOFF.md`** — quy trình mỗi giai đoạn, lệnh kiểm tra đúng thư mục, cách chạy app thật + Playwright, các bẫy đã gặp;
+bổ sung bẫy mới vào đó khi gặp.
 Mọi cấu hình / việc chủ dự án phải tự làm (khoá, biến môi trường, webhook, vận hành) ghi vào checklist
 `docs/VIEC_CAN_LAM.md` (theo mức ưu tiên, có bước + cách kiểm tra) — bổ sung file này ở mỗi giai đoạn có biến mới.
 
