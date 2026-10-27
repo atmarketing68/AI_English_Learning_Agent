@@ -7,6 +7,7 @@ import Avatar from '@/components/ui/Avatar';
 import Logo from '@/components/ui/Logo';
 import MobileNav from '@/components/ui/MobileNav';
 import GuestBanner from '@/components/GuestBanner';
+import NativePushBridge from '@/components/ui/NativePushBridge';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import { SIDEBAR_ITEMS, isActive, showsAppShell } from '@/components/ui/navigation';
 
@@ -54,6 +55,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
       <div className={shell ? 'app-content with-shell' : 'app-content'}><GuestBanner />{children}</div>
       <MobileNav />
+      {hydrated && isAuthenticated && <NativePushBridge />}
     </>
   );
 }

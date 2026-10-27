@@ -113,7 +113,9 @@ def _learner(db: Session, user: User) -> LearnerProfile:
 
 
 def _attempts_today(db: Session, learner_id: str) -> int:
-    return db.query(SpeakingExamAttempt).filter(SpeakingExamAttempt.learner_id == learner_id, SpeakingExamAttempt.created_at >= local_day_start_utc()).count()
+    # G13 · class tests do not use up the free daily attempt
+    return db.query(SpeakingExamAttempt).filter(SpeakingExamAttempt.learner_id == learner_id, SpeakingExamAttempt.created_at >= local_day_start_utc(),
+                                         SpeakingExamAttempt.group_test_id.is_(None)).count()
 
 
 def _own_attempt(db: Session, learner: LearnerProfile, attempt_id: str) -> SpeakingExamAttempt:
@@ -142,7 +144,7 @@ def catalogue(current_user: User = Depends(get_current_user), db: Session = Depe
             attempts=len(by_exam.get(e["id"], [])),
             best_estimate=max((r.estimate for r in by_exam.get(e["id"], []) if r.estimate is not None), default=None),
             last_at=max((r.created_at for r in by_exam.get(e["id"], [])), default=None),
-        ) for e in bank.list_exams()],
+        ) for e in bank.list_exams(db)],
         is_premium=premium, free_daily_attempts=bank.FREE_DAILY_ATTEMPTS, attempts_today=today, can_start=premium or today < bank.FREE_DAILY_ATTEMPTS,
     )
 
@@ -151,15 +153,28 @@ def catalogue(current_user: User = Depends(get_current_user), db: Session = Depe
 def history(limit: int = 20, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     learner = _learner(db, current_user)
     rows = db.query(SpeakingExamAttempt).filter(SpeakingExamAttempt.learner_id == learner.id).order_by(SpeakingExamAttempt.created_at.desc()).limit(min(limit, 100)).all()
-    return [HistoryItem(id=r.id, exam_id=r.exam_id, title=(bank.get_exam(r.exam_id) or {}).get("title", r.exam_id), exam=r.exam, overall=r.estimate, status=r.status, created_at=r.created_at) for r in rows]
+    return [HistoryItem(id=r.id, exam_id=r.exam_id, title=(bank.get_exam(r.exam_id, db) or {}).get("title", r.exam_id), exam=r.exam, overall=r.estimate, status=r.status, created_at=r.created_at) for r in rows]
 
 
 @router.post("/{exam_id}/start", response_model=StartOut)
-def start(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def start(exam_id: str, test: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Free accounts: one Speaking test a day — a class test (G13, ?test=<id>) does not count."""
+    from app.services.groups import open_test_for
     learner = _learner(db, current_user)
-    exam = bank.get_exam(exam_id)
+    exam = bank.get_exam(exam_id, db)
     if not exam:
         raise HTTPException(status_code=404, detail="Không tìm thấy đề thi.")
+    class_test = open_test_for(db, learner.id, test, "speaking", exam_id)
+    if class_test:
+        open_class = (db.query(SpeakingExamAttempt)
+                      .filter(SpeakingExamAttempt.learner_id == learner.id, SpeakingExamAttempt.group_test_id == class_test.id,
+                              SpeakingExamAttempt.status == STATUS_STARTED)
+                      .order_by(SpeakingExamAttempt.created_at.desc()).first())
+        if not open_class:
+            open_class = SpeakingExamAttempt(learner_id=learner.id, exam_id=exam_id, exam=exam["exam"], responses=[], group_test_id=class_test.id)
+            db.add(open_class)
+            db.commit()
+        return StartOut(attempt_id=open_class.id, exam=bank.public_exam(exam))
     # An unfinished attempt of the same exam started today is resumed instead of counted again.
     open_attempt = (
         db.query(SpeakingExamAttempt)
@@ -183,7 +198,7 @@ def answer(attempt_id: str, payload: AnswerIn, current_user: User = Depends(get_
     attempt = _own_attempt(db, learner, attempt_id)
     if attempt.status != STATUS_STARTED:
         raise HTTPException(status_code=400, detail="Bài thi đã nộp.")
-    exam = bank.get_exam(attempt.exam_id)
+    exam = bank.get_exam(attempt.exam_id, db)
     task = next((t for t in exam["tasks"] if t["id"] == payload.task_id), None) if exam else None
     if not task:
         raise HTTPException(status_code=404, detail="Không có phần thi này.")
@@ -200,8 +215,8 @@ def answer(attempt_id: str, payload: AnswerIn, current_user: User = Depends(get_
     return AnswerOut(task_id=payload.task_id, words=_words(transcript), pronunciation=pron, answered=len(responses), total=len(exam["tasks"]))
 
 
-def _result_out(attempt: SpeakingExamAttempt, gems: int = 0) -> ResultOut:
-    exam = bank.get_exam(attempt.exam_id) or {"title": attempt.exam_id, "tasks": []}
+def _result_out(attempt: SpeakingExamAttempt, db: Session, gems: int = 0) -> ResultOut:
+    exam = bank.get_exam(attempt.exam_id, db) or {"title": attempt.exam_id, "tasks": []}
     fb = attempt.feedback or {}
     by_task = {r["task_id"]: r for r in (attempt.responses or [])}
     fb_by_task = {t.get("task_id"): t for t in fb.get("task_feedback", [])}
@@ -227,8 +242,10 @@ def finish(attempt_id: str, current_user: User = Depends(get_current_user), db: 
     learner = _learner(db, current_user)
     attempt = _own_attempt(db, learner, attempt_id)
     if attempt.status == STATUS_FINISHED:
-        return _result_out(attempt)
-    exam = bank.get_exam(attempt.exam_id)
+        return _result_out(attempt, db)
+    exam = bank.get_exam(attempt.exam_id, db)
+    if not exam:
+        raise HTTPException(status_code=404, detail="Đề thi này không còn được phát hành.")
     responses = attempt.responses or []
     if not any(_words(r.get("transcript", "")) >= 3 for r in responses):
         raise HTTPException(status_code=400, detail="Hãy trả lời ít nhất một phần trước khi nộp.")
@@ -258,7 +275,7 @@ def finish(attempt_id: str, current_user: User = Depends(get_current_user), db: 
     ))
     record_activity(learner, "speaking", db)
     db.commit()
-    return _result_out(attempt, gems)
+    return _result_out(attempt, db, gems)
 
 
 @router.get("/attempts/{attempt_id}", response_model=ResultOut)
@@ -267,4 +284,4 @@ def result(attempt_id: str, current_user: User = Depends(get_current_user), db: 
     attempt = _own_attempt(db, learner, attempt_id)
     if attempt.status != STATUS_FINISHED:
         raise HTTPException(status_code=400, detail="Bài thi chưa nộp.")
-    return _result_out(attempt)
+    return _result_out(attempt, db)

@@ -12,7 +12,8 @@ import {
 import Link from 'next/link';
 import { getSubscription, type SubscriptionInfo } from '@/lib/billingService';
 import { track } from '@/lib/analytics';
-import { BellRing, BookOpen, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, MessageCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { enableNativePush, isNativeApp } from '@/lib/nativePush';
+import { BellRing, BookOpen, Smartphone, BookText, ChartColumn, ChevronRight, CircleAlert, Printer, CircleCheck, Clock, Crown, Flame, Headphones, Lightbulb, Link2, LoaderCircle, Mail, MessageCircle, Mic, PenLine, Plus, Sparkles, Star, Target, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 
 const tint = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
@@ -83,9 +84,40 @@ function ParentEmailCard() {
     } finally { setPushBusy(false); }
   };
   const pushOn = prefs.push_devices > 0 && prefs.push_alerts;
+  // G13 · inside the Android/iOS app: native push (FCM) instead of web push
+  const nativeApp = isNativeApp();
+  const nativeOn = (prefs.native_devices ?? 0) > 0 && prefs.push_alerts;
+  const toggleNative = async () => {
+    setPushBusy(true); setPushError('');
+    try {
+      if (nativeOn) {
+        setPrefs(await updateParentSettings({ push_alerts: false }));
+      } else {
+        const state = await enableNativePush();
+        if (state === 'denied') setPushError('Điện thoại đang chặn thông báo của app. Mở Cài đặt → AI AGENT ENGLISH → Thông báo để cho phép rồi thử lại.');
+        else if (state !== 'on') setPushError('Chưa đăng ký được thông báo, thử lại sau ít phút.');
+        else { setPrefs(await updateParentSettings({ push_alerts: true })); track('parent_push_enabled'); }
+      }
+    } catch {
+      setPushError('Không bật được thông báo trên điện thoại này.');
+    } finally { setPushBusy(false); }
+  };
   return (
     <>
-    {prefs.push_available && parentPushSupported() && (
+    {nativeApp && prefs.native_push_available && (
+      <div className="card" style={{ marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+        <span className="icon-tile" style={{ flexShrink: 0, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><Smartphone size={20} strokeWidth={1.8} /></span>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontWeight: 600 }}>Thông báo trên điện thoại</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Báo ngay khi con nghỉ học 2 ngày, khi chuỗi ngày của con sắp mất (19–21h) và khi báo cáo tuần sẵn sàng. Chạm vào thông báo để mở trang này.</div>
+          {pushError && <div className="alert-error" style={{ marginTop: 8 }}>{pushError}</div>}
+        </div>
+        <button type="button" className={`btn btn-sm ${nativeOn ? 'btn-outline' : 'btn-primary'}`} onClick={toggleNative} disabled={pushBusy}>
+          {pushBusy ? <LoaderCircle className="animate-spin" size={14} /> : nativeOn ? 'Đang bật · Tắt' : 'Bật thông báo'}
+        </button>
+      </div>
+    )}
+    {!nativeApp && prefs.push_available && parentPushSupported() && (
       <div className="card" style={{ marginBottom: 'var(--spacing-md)', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
         <span className="icon-tile" style={{ flexShrink: 0, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><BellRing size={20} strokeWidth={1.8} /></span>
         <div style={{ flex: 1, minWidth: 220 }}>
@@ -468,7 +500,7 @@ export default function ParentDashboardPage() {
                     <div style={{ textAlign: 'left' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>{c.display_name}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                        <span style={{ padding: '1px 7px', borderRadius: 99, background: tint(levelColor, 14), color: levelColor, fontWeight: 600 }}>{c.overall_level}</span>
+                        <span style={{ padding: '1px 7px', borderRadius: 99, background: tint(levelColor, 14), color: levelColor, fontWeight: 600 }}>{c.overall_level.replace('PRE_', 'Pre-')}</span>
                         {c.relationship_label && <span>{c.relationship_label}</span>}
                         <span>{c.total_xp} XP</span>
                         {c.premium_source && <span style={{ color: 'var(--agen-accent)', fontWeight: 600 }}>Premium</span>}

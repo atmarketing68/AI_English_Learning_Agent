@@ -4,7 +4,7 @@
 > Kế hoạch gốc (đã được chủ dự án duyệt): Claude Doc "Kế hoạch nâng cấp AGEN — Audit & Lộ trình"
 > https://claude.ai/artifact/7PHjES4CK5zB9i8rBxrCuT
 
-Cập nhật lần cuối: 2026-10-27 (G12).
+Cập nhật lần cuối: 2026-10-27 (G13).
 
 ## Cách làm việc với chủ dự án
 
@@ -253,9 +253,23 @@ Migration `b5e6f7a8b9c0` tự chạy khi deploy.
 
 Chưa làm trong G12: tích hợp VNPT/MISA (chỉ Viettel); tải file PDF hoá đơn từ Viettel về app; lập hoá đơn điều chỉnh tự động khi hoàn tiền; podcast tự sinh có giọng đọc riêng từng nhân vật bằng nhiều giọng neural.
 
-## G13 — gợi ý tiếp theo
+## G13 — Bài kiểm tra lớp, biểu đồ rubric, đề Speaking do AI sinh, phụ huynh dùng app di động: hoàn tất trên code
 
-Bảng điều khiển phụ huynh trên ứng dụng di động (push gốc) · Bài kiểm tra định kỳ hằng tháng tự chấm cho lớp · Báo cáo tiến bộ theo rubric cho giáo viên (biểu đồ 4 tiêu chí theo thời gian) · Hoá đơn VNPT/MISA · Đề Speaking/Writing do AI sinh có duyệt.
+| Hạng mục | Cần chủ dự án làm để chạy thật |
+|---|---|
+| Bài kiểm tra lớp (định kỳ, hằng tháng…) | Không cần gì. Giáo viên vào trang lớp → **Bài kiểm tra lớp** → chọn đề (Nghe/Đọc hoặc Nói, cả đề AI đã duyệt), ngày mở, hạn nộp (tối đa 60 ngày) → cả lớp nhận thông báo. Học viên làm ở **Lớp học** → "Làm bài"; lần làm **đầu tiên** trong thời hạn được tính điểm và **không trừ lượt thi miễn phí**. Giáo viên bấm vào bài để xem bảng điểm từng người (band/điểm, %, thời gian, giờ nộp), điểm TB/cao/thấp; điểm cũng vào CSV báo cáo nhóm và tab "Kiểm tra lớp" của từng học viên. Sáng ngày hết hạn (từ 8h) ai chưa làm được nhắc (trong app + push) — chạy trong cron nhắc học hằng giờ. |
+| Biểu đồ tiến bộ rubric | Không cần gì. Trang học viên của giáo viên hiện biểu đồ band IELTS Writing theo thời gian: Overall + 4 tiêu chí (lấy rubric giáo viên chấm nếu có, không thì band AI), di chuột xem từng bài, bấm để mở bài, bật/tắt từng đường, nút "Xem bảng". |
+| Đề Speaking do AI sinh, admin duyệt | Không cần khoá mới (dùng AI sẵn có). `/admin` → **Đề thi** → "Sinh đề thi thử Speaking bằng AI" (IELTS/TOEIC, trình độ, chủ đề) → xem trước → **Duyệt và phát hành**. Thời gian chuẩn bị/nói do hệ thống đặt theo đề thật; đề sai định dạng bị từ chối, không lưu. Đề đã duyệt vào thư viện thi nói (id `gen-…`) và giáo viên giao được làm bài kiểm tra lớp. |
+| Phụ huynh trên app di động | Cần app Capacitor (xem `docs/MOBILE_APP.md`) + `FIREBASE_SERVICE_ACCOUNT_JSON` trên Render (mục 4.x trong `docs/VIEC_CAN_LAM.md`). Web tự nhận ra đang chạy trong app (không cần cài thêm thư viện JS): trang Phụ huynh có thẻ **Thông báo trên điện thoại** → bật → app hỏi quyền → token gửi lên server; chạm thông báo mở đúng trang. Sau khi đăng nhập, app tự đăng ký lại token; đăng xuất thì gỡ token. Đã sửa: trước đây phụ huynh chỉ dùng app (chưa có khoá web push) không nhận cảnh báo. |
+| Hoá đơn VNPT / MISA | **Chưa làm**: hai nhà cung cấp không công bố tài liệu API công khai (cần hợp đồng + tài liệu tích hợp riêng). Khi có tài liệu từ nhà cung cấp, thêm như Viettel trong `services/einvoice.py`. |
+
+Migration `c6f7a8b9c0d1` tự chạy khi deploy.
+
+Chưa làm trong G13: đề Writing do AI sinh (đề viết hiện do agent sinh theo yêu cầu, chưa cần kho duyệt); lặp lại bài kiểm tra tự động hằng tháng (giáo viên giao từng lần); biểu đồ rubric cho Speaking.
+
+## G14 — gợi ý tiếp theo
+
+SEO landing + trang nội dung (đang làm) · Kiểm tra định kỳ tự lặp theo tháng · Biểu đồ tiến bộ Speaking theo 4 tiêu chí · Phụ huynh xem bài kiểm tra lớp của con · Xuất PDF bảng điểm bài kiểm tra.
 
 ## Câu hỏi còn mở với chủ dự án
 

@@ -7,15 +7,16 @@ import Link from 'next/link';
 import { ArrowLeft, Award, BookOpen, CircleAlert, ClipboardCheck, Flame, LoaderCircle, MessageSquarePlus, Mic, PenLine, Send, Star, Trash2, X } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
 import {
-  IELTS_CRITERIA, SKILL_LABELS, addMemberFeedback, deleteFeedback, getMemberDetail, getMemberWriting, gradeMemberWriting, issueCertificate,
+  IELTS_CRITERIA, SKILL_LABELS, testScoreLabel, addMemberFeedback, deleteFeedback, getMemberDetail, getMemberWriting, gradeMemberWriting, issueCertificate,
   type AssignmentSkill, type IeltsRubric, type FeedbackTarget, type MemberDetail, type WritingDetail,
 } from '@/lib/groupsService';
 import { formatEstimate, type ExamKind } from '@/lib/examsService';
 import { formatSpeakingEstimate } from '@/lib/speakingExamsService';
 import Avatar from '@/components/ui/Avatar';
+import RubricChart from '@/components/teacher/RubricChart';
 import { track } from '@/lib/analytics';
 
-type Tab = 'lessons' | 'writings' | 'exams' | 'speaking' | 'assignments';
+type Tab = 'lessons' | 'writings' | 'exams' | 'speaking' | 'tests' | 'assignments';
 interface Target { type: FeedbackTarget; id: string | null; label: string | null }
 
 const SKILL_VI: Record<string, string> = { listening: 'Nghe', speaking: 'Nói', reading: 'Đọc', writing: 'Viết', vocabulary: 'Từ vựng', grammar: 'Ngữ pháp' };
@@ -195,7 +196,7 @@ export default function MemberDetailPage() {
   const commentBtn = (t: Target) => <button type="button" className="icon-btn" aria-label="Nhận xét" title="Nhận xét" onClick={() => comment(t)}><MessageSquarePlus size={15} /></button>;
   const tabs: [Tab, string, number][] = [
     ['lessons', 'Bài học', d.lessons.length], ['writings', 'Bài viết', d.writings.length], ['exams', 'Thi thử', d.exams.length],
-    ['speaking', 'Thi nói', d.speaking_exams.length], ['assignments', 'Bài tập', d.assignments.length],
+    ['speaking', 'Thi nói', d.speaking_exams.length], ['tests', 'Kiểm tra lớp', d.tests?.length ?? 0], ['assignments', 'Bài tập', d.assignments.length],
   ];
 
   return (
@@ -222,6 +223,8 @@ export default function MemberDetailPage() {
             <div key={k} className="member-skill"><span>{SKILL_VI[k] ?? k}</span><div className="club-progress"><span style={{ width: `${Math.min(100, v)}%` }} /></div><b>{v}</b></div>
           ))}
         </div>
+
+        {!!d.rubric_history?.length && <RubricChart points={d.rubric_history} onOpen={openWriting} />}
 
         {error && <div className="alert-error" style={{ margin: '12px 0' }}><CircleAlert size={16} /> {error}</div>}
         {writing && <WritingView key={writing.id + (writing.teacher_scored_at ?? '')} w={writing} onClose={() => setWriting(null)} onComment={() => comment({ type: 'writing', id: writing.id, label: writing.prompt_title })} onGrade={gradeWriting} />}
@@ -257,6 +260,14 @@ export default function MemberDetailPage() {
               <thead><tr><th>Đề thi nói</th><th>Ước tính</th><th>Ngày</th><th /></tr></thead>
               <tbody>{d.speaking_exams.length === 0 ? <tr><td colSpan={4} style={{ color: 'var(--text-muted)' }}>Chưa thi nói.</td></tr> : d.speaking_exams.map(x => (
                 <tr key={x.id}><td><Mic size={13} /> {x.title}</td><td><b>{x.estimate != null ? formatSpeakingEstimate(x.exam as ExamKind, x.estimate) : '—'}</b></td><td>{day(x.created_at)}</td><td>{commentBtn({ type: 'speaking_exam', id: x.id, label: x.title })}</td></tr>
+              ))}</tbody>
+            </>)}
+            {tab === 'tests' && (<>
+              <thead><tr><th>Bài kiểm tra</th><th>Hạn</th><th>Kết quả</th><th>TB lớp</th></tr></thead>
+              <tbody>{!d.tests?.length ? <tr><td colSpan={4} style={{ color: 'var(--text-muted)' }}>Lớp chưa có bài kiểm tra.</td></tr> : d.tests.map(t => (
+                <tr key={t.id}><td><ClipboardCheck size={13} /> {t.title}</td><td>{day(`${t.due_on}T12:00:00`)}</td>
+                  <td>{t.mine?.done ? <b>{testScoreLabel(t.exam, t.mine)}</b> : <span className="plan-chip">{t.status === 'closed' ? 'Không làm' : 'Chưa làm'}</span>}</td>
+                  <td>{t.avg_estimate != null ? testScoreLabel(t.exam, { estimate: t.avg_estimate, pct: t.avg_pct }) : '—'}</td></tr>
               ))}</tbody>
             </>)}
             {tab === 'assignments' && (<>

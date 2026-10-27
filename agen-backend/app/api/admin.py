@@ -716,6 +716,90 @@ def delete_generated_exam(exam_id: str, current_user: User = Depends(get_current
     db.commit()
 
 
+# ── G13 · Đề thi thử Speaking do AI sinh (duyệt trước khi phát hành) ─────────
+class GeneratedSpeakingExamOut(BaseModel):
+    id: str
+    public_id: str
+    exam: str
+    title: str
+    topic: Optional[str]
+    status: str
+    tasks: int
+    eval_score: Optional[float]
+    eval_flagged: Optional[bool]
+    created_at: datetime
+    approved_at: Optional[datetime]
+
+
+class GenerateSpeakingExamIn(BaseModel):
+    exam: str = Field(pattern="^(ielts|toeic)$")
+    topic: str = Field(default="", max_length=120)
+    level: str = Field(default="B1", pattern="^(A2|B1|B2|C1)$")
+    auto_approve: bool = False
+
+
+def _gen_speaking_out(r) -> GeneratedSpeakingExamOut:
+    from app.services.speaking_exam_generator import public_id
+    return GeneratedSpeakingExamOut(id=r.id, public_id=public_id(r), exam=r.exam, title=r.title, topic=r.topic, status=r.status,
+                                    tasks=int(r.tasks or 0), eval_score=r.eval_score, eval_flagged=r.eval_flagged,
+                                    created_at=r.created_at, approved_at=r.approved_at)
+
+
+def _speaking_row(db: Session, exam_id: str):
+    from app.models.generated_exam import GeneratedSpeakingExam
+    row = db.query(GeneratedSpeakingExam).filter(GeneratedSpeakingExam.id == exam_id).first()
+    if not row:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề.")
+    return row
+
+
+@router.get("/speaking-exams", response_model=list[GeneratedSpeakingExamOut])
+def list_generated_speaking_exams(status: Optional[str] = None, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.models.generated_exam import GeneratedSpeakingExam
+    q = db.query(GeneratedSpeakingExam)
+    if status:
+        q = q.filter(GeneratedSpeakingExam.status == status)
+    return [_gen_speaking_out(r) for r in q.order_by(GeneratedSpeakingExam.created_at.desc()).limit(200).all()]
+
+
+@router.post("/speaking-exams/generate", response_model=GeneratedSpeakingExamOut)
+def generate_speaking_exam(payload: GenerateSpeakingExamIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.services.speaking_exam_generator import SpeakingExamGenerationError, generate_draft
+    try:
+        row = generate_draft(db, payload.exam, payload.topic, payload.level, payload.auto_approve)
+    except SpeakingExamGenerationError as exc:
+        db.rollback()
+        raise HTTPException(status_code=502, detail=str(exc))
+    db.commit()
+    return _gen_speaking_out(row)
+
+
+@router.get("/speaking-exams/{exam_id}")
+def get_generated_speaking_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    row = _speaking_row(db, exam_id)
+    return {"meta": _gen_speaking_out(row).model_dump(), "exam": row.content}
+
+
+@router.post("/speaking-exams/{exam_id}/status", response_model=GeneratedSpeakingExamOut)
+def set_generated_speaking_exam_status(exam_id: str, payload: ExamStatusIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    from app.services.speaking_exam_generator import set_status
+    row = _speaking_row(db, exam_id)
+    set_status(db, row, payload.status)
+    db.commit()
+    return _gen_speaking_out(row)
+
+
+@router.delete("/speaking-exams/{exam_id}", status_code=204)
+def delete_generated_speaking_exam(exam_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _require_admin(current_user)
+    db.delete(_speaking_row(db, exam_id))
+    db.commit()
+
+
 # ── G10 · AI cost tracking ────────────────────────────────────────────────────
 @router.get("/ai-usage/summary")
 def ai_usage_summary(days: int = 30, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):

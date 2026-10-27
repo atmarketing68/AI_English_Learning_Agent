@@ -4,9 +4,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ArrowRight, CalendarClock, Check, CircleAlert, LoaderCircle, LogOut, MessageSquareText, MessagesSquare, School } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CalendarClock, Check, CircleAlert, ClipboardCheck, LoaderCircle, LogOut, MessageSquareText, MessagesSquare, School } from 'lucide-react';
 import { useAuthHydrated, useAuthStore } from '@/store/authStore';
-import { SKILL_LABELS, getMyFeedback, getMyGroups, joinGroup, leaveGroup, markFeedbackRead, type LearnerFeedback, type LearnerGroup } from '@/lib/groupsService';
+import { SKILL_LABELS, classTestHref, testScoreLabel, getMyFeedback, getMyGroups, joinGroup, leaveGroup, markFeedbackRead, type LearnerFeedback, type LearnerGroup } from '@/lib/groupsService';
 import { PageSkeleton } from '@/components/Skeleton';
 import { formatSlot, getClubLobby, joinRoom, type RoomCard } from '@/lib/clubService';
 import Mascot from '@/components/ui/Mascot';
@@ -48,6 +48,8 @@ export default function ClassesPage() {
 
   if (!groups) return <main className="friends-page">{error ? <div className="alert-error"><CircleAlert size={16} /> {error}</div> : <PageSkeleton cards={2} />}</main>;
   const pending = groups.flatMap(g => g.assignments.filter(a => !a.done).map(a => ({ g, a })));
+  // G13 · class tests open now and not taken yet
+  const openTests = groups.flatMap(g => (g.tests ?? []).filter(t => t.status === 'open' && !t.mine?.done && t.available));
 
   return (
     <main className="friends-page">
@@ -57,7 +59,7 @@ export default function ClassesPage() {
           <span className="icon-tile" style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><School size={28} strokeWidth={1.7} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="eyebrow">Lớp học & nhóm</div>
-            <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', margin: '2px 0 4px' }}>{pending.length ? `${pending.length} bài tập đang chờ` : 'Lớp học của tôi'}</h1>
+            <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', margin: '2px 0 4px' }}>{openTests.length ? `${openTests.length} bài kiểm tra đang mở` : pending.length ? `${pending.length} bài tập đang chờ` : 'Lớp học của tôi'}</h1>
             <p style={{ margin: 0, fontSize: '0.9rem' }}>Nhập mã từ giáo viên hoặc công ty để tham gia. Bài tập được giao sẽ hiện ở đây và trên trang chủ.</p>
           </div>
         </section>
@@ -105,7 +107,7 @@ export default function ClassesPage() {
         )}
 
         {groups.length === 0 && <div className="card" style={{ marginTop: 16, textAlign: 'center', color: 'var(--text-muted)', padding: 28 }}>Bạn chưa ở trong lớp hoặc nhóm nào.</div>}
-        {groups.map(({ group, owner_name, assignments }) => (
+        {groups.map(({ group, owner_name, assignments, tests }) => (
           <section key={group.id} className="card" style={{ marginTop: 16, display: 'grid', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -114,7 +116,23 @@ export default function ClassesPage() {
               </div>
               <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { if (confirm(`Rời ${group.name}?`)) setGroups((await leaveGroup(group.id)).groups); }}><LogOut size={14} /> Rời nhóm</button>
             </div>
-            {assignments.length === 0 && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có bài tập nào được giao.</div>}
+            {(tests ?? []).map(t => (
+              <div key={t.id} className="class-test-learner" data-status={t.status}>
+                <span className="icon-tile" style={{ flexShrink: 0, width: 40, height: 40, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><ClipboardCheck size={20} strokeWidth={1.8} /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600 }}>{t.title}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Bài kiểm tra lớp{t.minutes ? ` · ${t.minutes} phút` : ''} · {t.status === 'upcoming' ? `mở ngày ${new Date(`${t.opens_on}T00:00:00`).toLocaleDateString('vi-VN')}` : `hạn ${new Date(`${t.due_on}T00:00:00`).toLocaleDateString('vi-VN')}`}{t.note ? ` · ${t.note}` : ''}
+                  </div>
+                </div>
+                {t.mine?.done
+                  ? <span className="xp-badge"><Check size={13} /> {testScoreLabel(t.exam, t.mine)}</span>
+                  : t.status === 'open'
+                    ? <Link href={classTestHref(t)} className="btn btn-primary btn-sm" onClick={() => track('class_test_started', { kind: t.kind })}>Làm bài <ArrowRight size={14} /></Link>
+                    : <span className="plan-chip">{t.status === 'upcoming' ? 'Sắp mở' : 'Đã đóng'}</span>}
+              </div>
+            ))}
+            {assignments.length === 0 && !(tests ?? []).length && <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Chưa có bài tập nào được giao.</div>}
             {assignments.map(a => (
               <div key={a.id} className="assignment-row" data-done={a.done} data-overdue={a.overdue}>
                 <div style={{ flex: 1, minWidth: 0 }}>

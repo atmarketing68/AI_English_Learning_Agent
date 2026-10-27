@@ -16,6 +16,7 @@ from app.agents.contracts import (
     LessonOutput,
     PlacementQuestionOutput,
     PodcastEpisodeOutput,
+    GeneratedSpeakingExamOutput,
     RoleplayScenarioOutput,
     SpeakingExamEvaluationOutput,
     SpeakingTurnOutput,
@@ -41,6 +42,7 @@ AgentName = Literal[
     "exam_generation",
     "club_moderator",
     "podcast_generation",
+    "speaking_exam_generation",
 ]
 
 
@@ -85,6 +87,7 @@ AGENT_SPECS: dict[AgentName, AgentSpec] = {
     "exam_generation": AgentSpec(exam_agent.generate_exam, GeneratedExamOutput),
     "club_moderator": AgentSpec(club_agent.moderate_turn, ClubModeratorOutput),
     "podcast_generation": AgentSpec(podcast_agent.generate_episode, PodcastEpisodeOutput),
+    "speaking_exam_generation": AgentSpec(speaking_exam_agent.generate_speaking_exam, GeneratedSpeakingExamOutput),
 }
 
 

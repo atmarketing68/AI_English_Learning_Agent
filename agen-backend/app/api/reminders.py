@@ -208,6 +208,15 @@ def run_reminders(
         import logging
         logging.getLogger("agen.club").exception("Club reminder run failed")
         stats["club"] = {"error": True}
+    # G13 · class tests due today: one reminder to members who have not taken them
+    try:
+        from app.services.groups import remind_due_tests
+        stats["class_tests"] = remind_due_tests(db)
+    except Exception:
+        import logging
+        logging.getLogger("agen.groups").exception("Class test reminder run failed")
+        db.rollback()
+        stats["class_tests"] = {"error": True}
     # G11 · AI spend alerts for admins (once per day per threshold)
     try:
         from app.services.ai_usage import check_alerts

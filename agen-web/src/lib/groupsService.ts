@@ -65,6 +65,8 @@ export interface LearnerGroup {
   group: GroupInfo;
   owner_name: string;
   assignments: AssignmentInfo[];
+  /** G13 · class tests, each with the learner's own result in `mine` */
+  tests?: ClassTest[];
 }
 
 export const getOwnerHome = async (): Promise<OwnerHome> => (await api.get('/groups/mine')).data;
@@ -126,6 +128,9 @@ export interface MemberDetail {
   speaking_exams: { id: string; title: string; exam: string; estimate: number | null; created_at: string }[];
   assignments: AssignmentInfo[];
   feedback: TeacherFeedback[];
+  /** G13 · IELTS writing bands over time (teacher rubric when graded, else AI) */
+  rubric_history?: RubricPoint[];
+  tests?: ClassTest[];
   group: GroupInfo;
   certificates: { code: string; title: string; issued_at: string }[];
 }
@@ -205,3 +210,72 @@ export const getClubSchedules = async (groupId: string): Promise<ClubSchedules> 
 export const addClubSchedule = async (groupId: string, payload: { weekday: number; time: string; topic_id?: string | null }): Promise<ClubSchedule> =>
   (await api.post(`/groups/${groupId}/club-schedules`, payload)).data;
 export const deleteClubSchedule = async (groupId: string, scheduleId: string): Promise<void> => { await api.delete(`/groups/${groupId}/club-schedules/${scheduleId}`); };
+
+// ── G13 · Bài kiểm tra lớp + tiến bộ rubric ──────────────────────────────────
+export type ClassTestKind = 'mock' | 'speaking';
+
+export interface TestScore {
+  done: boolean;
+  pct: number | null;
+  estimate: number | null;
+  seconds: number | null;
+  submitted_at: string | null;
+  attempt_id: string | null;
+}
+
+export interface ClassTest {
+  id: string;
+  group_id: string;
+  kind: ClassTestKind;
+  exam_id: string;
+  title: string;
+  note: string | null;
+  exam: 'ielts' | 'toeic' | null;
+  skill: string | null;
+  minutes: number | null;
+  available: boolean;
+  opens_on: string;
+  due_on: string;
+  status: 'upcoming' | 'open' | 'closed';
+  done_count: number;
+  member_count: number;
+  avg_pct: number | null;
+  avg_estimate: number | null;
+  created_at: string;
+  mine?: TestScore;
+}
+
+export interface ClassTestResults extends ClassTest {
+  results: (TestScore & { learner_id: string; display_name: string; level: string; avatar: Partial<AvatarData> })[];
+  min_estimate: number | null;
+  max_estimate: number | null;
+}
+
+export interface TestCatalogueItem { kind: ClassTestKind; id: string; exam: 'ielts' | 'toeic'; skill: string; title: string; minutes: number }
+
+export interface RubricPoint {
+  submission_id: string;
+  title: string;
+  created_at: string;
+  source: 'teacher' | 'ai';
+  overall: number;
+  criteria: Partial<IeltsRubric>;
+}
+
+export const getTestCatalogue = async (): Promise<TestCatalogueItem[]> => (await api.get('/groups/tests/catalogue')).data;
+export const getGroupTests = async (groupId: string): Promise<ClassTest[]> => (await api.get(`/groups/${groupId}/tests`)).data;
+export const createGroupTest = async (groupId: string, payload: { kind: ClassTestKind; exam_id: string; due_on: string; opens_on?: string | null; title?: string | null; note?: string | null }): Promise<ClassTest> =>
+  (await api.post(`/groups/${groupId}/tests`, payload)).data;
+export const getGroupTestResults = async (groupId: string, testId: string): Promise<ClassTestResults> => (await api.get(`/groups/${groupId}/tests/${testId}`)).data;
+export const deleteGroupTest = async (groupId: string, testId: string): Promise<void> => { await api.delete(`/groups/${groupId}/tests/${testId}`); };
+
+/** Where a learner takes a class test (the id travels in ?test= so it is counted and does not use the free daily attempt). */
+export const classTestHref = (t: Pick<ClassTest, 'kind' | 'exam_id' | 'id'>): string =>
+  t.kind === 'speaking' ? `/exams/speaking/${t.exam_id}?test=${t.id}` : `/exams/${t.exam_id}?test=${t.id}`;
+
+/** "9/10" style score label: IELTS band or TOEIC points, plus % for Listening/Reading. */
+export function testScoreLabel(exam: string | null, s: Pick<TestScore, 'pct' | 'estimate'>): string {
+  if (s.estimate == null) return '—';
+  const main = exam === 'ielts' ? `Band ${s.estimate.toFixed(1)}` : `${Math.round(s.estimate)} điểm`;
+  return s.pct != null ? `${main} · ${Math.round(s.pct)}%` : main;
+}
