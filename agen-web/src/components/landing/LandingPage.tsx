@@ -236,10 +236,10 @@ export default function LandingPage() {
       </section>
 
       {/* ─── STATS ────────────────────────────────────────────────────── */}
-      <section className="lp-section" style={{ paddingTop: 56, paddingBottom: 56 }}>
+      <section className="lp-section lp-stats">
         <div className="grid-3" style={{ gap: 20 }}>
           {STATS.map((s, i) => (
-            <motion.div key={s.label} {...stagger(i)} className="lp-card lp-stat">
+            <motion.div key={s.label} {...stagger(i)} className="lp-card lp-stat" style={{ '--i': i } as React.CSSProperties}>
               <IconTile icon={s.icon} tone={s.tone} size={48} />
               <div>
                 <div className="lp-stat-value"><CountUp value={s.value} decimals={s.decimals} suffix={s.suffix} /></div>
