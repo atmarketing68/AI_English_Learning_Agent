@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G6 · Bạn học — add friends by code and clear a weekly duo quest together. */
 import { useEffect, useState } from 'react';
@@ -85,6 +86,7 @@ export default function FriendsPage() {
     <main className="friends-page">
       <div className="friends-column">
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Trang chủ</Link>
+        <PageBanner image="banner-friends" priority />
         <section className="card friends-hero">
           <span className="icon-tile" style={{ width: 56, height: 56, borderRadius: 18, background: 'color-mix(in srgb, var(--skill-listening) 14%, transparent)', color: 'var(--skill-listening)' }}><Users size={28} strokeWidth={1.7} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>

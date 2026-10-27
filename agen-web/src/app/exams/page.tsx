@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G8 · Thi thử IELTS / TOEIC — catalogue, best results and history. */
 import { useEffect, useState } from 'react';
@@ -39,6 +40,7 @@ export default function ExamsPage() {
     <main className="friends-page">
       <div className="friends-column" style={{ maxWidth: 760 }}>
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Trang chủ</Link>
+        <PageBanner image="banner-exams" priority />
         <section className="card friends-hero">
           <span className="icon-tile" style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--bg-tint)', color: 'var(--agen-primary)' }}><ClipboardCheck size={28} strokeWidth={1.7} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>

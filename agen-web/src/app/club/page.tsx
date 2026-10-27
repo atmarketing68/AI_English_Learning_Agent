@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G10 · Câu lạc bộ nói: phòng 2–4 người, AI dẫn chuyện và gọi từng người nói. */
 import { useEffect, useState } from 'react';
@@ -80,6 +81,7 @@ export default function ClubLobbyPage() {
   return (
     <main className="friends-page">
       <div className="friends-column" style={{ maxWidth: 820 }}>
+        <PageBanner image="banner-club" priority />
         <section className="card friends-hero">
           <span className="icon-tile" style={{ width: 56, height: 56, borderRadius: 18, background: 'var(--bg-tint)', color: 'var(--skill-speaking, #D6336C)' }}><MessagesSquare size={28} strokeWidth={1.7} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>

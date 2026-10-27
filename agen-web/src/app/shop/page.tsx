@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G4 · Cửa hàng — spend gems on avatars, colours and frames. */
 import { useEffect, useMemo, useState } from 'react';
@@ -95,6 +96,7 @@ export default function ShopPage() {
       <div className="shop-column">
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Trang chủ</Link>
 
+        <PageBanner image="banner-shop" priority />
         <section className="card shop-hero">
           <div className="shop-preview">
             <Avatar avatar={shop.avatar} name={learner?.display_name} size={84} raw />

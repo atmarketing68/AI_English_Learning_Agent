@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /**
  * G4 · Blitz 60 giây — pick the meaning of as many words as you can in a minute.
@@ -151,6 +152,8 @@ export default function BlitzPage() {
         {error && <div className="alert-error" style={{ marginBottom: 16 }}><CircleAlert size={16} /> {error}</div>}
 
         {phase === 'intro' && round && (
+          <>
+            <PageBanner image="banner-blitz" priority />
           <div className="card blitz-intro">
             <Mascot mood="cheer" size={110} say="60 giây, 15 từ. Sẵn sàng chưa?" bubble="top" />
             <span className="icon-tile" style={{ width: 64, height: 64, borderRadius: 20, margin: '12px auto', background: 'color-mix(in srgb, var(--skill-listening) 14%, transparent)', color: 'var(--skill-listening)' }}><Zap size={32} /></span>
@@ -161,6 +164,7 @@ export default function BlitzPage() {
             {round.from_notebook > 0 && <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 20 }}>{round.from_notebook} từ lấy từ Sổ từ vựng của bạn.</p>}
             <button type="button" className="btn btn-primary btn-lg blitz-big-btn" onClick={start}><Zap size={20} /> Bắt đầu</button>
           </div>
+          </>
         )}
 
         {phase === 'play' && q && (
