@@ -297,7 +297,12 @@ export async function playText(text: string, opts: SpeakOptions = {}): Promise<v
       else resolve();
     };
     opts.onStart?.();
-    audio.play().catch(() => done());
+    // Autoplay/decoder refusal → try the browser voice once so the learner still hears something.
+    audio.play().catch(() => {
+      if (current === audio) current = null;
+      if (token === playToken) void speakWithBrowser(clean, opts, token).then(resolve);
+      else resolve();
+    });
   });
 }
 

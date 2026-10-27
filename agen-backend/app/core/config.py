@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     TTS_CACHE_MAX_FILES: int = 3000
     GEMINI_TTS_MODEL: str = "gemini-2.5-flash-preview-tts"
     OPENAI_TTS_MODEL: str = "tts-1"
+    # Microsoft Edge neural voices via the `edge-tts` package: free, no key, quick (~1 s). Placed
+    # before Gemini/OpenAI because Gemini's free tier allows only ~10 speech requests a day.
+    EDGE_TTS_ENABLED: bool = True
     # Self-hosted Voicebox (https://github.com/jamiepine/voicebox) as a free TTS
     # source: the URL its REST API is reachable at (e.g. through a tunnel) and the
     # voice profile ids to use. Tried first when set.

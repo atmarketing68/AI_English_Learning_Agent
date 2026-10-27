@@ -1,8 +1,10 @@
 """
 G2 · Giọng đọc neural tạo ở server + cache.
 
-Provider chain: a self-hosted Voicebox (free, when VOICEBOX_URL is set), then the
-LLM order (Gemini → OpenAI), unless TTS_PROVIDER pins one. Everything is optional: with no key, or TTS_PROVIDER=off, `synthesize()`
+Provider chain: a self-hosted Voicebox (free, when VOICEBOX_URL is set), then Microsoft Edge
+neural voices (free, no key, EDGE_TTS_ENABLED), then the LLM order (Gemini → OpenAI), unless
+TTS_PROVIDER pins one. Gemini's free tier only allows ~10 speech requests a day, so a free source
+must come first or every "listen" button goes silent once that budget is spent. Everything is optional: with no key, or TTS_PROVIDER=off, `synthesize()`
 returns None and the web app falls back to the browser's own voice.
 
 Costs are bounded two ways:
@@ -34,6 +36,10 @@ VOICES = {
     "gemini": {"female": "Kore", "male": "Puck"},
     "openai": {"female": "nova", "male": "onyx"},
 }
+EDGE_VOICES = {
+    "en": {"female": "en-US-AriaNeural", "male": "en-US-GuyNeural"},
+    "vi": {"female": "vi-VN-HoaiMyNeural", "male": "vi-VN-NamMinhNeural"},
+}
 _MIME_EXT = {"audio/mpeg": "mp3", "audio/wav": "wav"}
 _lock = threading.Lock()
 _budget = {"day": "", "chars": 0}
@@ -64,6 +70,8 @@ def providers() -> list[str]:
     available = []
     if settings.VOICEBOX_URL and settings.VOICEBOX_PROFILE_ID:
         available.append("voicebox")
+    if settings.EDGE_TTS_ENABLED:
+        available.append("edge")
     if settings.GEMINI_API_KEY:
         available.append("gemini")
     if settings.OPENAI_API_KEY:
@@ -152,6 +160,8 @@ def _model_for(provider: str) -> str:
         return settings.GEMINI_TTS_MODEL
     if provider == "voicebox":
         return f"voicebox:{settings.VOICEBOX_PROFILE_ID}:{settings.VOICEBOX_PROFILE_ID_MALE}"
+    if provider == "edge":
+        return "edge-neural"
     return settings.OPENAI_TTS_MODEL
 
 
@@ -244,7 +254,26 @@ def _call_voicebox(text: str, voice: str, lang: str = "en") -> tuple[bytes, str]
     return audio.content, mime
 
 
-_CALLERS = {"gemini": _call_gemini, "openai": _call_openai, "voicebox": _call_voicebox}
+def _call_edge(text: str, voice: str, lang: str = "en") -> tuple[bytes, str]:
+    """Microsoft Edge neural voices (free, no API key). Runs its own short event loop."""
+    import asyncio
+
+    import edge_tts
+
+    async def run() -> bytes:
+        audio = bytearray()
+        async for chunk in edge_tts.Communicate(text, EDGE_VOICES[lang][voice]).stream():
+            if chunk["type"] == "audio":
+                audio += chunk["data"]
+        return bytes(audio)
+
+    data = asyncio.run(asyncio.wait_for(run(), timeout=25))
+    if not data:
+        raise RuntimeError("edge: no audio")
+    return data, "audio/mpeg"
+
+
+_CALLERS = {"gemini": _call_gemini, "openai": _call_openai, "voicebox": _call_voicebox, "edge": _call_edge}
 
 
 def synthesize(text: str, voice: str = "female", lang: str = "en") -> Optional[TTSResult]:
