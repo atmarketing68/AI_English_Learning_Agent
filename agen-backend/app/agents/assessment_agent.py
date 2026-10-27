@@ -6,10 +6,14 @@ Dùng LLM để:
 3. Điều chỉnh độ khó theo kết quả (Adaptive Testing cơ bản)
 4. Tổng hợp kết quả cuối bài test thành trình độ CEFR
 """
+import logging
 import zlib
 from typing import Optional
 from app.services.llm_client import get_llm_response, parse_and_validate
 from app.agents.contracts import PlacementQuestionOutput
+from app.services.placement_bank import bank_question
+
+logger = logging.getLogger(__name__)
 
 
 CEFR_LEVELS = ["PRE_A1", "A1", "A2", "B1", "B2", "C1", "C2"]
@@ -108,6 +112,7 @@ def generate_placement_question(
     previous_correct: Optional[bool] = None,
     learner_age: Optional[int] = None,
     learner_grade: Optional[str] = None,
+    skill_occurrence: int = 0,
 ) -> dict:
     """
     Sinh 1 câu hỏi placement test.
@@ -169,8 +174,12 @@ Output this exact JSON structure:
   "explanation": "Brief explanation of why the answer is correct"
 }}"""
 
-    raw = get_llm_response(prompt)
-    question_data = parse_and_validate(raw, PlacementQuestionOutput)
+    try:
+        raw = get_llm_response(prompt)
+        question_data = parse_and_validate(raw, PlacementQuestionOutput)
+    except Exception as exc:  # AI busy, out of quota or bad JSON: the test must never be blocked
+        logger.warning("Placement question from the bank (LLM unavailable): %s", exc)
+        return bank_question(skill, effective_level, skill_occurrence)
 
     question_data["effective_level"] = effective_level
     return question_data
