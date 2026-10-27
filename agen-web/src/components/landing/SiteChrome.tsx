@@ -20,7 +20,7 @@ export function SiteHeader({ home = false }: { home?: boolean }) {
         <nav className="lp-nav-links" aria-label="Điều hướng trang">
           {links.map(l => <a key={l.href} href={l.href}>{l.label}</a>)}
         </nav>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: '0.88rem' }}>
+        <div className="lp-nav-actions">
           <Link href="/login" className="lp-nav-login" style={{ color: 'var(--text-secondary)' }}>Đăng nhập</Link>
           <Link href="/register" className="btn btn-primary btn-sm" style={{ whiteSpace: 'nowrap' }}>Học miễn phí</Link>
           {/* Phone: the same links in a no-JS dropdown */}
