@@ -2762,7 +2762,7 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
   position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; align-items: center;
   padding: clamp(56px, 8vw, 110px) var(--page-gutter) clamp(56px, 8vw, 96px); max-width: 1280px; margin: 0 auto;
 }
-@media (min-width: 960px) { .lp-hero-inner { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 56px; } .lp-hero-copy { padding-right: 8px; } }
+@media (min-width: 960px) { .lp-hero-inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; } .lp-hero-copy { padding-right: 8px; } }
 .lp-hero-copy h1 { color: #fff; font-size: clamp(2.3rem, 4.6vw, 4.25rem); font-weight: 700; line-height: 1.06; letter-spacing: -0.04em; margin-bottom: 20px; }
 .lp-hero-copy p { color: rgba(255,255,255,0.78); font-size: clamp(1.05rem, 1.5vw, 1.25rem); line-height: 1.5; margin-bottom: 32px; max-width: 600px; }
 .lp-hero .hero-badge { background: rgba(255,255,255,0.12); border-color: rgba(255,255,255,0.2); color: #fff; box-shadow: none; }
@@ -2879,8 +2879,7 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
    ============================================ */
 .lp-hero-scene { position: relative; min-height: 520px; }
 .h3d { position: absolute; inset: 0; perspective: 1100px; perspective-origin: 50% 45%; }
-@media (min-width: 960px) { .h3d { left: 40px; right: -40px; } }
-.h3d-stage { position: absolute; inset: 0; transform-style: preserve-3d; }
+.h3d-stage { position: absolute; inset: 0; transform-style: preserve-3d; scale: var(--fit, 1); left: calc(var(--fit, 1) * -76px); }
 .h3d-stage > * { position: absolute; left: 50%; top: 50%; transform-style: preserve-3d; }
 
 /* floor grid flying toward the viewer */
@@ -2946,7 +2945,7 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 @keyframes h3d-bob { 0%, 100% { transform: translateZ(var(--z, 0px)) translateY(0); } 50% { transform: translateZ(var(--z, 0px)) translateY(-9px); } }
 
 /* staircase of levels */
-.h3d-steps { width: 0; height: 0; transform: translate3d(150px, 170px, 80px); }
+.h3d-steps { width: 0; height: 0; transform: translate3d(110px, 170px, 80px); }
 .h3d-step {
   position: absolute; width: 92px; height: 34px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
   translate: calc(var(--i) * 46px) calc(var(--i) * -46px) calc(var(--i) * -40px);
@@ -2969,14 +2968,12 @@ a.quest-title:hover { color: var(--agen-primary); opacity: 1; }
 .h3d-chip-streak { --z: 60px; left: calc(50% + 60px); top: calc(50% - 235px); animation-delay: -1.7s; }
 .h3d-chip-speak { --z: 150px; left: calc(50% - 230px); top: calc(50% + 160px); animation-delay: -3.1s; }
 
-@media (max-width: 1200px) { .h3d-stage { scale: 0.86; } }
 @media (max-width: 959px) {
   .lp-hero-scene { min-height: 400px; margin-top: 8px; }
-  .h3d-stage { scale: 0.64; }
   .h3d-chip-band { left: calc(50% - 250px); }
   .h3d-chip-speak { left: calc(50% - 240px); }
 }
-@media (max-width: 480px) { .h3d-stage { scale: 0.5; } .lp-hero-scene { min-height: 340px; } }
+@media (max-width: 480px) { .lp-hero-scene { min-height: 340px; } }
 @media (prefers-reduced-motion: reduce) {
   .h3d *, .h3d *::after { animation: none !important; }
   .h3d-xp { opacity: 1; }

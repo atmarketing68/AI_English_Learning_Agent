@@ -8,7 +8,7 @@
  * stage tilts with the pointer (springs), so every depth layer parallaxes.
  * Honors prefers-reduced-motion (static pose, no spin).
  */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { BookOpen, Compass, Flame, Lightbulb, Mic, Sparkles, Star, Trophy, type LucideIcon } from 'lucide-react';
 
@@ -37,11 +37,30 @@ const LETTERS = 'ABCDEFGHKLMNPRSTUWY'.split('').map((ch, i) => {
   };
 });
 
+// Horizontal extent of the scene (orbiting cards + staircase) in px at scale 1.
+const SCENE_WIDTH = 700;
+
 export default function HeroScene3D() {
+  const rootRef = useRef<HTMLDivElement>(null);
   const mx = useMotionValue(0);
   const my = useMotionValue(0);
   const rotateY = useSpring(useTransform(mx, [-0.5, 0.5], [-14, 14]), { stiffness: 50, damping: 18, mass: 0.6 });
   const rotateX = useSpring(useTransform(my, [-0.5, 0.5], [10, -10]), { stiffness: 50, damping: 18, mass: 0.6 });
+
+  // Scale the whole stage so it always fits its column (no clipping at the right edge).
+  useEffect(() => {
+    const root = rootRef.current;
+    const host = root?.parentElement;
+    if (!root || !host) return;
+    const fit = () => {
+      const w = host.getBoundingClientRect().width;
+      root.style.setProperty('--fit', String(Math.min(1, Math.max(0.42, w / SCENE_WIDTH))));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -56,7 +75,7 @@ export default function HeroScene3D() {
   }, [mx, my]);
 
   return (
-    <div className="h3d" aria-hidden="true">
+    <div className="h3d" aria-hidden="true" ref={rootRef}>
       <motion.div className="h3d-stage" style={{ rotateX, rotateY }}>
         {/* Space floor flying toward the viewer */}
         <div className="h3d-floor" />
