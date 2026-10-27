@@ -1,4 +1,5 @@
 'use client';
+import AuthShell from '@/components/ui/AuthShell';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -65,7 +66,16 @@ export default function OnboardingPage() {
   if (!learner) return null; // Or a loading spinner
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
+    <AuthShell
+      image={['onb-goal', 'onb-time', 'onb-reminder', 'onb-ready'][Math.min(Math.max(step, 1), 4) - 1]}
+      title={['Chọn đích đến của bạn', 'Học vừa sức mỗi ngày', 'Giữ nhịp học đều đặn', 'Mọi thứ đã sẵn sàng'][Math.min(Math.max(step, 1), 4) - 1]}
+      text={[
+        'Mục tiêu rõ ràng giúp AI Coach chọn đúng bài học cho bạn.',
+        'Chỉ cần 5–30 phút mỗi ngày, AI chia nhỏ bài cho vừa lịch của bạn.',
+        'Một lời nhắc đúng giờ giúp chuỗi ngày học không bị đứt.',
+        'Bước cuối: kiểm tra trình độ để nhận lộ trình riêng.',
+      ][Math.min(Math.max(step, 1), 4) - 1]}
+    >
       <div className="container" style={{ maxWidth: 640 }}>
         
         {/* Progress Bar */}
@@ -218,6 +228,6 @@ export default function OnboardingPage() {
           )}
         </AnimatePresence>
       </div>
-    </main>
+    </AuthShell>
   );
 }

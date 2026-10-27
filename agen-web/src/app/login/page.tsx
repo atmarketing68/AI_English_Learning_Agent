@@ -1,4 +1,5 @@
 'use client';
+import AuthShell from '@/components/ui/AuthShell';
 
 import { useState } from 'react';
 import Link from 'next/link';
@@ -46,7 +47,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 'var(--spacing-lg)' }}>
+    <AuthShell image="auth-login" title="Chào mừng quay lại" text="Tiếp tục chuỗi ngày học, các bài ôn và lộ trình của bạn cùng AI Coach.">
       <div className="animate-fade-in-up" style={{ width: '100%', maxWidth: 400 }}>
         <Link href="/" aria-label="AI AGENT ENGLISH — trang chủ" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, opacity: 1 }}><Logo size={64} wordmark={false} /></Link>
         <div className="card" style={{ padding: 'clamp(24px, 5vw, 40px)', boxShadow: 'var(--shadow-md)', border: 'none' }}>
@@ -106,6 +107,6 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
-    </main>
+    </AuthShell>
   );
 }

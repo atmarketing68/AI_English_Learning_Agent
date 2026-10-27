@@ -3330,3 +3330,20 @@ a.member-cert:hover { color: var(--agen-primary); }
 @media (max-width: 700px) { .page-banner-art .page-banner-media { order: 0; aspect-ratio: 21 / 9; } }
 .seo-hero-art { position: relative; max-width: 980px; margin: clamp(28px, 4vw, 44px) auto 0; aspect-ratio: 21 / 9; border-radius: 24px; overflow: hidden; box-shadow: var(--shadow-md); }
 .seo-hero-art img { object-fit: cover; }
+
+/* Auth + onboarding split layout */
+.auth-split { min-height: 100vh; display: grid; grid-template-columns: minmax(0, 1fr); }
+.auth-art { position: relative; height: clamp(190px, 52vw, 280px); overflow: hidden; background: #EAF3FF; }
+.auth-art img { object-fit: cover; object-position: 50% 40%; animation: authArtIn 0.7s var(--ease-out); }
+.auth-art-text { display: none; }
+@keyframes authArtIn { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: scale(1); } }
+.auth-panel { display: flex; align-items: center; justify-content: center; padding: var(--spacing-lg); }
+.auth-panel > * { width: 100%; }
+@media (min-width: 900px) {
+  .auth-split { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+  .auth-art { position: sticky; top: 0; height: 100vh; }
+  .auth-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(8, 36, 110, 0.78) 0%, rgba(8, 36, 110, 0) 48%); }
+  .auth-art-text { display: block; position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; padding: clamp(32px, 5vw, 64px); color: #fff; }
+  .auth-art-text h2 { color: #fff; font-size: clamp(1.8rem, 3vw, 2.5rem); margin: 0 0 10px; }
+  .auth-art-text p { color: rgba(255, 255, 255, 0.9); font-size: 1.05rem; max-width: 440px; margin: 0; }
+}
