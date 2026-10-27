@@ -274,9 +274,19 @@ Landing tách thành server page (`app/page.tsx` → metadata, canonical, Open G
 (`lib/seo/pages.ts`, khung `components/seo/SeoLanding.tsx`, có BreadcrumbList + FAQPage), mục "Học theo mục tiêu" trên landing và cột liên kết ở chân trang
 (`components/landing/SiteChrome.tsx`). Ảnh chia sẻ `public/og.png`. Địa chỉ gốc: `NEXT_PUBLIC_SITE_URL` (mục 4.6–4.8 trong `docs/VIEC_CAN_LAM.md`).
 
-## G14 — gợi ý tiếp theo
+## G14 — gợi ý tiếp theo (theo thứ tự ưu tiên)
 
-Blog/hướng dẫn học (bài viết dài theo từ khoá) · Kiểm tra định kỳ tự lặp theo tháng · Biểu đồ tiến bộ Speaking theo 4 tiêu chí · Phụ huynh xem bài kiểm tra lớp của con · Xuất PDF bảng điểm bài kiểm tra.
+Sản phẩm đã đủ rộng (G1–G13); chỗ thiếu lớn nhất giờ là **để ra mắt và vận hành an toàn**, rồi mới tới tính năng học mới.
+
+1. **Trang pháp lý công khai** — Chính sách bảo mật, Điều khoản sử dụng, Chính sách hoàn tiền, Liên hệ (thông tin doanh nghiệp).
+   Bắt buộc khi đăng ký cổng VNPay/MoMo, lên Google Play/App Store, và giúp SEO/uy tín. API xuất/xoá dữ liệu đã có (`/privacy/*`), chỉ thiếu trang.
+2. **Theo dõi lỗi & sao lưu** — Sentry (hoặc tương đương) cho web + API, tự tắt khi chưa có khoá; kiểm tra định kỳ sao lưu Postgres trên Render.
+3. **Test giao diện tự động trong CI** — chạy vài kịch bản Playwright chính (đăng ký → học thử → làm bài → thi thử) trên mỗi PR.
+4. **Blog / hướng dẫn học cho SEO** — bài dài theo từ khoá (cấu trúc đề IELTS, mẹo TOEIC Part 5…), trang danh mục, liên kết sang 5 trang mục tiêu.
+5. **Bảng phân tích giữ chân** cho admin — tỉ lệ quay lại ngày 1/7/30, phễu đăng ký → trả phí, theo nguồn truy cập.
+6. Tính năng học còn treo: kiểm tra định kỳ tự lặp theo tháng · biểu đồ Speaking 4 tiêu chí · phụ huynh xem bài kiểm tra lớp của con ·
+   PDF bảng điểm bài kiểm tra · sửa chuỗi ngày trong 24 giờ.
+7. Khi có tài liệu từ nhà cung cấp: hoá đơn VNPT/MISA. Khi có máy build: phát hành app Android/iOS (`docs/MOBILE_APP.md`).
 
 ## Câu hỏi còn mở với chủ dự án
 
