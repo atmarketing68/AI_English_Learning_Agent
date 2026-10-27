@@ -160,6 +160,7 @@ def get_next_question(
             "previous_correct": session.last_correct,
             "learner_age": session.learner_age,
             "learner_grade": session.learner_grade,
+            "skill_occurrence": SKILL_ROTATION[:idx].count(skill),
         },
     ))
     record_agent_trace(db, session.learner_id, result.trace_id, result, {"skill": skill, "level": session.level})
