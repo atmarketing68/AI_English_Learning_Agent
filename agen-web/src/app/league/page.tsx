@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 /** G3/G4 · Giải đấu tuần — a group of 30 in your tier; top 7 go up, bottom 5 go down. */
 import { useEffect, useState } from 'react';
@@ -76,13 +77,14 @@ export default function LeaguePage() {
     <main className="league-page">
       <div className="league-column">
         <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}><ArrowLeft size={16} /> Trang chủ</Link>
+        <PageBanner image="banner-league" priority title="Giải đấu tuần" sub="Thi đua XP với bạn cùng nhóm, top 10 mỗi tuần nhận thưởng." />
         <div className="league-hero card">
           <span className="icon-tile league-hero-icon" style={{ background: `color-mix(in srgb, ${tierColor} 16%, transparent)`, color: tierColor }}><Trophy size={28} strokeWidth={1.6} /></span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div className="eyebrow">Giải {league.tier_name} · nhóm {league.group_no} · {league.week}</div>
-            <h1 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.1rem)', margin: '4px 0 6px' }}>
+            <h2 style={{ fontSize: 'clamp(1.6rem, 4vw, 2.1rem)', margin: '4px 0 6px' }}>
               {league.me.rank ? `Bạn đang hạng ${league.me.rank}` : 'Bạn chưa có XP tuần này'}
-            </h1>
+            </h2>
             <div style={{ color: 'var(--text-secondary)', fontSize: '0.92rem' }}>
               {league.me.xp} XP tuần này · {league.me.participants}/{league.group_size} người trong nhóm · còn {left} ngày
             </div>

@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -88,17 +89,13 @@ export default function VocabularyPage() {
       <div className="container" style={{ padding: 0, maxWidth: 880 }}>
         <Link href="/dashboard" className="back-link"><ArrowLeft size={16} /> Trang chủ</Link>
 
-        <div className="notebook-head">
-          <div>
-            <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.4rem)', marginBottom: 6 }}>Sổ từ vựng</h1>
-            <p style={{ margin: 0 }}>Từ mới và câu làm sai được lưu tự động sau mỗi bài học.</p>
-          </div>
+        <PageBanner image="banner-vocab" priority title="Sổ từ vựng" sub="Từ mới và câu làm sai được lưu tự động sau mỗi bài học.">
           {summary && (
             <Link href="/review" className="btn btn-primary">
               {summary.due_count > 0 ? <>Ôn tập ngay · {summary.due_count}</> : 'Luyện tập'} <ArrowRight size={16} />
             </Link>
           )}
-        </div>
+        </PageBanner>
 
         {summary && (
           <div className="notebook-stats">

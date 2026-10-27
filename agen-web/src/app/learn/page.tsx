@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -157,15 +158,13 @@ function LearnHubContent() {
       <div className="container" style={{ padding: 0 }}>
 
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--spacing-xl)' }}>
-          <div className="animate-fade-in-up">
-            <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}>
-              <ArrowLeft size={16} /> Dashboard
-            </Link>
-            <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.5rem)' }}>Trung tâm học tập</h1>
-            <p style={{ color: 'var(--text-muted)', marginTop: 6 }}>Chọn kỹ năng và bắt đầu bài học hôm nay.</p>
-          </div>
-          <div className="level-badge">{learner?.overall_level}</div>
+        <div className="animate-fade-in-up" style={{ marginBottom: 'var(--spacing-xl)' }}>
+          <Link href="/dashboard" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.92rem', marginBottom: 12 }}>
+            <ArrowLeft size={16} /> Dashboard
+          </Link>
+          <PageBanner image="banner-learn" priority title="Trung tâm học tập" sub="Chọn kỹ năng và bắt đầu bài học hôm nay.">
+            <span className="level-badge">{learner?.overall_level}</span>
+          </PageBanner>
         </div>
 
         {error && <div className="alert-error" style={{ marginBottom: 20 }}><CircleAlert size={16} style={{ flexShrink: 0 }} /> {error}</div>}

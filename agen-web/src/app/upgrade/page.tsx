@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -227,7 +228,8 @@ export default function UpgradePage() {
         </Link>
 
         {/* Hero */}
-        <motion.div
+        {isParent || isTeacher ? (
+          <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
@@ -245,6 +247,21 @@ export default function UpgradePage() {
               : 'Mở khóa toàn bộ tiềm năng học tiếng Anh với AI Coach cá nhân và bài học không giới hạn.'}
           </p>
         </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+            style={{ marginBottom: 40 }}
+          >
+            <PageBanner
+              image="banner-upgrade" priority
+              eyebrow="Premium"
+              title="Học không giới hạn."
+              sub="Mở khóa toàn bộ tiềm năng học tiếng Anh với AI Coach cá nhân và bài học không giới hạn."
+            />
+          </motion.div>
+        )}
 
         {/* Current Plan Banner */}
         {isPremium && (

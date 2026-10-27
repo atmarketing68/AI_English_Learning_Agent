@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -161,7 +162,10 @@ export default function ReviewPage() {
   if (phase === 'empty') {
     const hasItems = summary && summary.vocab_total + summary.mistake_total > 0;
     return (
-      <main className="review-shell">
+      <main className="review-shell" style={{ flexDirection: 'column' }}>
+        <div style={{ width: '100%', maxWidth: 880 }}>
+          <PageBanner image="banner-review" priority title="Ôn tập" sub="Ôn lại từ và câu đã học đúng lúc bạn sắp quên." />
+        </div>
         <div className="card review-end animate-bounce-in">
           {error ? (
             <>

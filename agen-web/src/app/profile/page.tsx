@@ -1,4 +1,5 @@
 'use client';
+import PageBanner from '@/components/ui/PageBanner';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -125,6 +126,7 @@ export default function ProfilePage() {
   return (
     <main className="profile-page">
       <div className="container" style={{ padding: 0, maxWidth: 880 }}>
+        <PageBanner image="banner-profile" priority title="Hồ sơ của bạn" sub="Quản lý thông tin, nhắc học và thành tựu." />
         {/* Header */}
         <section className="card profile-head">
           <Link href="/shop" aria-label="Đổi avatar ở Cửa hàng" style={{ flexShrink: 0, opacity: 1 }}>
@@ -138,12 +140,12 @@ export default function ProfilePage() {
                 <button type="button" className="icon-btn" aria-label="Huỷ" onClick={() => setEditingName(false)}><X size={18} /></button>
               </form>
             ) : (
-              <h1 className="profile-name">
+              <h2 className="profile-name">
                 {learner.display_name}
                 <button type="button" className="icon-btn" aria-label="Đổi tên" onClick={() => { setName(learner.display_name); setEditingName(true); }}>
                   <Pencil size={15} />
                 </button>
-              </h1>
+              </h2>
             )}
             <div className="profile-meta">
               {user?.email && <span>{user.email}</span>}
