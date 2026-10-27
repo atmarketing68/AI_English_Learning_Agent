@@ -84,6 +84,17 @@ Mọi cấu hình / việc chủ dự án phải tự làm (khoá, biến môi t
   rubric IELTS `WritingSubmission.teacher_rubric` + `groups.ielts_overall` (làm tròn kiểu IELTS); HĐĐT Viettel `services/einvoice.py`
   (token cookie `access_token`, `createInvoice/{MST}`, `transactionUuid` lưu trước khi gọi để không xuất trùng), cron hằng giờ `run_auto`;
   chế độ tiết kiệm `ai_usage.economy_active()` (cache 60 giây) + `llm_client.economy_model()`, mô hình tiết kiệm lỗi → gọi lại mô hình thường.
+- G13: bài kiểm tra lớp `GroupTest` (`kind` mock|speaking, `opens_on`/`due_on`) trong `services/groups.py` (`create_test`, `test_results`,
+  `open_test_for` = điều kiện miễn lượt miễn phí, `remind_due_tests` trong cron nhắc học); lần làm tính điểm gắn `ExamAttempt.group_test_id` /
+  `SpeakingExamAttempt.group_test_id` (web truyền `?test=<id>`; `_attempts_today` bỏ qua bài có `group_test_id`). Biểu đồ rubric
+  `groups.rubric_history` → web `components/teacher/RubricChart.tsx`. Đề Speaking AI: agent `speaking_exam_generation` →
+  `speaking_exam_generator.normalize_exam` (thời gian do server đặt) → `GeneratedSpeakingExam`; `speaking_exams.list_exams(db)/get_exam(id, db)`
+  phải truyền `db` để thấy đề `gen-…`. Push gốc trên web: `lib/nativePush.ts` dùng `window.Capacitor` (không cài npm), `NativePushBridge`
+  trong AppShell, `authStore.logout` gỡ token; cảnh báo phụ huynh chạy cả khi chỉ có FCM (`parent_digest.can_alert`).
+- SEO: `app/page.tsx` là server (metadata + JSON-LD), giao diện landing ở `components/landing/LandingPage.tsx` (client); FAQ dùng chung
+  `lib/seo/landingFaqs.ts`. Trang nội dung: dữ liệu `lib/seo/pages.ts` → `components/seo/SeoLanding.tsx`, thêm trang = thêm mục + thư mục
+  `app/<slug>/page.tsx` + thêm slug vào `ALWAYS_CLASSIC` (SkinProvider). Trang app mới sau đăng nhập → thêm vào `PRIVATE` trong `app/robots.ts`.
+  Không ghi số liệu/đánh giá không có thật vào nội dung SEO; URL gốc qua `lib/seo/site.ts` (`NEXT_PUBLIC_SITE_URL`).
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy

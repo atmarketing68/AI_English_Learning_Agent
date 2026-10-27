@@ -51,7 +51,9 @@ export default function ExamPlayerPage() {
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthenticated) { router.push('/login'); return; }
-    getExamPaper(examId)
+    // G13 · a class test travels in ?test=<id> (read here, not via useSearchParams, to keep the page shell static)
+    const testId = new URLSearchParams(window.location.search).get('test');
+    getExamPaper(examId, testId)
       .then(p => { setPaper(p); setSecondsLeft(p.minutes * 60); })
       .catch((err: unknown) => setError((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không tải được đề thi.'));
     return () => { cancelRef.current = true; stopSpeech(); };
@@ -66,7 +68,7 @@ export default function ExamPlayerPage() {
     stopSpeech();
     try {
       const seconds = Math.min(paper.minutes * 60, Math.round((Date.now() - startedAt.current) / 1000));
-      const r = await submitExam(paper.id, answers, seconds);
+      const r = await submitExam(paper.id, answers, seconds, paper.class_test?.id);
       setResult(r);
       setPhase('result');
       track('exam_completed', { exam: paper.exam, skill: paper.skill, pct: r.pct, estimate: r.estimate });
@@ -118,6 +120,7 @@ export default function ExamPlayerPage() {
           <div className="eyebrow">{EXAM_LABEL[paper.exam]} · {SKILL_LABEL[paper.skill]}</div>
           <h1 style={{ fontSize: 'clamp(1.5rem, 4vw, 2rem)', margin: 0 }}>{paper.title}</h1>
           <p style={{ margin: 0, color: 'var(--text-secondary)' }}>{paper.description}</p>
+          {paper.class_test && <div className="class-test-note">Bài kiểm tra lớp: <b>{paper.class_test.title}</b> · hạn {new Date(`${paper.class_test.due_on}T00:00:00`).toLocaleDateString('vi-VN')}. Bài nộp lần này được gửi điểm cho giáo viên và không trừ lượt thi miễn phí.</div>}
           <ul style={{ margin: 0, paddingLeft: 20, fontSize: '0.9rem', display: 'grid', gap: 6 }}>
             <li><b>{paper.minutes} phút</b>, {totalQuestions} câu, {paper.sections.length} phần. Hết giờ bài tự nộp.</li>
             {paper.skill === 'listening' && <li>Mỗi phần nghe chỉ phát <b>một lần</b> như thi thật. Hãy đeo tai nghe và bật âm lượng trước khi bấm Phát.</li>}

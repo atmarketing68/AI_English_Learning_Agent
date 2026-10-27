@@ -70,6 +70,9 @@ export interface ParentSettings {
   push_available: boolean;
   push_public_key: string | null;
   push_devices: number;
+  // G13 · native app (FCM) on the parent's phone
+  native_push_available?: boolean;
+  native_devices?: number;
   // G9 · Zalo OA
   zalo_available?: boolean;
   zalo_oa_link?: string | null;

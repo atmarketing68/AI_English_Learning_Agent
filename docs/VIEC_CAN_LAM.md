@@ -2,7 +2,7 @@
 
 > Danh sách để đánh dấu dần. Mỗi việc ghi **làm ở đâu**, **từng bước**, **biến cần dán**, và **cách kiểm tra**.
 > Khoá bí mật **không bao giờ** dán vào code hay gửi công khai — chỉ dán vào Render / Vercel / GitHub Secrets.
-> Cập nhật: 2026-10-27 (sau G12). Mỗi giai đoạn mới Claude sẽ bổ sung vào file này.
+> Cập nhật: 2026-10-27 (sau G13). Mỗi giai đoạn mới Claude sẽ bổ sung vào file này.
 
 Ba nơi bạn sẽ dán cấu hình:
 
@@ -87,8 +87,22 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
   5. Khai báo webhook `<api>/api/v1/zalo/webhook` với sự kiện `user_send_text`, `follow`, `unfollow`.
 - [ ] **4.3 App di động (Android / iOS)** — làm theo `docs/MOBILE_APP.md` trên máy có Android Studio / Xcode. Tài khoản Google Play (25 USD một lần), Apple Developer (99 USD/năm).
   Push trên app: Firebase console → Project settings → Service accounts → Generate new private key → dán **nguyên nội dung file JSON** vào Render `FIREBASE_SERVICE_ACCOUNT_JSON`.
+  **G13 — không cần sửa code trong app:** web tự nhận ra đang chạy trong app và dùng plugin `@capacitor/push-notifications` (chỉ cần cài plugin khi đóng gói, bước 1 của `docs/MOBILE_APP.md`).
+  Kiểm tra: mở app → đăng nhập tài khoản phụ huynh → trang Phụ huynh → thẻ **Thông báo trên điện thoại** → **Bật thông báo** → cho phép → nút đổi thành "Đang bật". Học viên: đăng nhập là app tự đăng ký.
 - [ ] **4.4 Giọng đọc miễn phí tự host (Voicebox)** — chỉ khi có máy chạy 24/7: `VOICEBOX_URL`, `VOICEBOX_PROFILE_ID` (+ `VOICEBOX_PROFILE_ID_MALE`, `VOICEBOX_API_KEY`). Chi tiết ở `docs/ROADMAP_STATUS.md` mục G2.
 - [ ] **4.5 Podcast tự sinh theo lịch** — Render: `PODCAST_AUTO_DRAFTS=2` (giữ 2 bản nháp chờ duyệt mỗi trình độ; `0` = tắt), tuỳ chọn `PODCAST_AUTO_LEVELS` (mặc định `A2,B1,B2`). Mỗi ngày vào `/admin` → **Podcast AI** nghe thử và duyệt các tập có nhãn "Tự động".
+
+## Mức 4b — SEO (để Google lập chỉ mục đúng tên miền)
+
+- [ ] **4.6 Địa chỉ chính thức của web** — Vercel: `NEXT_PUBLIC_SITE_URL` = tên miền thật, có `https://`, không có `/` cuối (vd. `https://aiagentenglish.com`) → Redeploy.
+  Chưa đặt thì app dùng tên miền production Vercel tự cấp. Kiểm tra: mở `<web>/robots.txt` và `<web>/sitemap.xml` — địa chỉ trong đó phải là tên miền thật.
+- [ ] **4.7 Google Search Console** — search.google.com/search-console → Thêm tài sản (*Tiền tố URL* = tên miền ở 4.6) → chọn xác minh bằng **Thẻ HTML** → chép giá trị `content="…"` →
+  Vercel: `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` = giá trị đó → Redeploy → bấm Xác minh. Sau đó: **Sơ đồ trang web** → gửi `sitemap.xml`; **Kiểm tra URL** từng trang ở 4.8 → Yêu cầu lập chỉ mục.
+  (Nếu xác minh bằng DNS ở nhà cung cấp tên miền thì bỏ qua biến này.)
+- [ ] **4.8 Các trang nội dung đã có** (có trong sitemap): `/luyen-thi-ielts`, `/luyen-thi-toeic`, `/tieng-anh-cho-tre-em`, `/tieng-anh-giao-tiep`, `/lop-hoc-va-doanh-nghiep`.
+  Sửa chữ: `agen-web/src/lib/seo/pages.ts` (tiêu đề, mô tả, nội dung, hỏi đáp). Ảnh chia sẻ mạng xã hội: `agen-web/public/og.png` (1200×630) — thay bằng ảnh thương hiệu nếu muốn.
+  Khu vực sau đăng nhập đã chặn trong `robots.txt`; trang Đăng nhập/Đăng ký đặt `noindex`.
+- Nên quyết sớm (ảnh hưởng uy tín với Google): số liệu "1.247 học viên", "4,9 sao", "98% hài lòng" và 3 lời đánh giá trên landing — nếu chưa có thật nên thay bằng số liệu thật hoặc bỏ. Code **không** khai báo điểm đánh giá (AggregateRating) cho Google vì chưa có nguồn thật.
 
 ## Mức 5 — Kiểm soát chi phí AI (khuyên đặt khi có người dùng thật)
 
@@ -109,9 +123,12 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
 | Duyệt tập podcast AI sinh (+ gắn video YouTube khớp lời thoại nếu có) | `/admin` → **Podcast AI** | Khi muốn thêm tập |
 | Xuất hoá đơn VAT cho doanh nghiệp | `/admin` → **Doanh thu** → "Đơn hàng & hoá đơn VAT": bấm **Xuất HĐĐT** (khi đã cấu hình Viettel, mục 3.6) — hoặc xuất trên phần mềm HĐĐT khác rồi bấm "Đánh dấu đã xuất" | Khi có đơn yêu cầu (hoặc để chế độ tự động) |
 | Hoàn tiền đơn đã có HĐĐT | Lập hoá đơn điều chỉnh / huỷ trên cổng Viettel S-Invoice | Khi hoàn tiền |
+| Hoá đơn VNPT / MISA | Chưa tích hợp (hai bên không công bố API). Nếu dùng VNPT/MISA: xin nhà cung cấp tài liệu API + tài khoản thử, gửi cho Claude để tích hợp như Viettel; trước đó xuất tay rồi bấm "Đánh dấu đã xuất" | Khi chọn nhà cung cấp |
 | Hoàn tiền | `/admin` → **Doanh thu** → **Hoàn tiền**. Stripe hoàn tự động; VNPay/MoMo: hoàn trên cổng trước rồi bấm để ghi nhận | Khi khách yêu cầu |
 | Xem chi phí AI, người dùng tốn nhiều | `/admin` → **Chi phí AI** | Hằng tuần |
 | Xem chất lượng AI (bài bị gắn cờ) | `/admin` → **Chất lượng AI** | Hằng tuần |
+| Duyệt đề Speaking AI sinh | `/admin` → **Đề thi** → "Sinh đề thi thử Speaking bằng AI" → xem trước → Duyệt | Khi muốn thêm đề nói |
+| Hướng dẫn giáo viên giao bài kiểm tra lớp hằng tháng | Trang lớp của giáo viên → **Bài kiểm tra lớp** (chọn đề, ngày mở, hạn nộp) | Đầu mỗi tháng / khi mở lớp |
 | Nhắc giáo viên đặt lịch câu lạc bộ nói cho lớp | Trang lớp của giáo viên → "Câu lạc bộ nói hằng tuần" | Khi mở lớp mới |
 | Kiểm tra lịch tự động còn chạy | GitHub → **Actions** (3 lịch: nhắc học, Content Factory, nhắc câu lạc bộ nói) | Hằng tuần |
 

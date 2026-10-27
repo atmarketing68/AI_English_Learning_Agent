@@ -49,6 +49,8 @@ export interface ExamSection {
 
 export interface ExamPaper {
   id: string;
+  /** G13 · present when opened as a class test (?test=<id>) */
+  class_test?: { id: string; title: string; due_on: string } | null;
   exam: ExamKind;
   skill: ExamSkill;
   title: string;
@@ -62,6 +64,7 @@ export interface QuestionResult { id: string; section_id: string; correct: boole
 
 export interface ExamResult {
   attempt_id: string;
+  class_test?: boolean;
   exam: ExamKind;
   skill: ExamSkill;
   correct: number;
@@ -91,9 +94,10 @@ export interface ExamAttempt {
 
 export const getExamCatalogue = async (): Promise<ExamCatalogue> => (await api.get('/exams')).data;
 export const getExamHistory = async (limit = 20): Promise<ExamAttempt[]> => (await api.get(`/exams/history?limit=${limit}`)).data;
-export const getExamPaper = async (examId: string): Promise<ExamPaper> => (await api.get(`/exams/${examId}`)).data;
-export const submitExam = async (examId: string, answers: Record<string, string | number>, seconds: number): Promise<ExamResult> =>
-  (await api.post(`/exams/${examId}/submit`, { answers, seconds })).data;
+export const getExamPaper = async (examId: string, testId?: string | null): Promise<ExamPaper> =>
+  (await api.get(`/exams/${examId}`, { params: testId ? { test: testId } : undefined })).data;
+export const submitExam = async (examId: string, answers: Record<string, string | number>, seconds: number, testId?: string | null): Promise<ExamResult> =>
+  (await api.post(`/exams/${examId}/submit`, { answers, seconds, group_test_id: testId || null })).data;
 
 export const EXAM_LABEL: Record<ExamKind, string> = { ielts: 'IELTS', toeic: 'TOEIC' };
 export const SKILL_LABEL: Record<ExamSkill, string> = { listening: 'Listening', reading: 'Reading' };

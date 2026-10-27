@@ -11,6 +11,7 @@ import {
   type AssignmentSkill, type GroupDetail,
 } from '@/lib/groupsService';
 import Avatar from '@/components/ui/Avatar';
+import ClassTestsCard from '@/components/teacher/ClassTestsCard';
 import ClubSchedulesCard from '@/components/teacher/ClubSchedulesCard';
 import { track } from '@/lib/analytics';
 
@@ -110,6 +111,8 @@ export default function TeacherGroupPage() {
           </div>
         )}
 
+        <ClassTestsCard groupId={groupId} />
+
         <ClubSchedulesCard groupId={groupId} />
 
         <h3 style={{ margin: '0 0 10px' }}>Thành viên ({members.length})</h3>
@@ -123,7 +126,7 @@ export default function TeacherGroupPage() {
                 {members.map(m => (
                   <tr key={m.learner_id}>
                     <td><Link href={`/teacher/${groupId}/member/${m.learner_id}`} className="teacher-member-link" title="Xem bài làm & nhận xét"><Avatar avatar={m.avatar} name={m.display_name} size={28} /> {m.display_name}</Link></td>
-                    <td><span className="level-badge">{m.level}</span></td>
+                    <td><span className="level-badge">{m.level.replace('PRE_', 'Pre-')}</span></td>
                     <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 600 }}><Star size={13} color="var(--agen-accent)" fill="var(--agen-accent)" /> {m.weekly_xp}</span></td>
                     <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Flame size={13} color="var(--agen-secondary)" /> {m.streak}</span></td>
                     <td>{m.assignments_done}/{assignments.length}</td>

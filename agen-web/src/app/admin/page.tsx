@@ -11,6 +11,8 @@ import {
   deleteGeneratedPodcast, generatePodcast, getGeneratedPodcast, listGeneratedPodcasts, setGeneratedPodcastStatus, setGeneratedPodcastVideo,
   type GeneratedEpisode, type GeneratedEpisodeFull,
   deleteGeneratedExam, generateExam, getGeneratedExam, listGeneratedExams, setGeneratedExamStatus,
+  deleteGeneratedSpeakingExam, generateSpeakingExam, getGeneratedSpeakingExam, listGeneratedSpeakingExams, setGeneratedSpeakingExamStatus,
+  type GeneratedSpeakingExam, type SpeakingExamContent,
   type AdminOrder, type GeneratedExam, type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
 } from '@/lib/adminService';
 import { ArrowLeft, Check, Flag, LoaderCircle, Lock, Settings, ShieldCheck, X, Zap } from 'lucide-react';
@@ -111,7 +113,7 @@ function RevenuePanel({ r }: { r: RevenueSummary }) {
 
 // ── G10 · Chi phí AI ────────────────────────────────────────────────────────
 const FEATURE_VI: Record<string, string> = {
-  lesson: 'Tạo bài học', tutor_answer: 'Hỏi Bo', writing_evaluation: 'Chấm bài viết', speaking_turn: 'Hội thoại nói', club_moderator: 'Câu lạc bộ nói',
+  lesson: 'Tạo bài học', tutor_answer: 'Hỏi Bo', writing_evaluation: 'Chấm bài viết', speaking_turn: 'Hội thoại nói', club_moderator: 'Câu lạc bộ nói', speaking_exam_generation: 'Sinh đề Speaking',
   speaking_exam_evaluation: 'Chấm thi nói', tts: 'Giọng đọc (TTS)', review: 'Ôn tập / tra từ', placement_question: 'Kiểm tra đầu vào', coach_advice: 'Lời khuyên',
 };
 
@@ -525,6 +527,95 @@ function ExamsPanel() {
   );
 }
 
+// ── G13 · Đề thi thử Speaking do AI sinh ──────────────────────────────────────
+function SpeakingExamsPanel() {
+  const [items, setItems] = useState<GeneratedSpeakingExam[] | null>(null);
+  const [form, setForm] = useState({ exam: 'ielts' as 'ielts' | 'toeic', topic: '', level: 'B1' });
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [preview, setPreview] = useState<{ meta: GeneratedSpeakingExam; exam: SpeakingExamContent } | null>(null);
+  const load = () => listGeneratedSpeakingExams().then(setItems).catch(() => setItems([]));
+  useEffect(() => { void load(); }, []);
+
+  const generate = async () => {
+    setBusy(true); setMsg('Đang sinh đề Speaking (1 lượt gọi AI)…');
+    try {
+      const r = await generateSpeakingExam({ exam: form.exam, topic: form.topic || undefined, level: form.level });
+      setMsg(`Đã tạo bản nháp "${r.title}" (${r.tasks} phần). Xem và duyệt bên dưới.`);
+      await load();
+    } catch (err: unknown) {
+      setMsg((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Không sinh được đề.');
+    } finally { setBusy(false); }
+  };
+  const setStatus = async (id: string, status: 'draft' | 'approved' | 'rejected') => { await setGeneratedSpeakingExamStatus(id, status); await load(); if (preview?.meta.id === id) setPreview(null); };
+  const STATUS_VI = { draft: 'Nháp', approved: 'Đã duyệt', rejected: 'Từ chối' } as const;
+
+  return (
+    <div style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
+      <div className="card" style={{ display: 'grid', gap: 10 }}>
+        <div style={{ fontWeight: 600 }}>Sinh đề thi thử Speaking bằng AI</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
+          <select className="form-input" value={form.exam} onChange={e => setForm(f => ({ ...f, exam: e.target.value as 'ielts' | 'toeic' }))} aria-label="Kỳ thi Speaking"><option value="ielts">IELTS Speaking</option><option value="toeic">TOEIC Speaking</option></select>
+          <select className="form-input" value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} aria-label="Trình độ đề Speaking">{['A2', 'B1', 'B2', 'C1'].map(l => <option key={l} value={l}>{l}</option>)}</select>
+          <input className="form-input" placeholder="Chủ đề (tuỳ chọn)" value={form.topic} onChange={e => setForm(f => ({ ...f, topic: e.target.value }))} maxLength={120} />
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-primary btn-sm" onClick={generate} disabled={busy}>{busy ? <LoaderCircle className="animate-spin" size={14} /> : <Zap size={14} />} Sinh đề Speaking</button>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{msg || 'Thời gian chuẩn bị / nói theo đúng đề thật; đề đã duyệt vào thư viện thi nói và giáo viên giao được làm bài kiểm tra lớp.'}</span>
+        </div>
+      </div>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        {!items ? <div style={{ padding: 16, color: 'var(--text-muted)' }}>Đang tải…</div> : items.length === 0 ? <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: '0.88rem' }}>Chưa có đề Speaking nào do AI sinh.</div> : (
+          <div style={{ overflowX: 'auto' }}>
+            <table className="teacher-table">
+              <thead><tr><th>Đề Speaking</th><th>Kỳ thi</th><th>Phần</th><th>Chất lượng AI</th><th>Trạng thái</th><th>Ngày</th><th /></tr></thead>
+              <tbody>
+                {items.map(x => (
+                  <tr key={x.id}>
+                    <td style={{ whiteSpace: 'normal', minWidth: 200 }}><button type="button" className="btn btn-ghost btn-sm" style={{ padding: 0 }} onClick={async () => setPreview(await getGeneratedSpeakingExam(x.id))}>{x.title}</button></td>
+                    <td>{x.exam.toUpperCase()}</td>
+                    <td>{x.tasks}</td>
+                    <td>{x.eval_score != null ? `${x.eval_score.toFixed(0)}${x.eval_flagged ? ' ⚑' : ''}` : '—'}</td>
+                    <td><span className={`plan-chip${x.status === 'approved' ? ' is-premium' : ''}`}>{STATUS_VI[x.status]}</span></td>
+                    <td>{new Date(x.created_at).toLocaleDateString('vi-VN')}</td>
+                    <td style={{ display: 'flex', gap: 6 }}>
+                      {x.status !== 'approved' && <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus(x.id, 'approved')}><Check size={13} /> Duyệt</button>}
+                      {x.status !== 'rejected' && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStatus(x.id, 'rejected')}><X size={13} /> Từ chối</button>}
+                      <button type="button" className="icon-btn" aria-label="Xoá đề Speaking" onClick={async () => { if (confirm('Xoá đề này?')) { await deleteGeneratedSpeakingExam(x.id); await load(); } }}><X size={14} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      {preview && (
+        <div className="card" style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div><div className="eyebrow">Xem trước · {preview.exam.minutes} phút</div><h3 style={{ margin: 0 }}>{preview.meta.title}</h3></div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPreview(null)}>Đóng</button>
+          </div>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{preview.exam.description}</p>
+          {preview.exam.tasks.map(t => (
+            <div key={t.id} style={{ fontSize: '0.88rem', padding: '8px 12px', borderRadius: 10, background: 'var(--bg-elevated)', display: 'grid', gap: 4 }}>
+              <div className="eyebrow">{t.part} · {t.prep_seconds ? `${t.prep_seconds}s chuẩn bị · ` : ''}{t.answer_seconds}s nói</div>
+              <div><b>{t.prompt}</b></div>
+              {t.cue.length > 0 && <ul style={{ margin: 0, paddingLeft: 18 }}>{t.cue.map(c => <li key={c}>{c}</li>)}</ul>}
+              {t.reference && <div className="exam-passage" style={{ maxHeight: 160 }}>{t.reference}</div>}
+              {t.tip_vi && <div style={{ color: 'var(--text-muted)' }}>💡 {t.tip_vi}</div>}
+            </div>
+          ))}
+          <div style={{ display: 'flex', gap: 8 }}>
+            {preview.meta.status !== 'approved' && <button type="button" className="btn btn-primary btn-sm" onClick={() => setStatus(preview.meta.id, 'approved')}><Check size={13} /> Duyệt và phát hành</button>}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStatus(preview.meta.id, 'rejected')}><X size={13} /> Từ chối</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Summary cards ────────────────────────────────────────────────────────────
 function SummaryPanel({ summary }: { summary: EvalSummary }) {
   const cards = [
@@ -828,7 +919,7 @@ export default function AdminDashboardPage() {
         ) : tab === 'content' ? (
           <ContentPanel />
         ) : tab === 'exams' ? (
-          <ExamsPanel />
+          <div style={{ display: 'grid', gap: 'var(--spacing-xl)' }}><ExamsPanel /><SpeakingExamsPanel /></div>
         ) : tab === 'podcasts' ? (
           <PodcastsPanel />
         ) : (

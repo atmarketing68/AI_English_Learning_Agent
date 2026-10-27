@@ -64,12 +64,20 @@ EXAMS: list[dict] = [
 _BY_ID = {e["id"]: e for e in EXAMS}
 
 
-def list_exams() -> list[dict]:
-    return EXAMS
+def list_exams(db=None) -> list[dict]:
+    """Hand-written tests, plus approved AI tests (G13) when a session is given."""
+    if db is None:
+        return EXAMS
+    from app.services.speaking_exam_generator import approved_exams
+    return EXAMS + approved_exams(db)
 
 
-def get_exam(exam_id: str) -> dict | None:
-    return _BY_ID.get(exam_id)
+def get_exam(exam_id: str, db=None) -> dict | None:
+    exam = _BY_ID.get(exam_id)
+    if exam is None and db is not None and exam_id.startswith("gen-"):
+        from app.services.speaking_exam_generator import exam_by_public_id
+        exam = exam_by_public_id(db, exam_id)
+    return exam
 
 
 def public_exam(exam: dict) -> dict:

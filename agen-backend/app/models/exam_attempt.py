@@ -24,5 +24,6 @@ class ExamAttempt(Base):
     answers = Column(JSON, nullable=True)                          # {question_id: given answer}
     seconds = Column(Integer, nullable=True)
     xp_earned = Column(Integer, nullable=False, default=0)
+    group_test_id = Column(String(36), nullable=True, index=True)  # G13 · taken as a class test
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)

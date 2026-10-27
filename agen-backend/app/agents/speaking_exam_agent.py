@@ -7,7 +7,7 @@ out, with Vietnamese feedback per task and corrected sentences.
 """
 from __future__ import annotations
 
-from app.agents.contracts import SpeakingExamEvaluationOutput
+from app.agents.contracts import GeneratedSpeakingExamOutput, SpeakingExamEvaluationOutput
 from app.services.llm_client import get_llm_response, parse_and_validate
 
 
@@ -55,3 +55,39 @@ Return ONLY JSON:
 One task_feedback entry per task, in order; at most 2 corrections per task; keep every Vietnamese comment under 40 words."""
     raw = get_llm_response(prompt)
     return parse_and_validate(raw, SpeakingExamEvaluationOutput)
+
+
+# ── G13 · Sinh đề Speaking mới (admin duyệt trước khi phát hành) ──────────────
+_GEN_FORMATS = {
+    "ielts": """Exactly 6 tasks like the real test:
+- 3 tasks with "part": "Part 1", "kind": "question": everyday questions on ONE familiar topic (home, study, work, hobbies…).
+- 1 task "part": "Part 2", "kind": "cue_card": "prompt" = "Describe …", "cue" = exactly 4 bullet points ("what …", "when …", "how …", "and explain why …").
+- 2 tasks "part": "Part 3", "kind": "question": abstract discussion questions linked to the Part 2 theme.""",
+    "toeic": """Exactly 6 tasks like the real test, workplace or daily-life settings:
+- 2 tasks "part": "Q1 · Read aloud" / "Q2 · Read aloud", "kind": "read_aloud", "prompt": "Read the text aloud.", "reference" = a 40–60 word announcement, voicemail or advertisement with a list of three items.
+- 3 tasks "part": "Q5 · Respond to questions" / "Q6 · …" / "Q7 · …", "kind": "question": one survey-style scenario ("Imagine that …") and three related questions.
+- 1 task "part": "Q11 · Express an opinion", "kind": "opinion": an agree/disagree or preference statement ending with 'Give reasons or examples to support your opinion.'""",
+}
+
+
+def generate_speaking_exam(exam: str, topic: str = "", level: str = "B1", seed: int = 0) -> dict:
+    fmt = _GEN_FORMATS.get(exam)
+    if not fmt:
+        raise ValueError("Unsupported exam")
+    focus = f"Theme: {topic}." if topic else "Pick a fresh everyday theme."
+    prompt = f"""You write {exam.upper()} Speaking mini mock tests for Vietnamese learners around CEFR {level}. {focus} Variation seed: {seed}.
+
+Format (follow exactly): {fmt}
+
+Rules: natural exam-style English; no sensitive, political or culturally stereotyped topics; each "tip_vi" is one short Vietnamese tip (under 30 words) on how to answer.
+
+Return ONLY JSON:
+{{
+  "title": "{exam.upper()} Speaking · <short theme>",
+  "description": "1–2 câu tiếng Việt mô tả đề",
+  "tasks": [
+    {{"part": "Part 1", "kind": "question", "prompt": "...", "tip_vi": "...", "reference": null, "cue": []}}
+  ]
+}}"""
+    raw = get_llm_response(prompt)
+    return parse_and_validate(raw, GeneratedSpeakingExamOutput)

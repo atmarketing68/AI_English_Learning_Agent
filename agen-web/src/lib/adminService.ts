@@ -247,6 +247,36 @@ export async function deleteGeneratedExam(id: string): Promise<void> {
   await api.delete(`/admin/exams/${id}`);
 }
 
+// ── G13 · Đề thi thử Speaking do AI sinh ──────────────────────────────────────
+export interface GeneratedSpeakingExam {
+  id: string;
+  public_id: string;
+  exam: 'ielts' | 'toeic';
+  title: string;
+  topic: string | null;
+  status: 'draft' | 'approved' | 'rejected';
+  tasks: number;
+  eval_score: number | null;
+  eval_flagged: boolean | null;
+  created_at: string;
+  approved_at: string | null;
+}
+
+export interface SpeakingExamContent {
+  title: string;
+  description: string;
+  minutes: number;
+  tasks: { id: string; part: string; kind: string; prompt: string; prep_seconds: number; answer_seconds: number; tip_vi: string; reference: string | null; cue: string[] }[];
+}
+
+export const listGeneratedSpeakingExams = async (): Promise<GeneratedSpeakingExam[]> => (await api.get('/admin/speaking-exams')).data;
+export const generateSpeakingExam = async (payload: { exam: 'ielts' | 'toeic'; topic?: string; level?: string }): Promise<GeneratedSpeakingExam> =>
+  (await api.post('/admin/speaking-exams/generate', payload)).data;
+export const getGeneratedSpeakingExam = async (id: string): Promise<{ meta: GeneratedSpeakingExam; exam: SpeakingExamContent }> => (await api.get(`/admin/speaking-exams/${id}`)).data;
+export const setGeneratedSpeakingExamStatus = async (id: string, status: 'draft' | 'approved' | 'rejected'): Promise<GeneratedSpeakingExam> =>
+  (await api.post(`/admin/speaking-exams/${id}/status`, { status })).data;
+export const deleteGeneratedSpeakingExam = async (id: string): Promise<void> => { await api.delete(`/admin/speaking-exams/${id}`); };
+
 // ── G10 · Chi phí AI theo người dùng ──────────────────────────────────────────
 export interface AiUsageBucket { key: string; calls: number; cost_usd: number }
 

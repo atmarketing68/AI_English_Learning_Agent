@@ -216,6 +216,22 @@ class GeneratedExamOutput(BaseModel):
     sections: list[ExamSectionOutput] = Field(min_length=1, max_length=5)
 
 
+# ── G13 · AI-generated Speaking mock test (same shape as services/speaking_exams.EXAMS) ──
+class GeneratedSpeakingTaskOutput(BaseModel):
+    part: str = Field(min_length=1, max_length=40)
+    kind: Literal["question", "cue_card", "read_aloud", "opinion"] = "question"
+    prompt: str = Field(min_length=1, max_length=600)
+    tip_vi: str = Field(default="", max_length=300)
+    reference: str | None = Field(default=None, max_length=900)
+    cue: list[str] = Field(default_factory=list, max_length=5)
+
+
+class GeneratedSpeakingExamOutput(BaseModel):
+    title: str = Field(min_length=1, max_length=140)
+    description: str = Field(min_length=1, max_length=600)
+    tasks: list[GeneratedSpeakingTaskOutput] = Field(min_length=4, max_length=12)
+
+
 # ── G10 · Speaking club host ──────────────────────────────────────────────────
 class ClubModeratorOutput(BaseModel):
     feedback_vi: str = Field(min_length=1, max_length=400)

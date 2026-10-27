@@ -96,6 +96,7 @@ class LearnerGroupOut(BaseModel):
     group: GroupOut
     owner_name: str
     assignments: list[AssignmentOut]
+    tests: list[dict] = []            # G13 · class tests with the learner's own result ("mine")
 
 
 class LearnerHome(BaseModel):
@@ -359,6 +360,7 @@ def learner_home(current_user: User = Depends(get_current_user), db: Session = D
         out.append(LearnerGroupOut(
             group=_group_out(db, g), owner_name=(owner.full_name if owner else None) or "Giáo viên",
             assignments=[_assignment_out(a) for a in svc.group_assignments(db, g.id, learner.id)],
+            tests=[t for t in svc.group_tests(db, g.id, learner.id) if t["available"] or t["mine"]["done"]],
         ))
     return LearnerHome(groups=out)
 
@@ -484,4 +486,69 @@ def delete_club_schedule(group_id: str, schedule_id: str, current_user: User = D
     if not sch:
         raise HTTPException(status_code=404, detail="Không tìm thấy lịch.")
     club.cancel_schedule(db, sch)
+    db.commit()
+
+
+# ── G13 · Bài kiểm tra lớp ───────────────────────────────────────────────────
+class GroupTestIn(BaseModel):
+    kind: str = Field(pattern="^(mock|speaking)$")
+    exam_id: str = Field(min_length=1, max_length=40)
+    title: Optional[str] = Field(default=None, max_length=140)
+    note: Optional[str] = Field(default=None, max_length=500)
+    opens_on: Optional[date] = None
+    due_on: date
+
+
+@router.get("/tests/catalogue")
+def test_catalogue(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Published tests a teacher can assign (Listening / Reading / Speaking)."""
+    _owner(current_user)
+    return svc.test_catalogue(db)
+
+
+@router.get("/{group_id}/tests")
+def list_tests(group_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return svc.group_tests(db, g.id)
+
+
+@router.post("/{group_id}/tests")
+def create_test(group_id: str, payload: GroupTestIn, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    try:
+        t = svc.create_test(db, g, payload.kind, payload.exam_id, payload.opens_on, payload.due_on, payload.note, payload.title)
+    except svc.GroupError as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    db.commit()
+    return svc.test_view(db, t, [m.learner_id for m in svc.members_in_order(db, g.id)])
+
+
+@router.get("/{group_id}/tests/{test_id}")
+def test_results(group_id: str, test_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+        return svc.test_results(db, g, test_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@router.delete("/{group_id}/tests/{test_id}", status_code=204)
+def delete_test(group_id: str, test_id: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    _owner(current_user)
+    try:
+        g = svc.get_owned(db, current_user, group_id)
+    except svc.GroupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    if not svc.delete_test(db, g, test_id):
+        raise HTTPException(status_code=404, detail="Không tìm thấy bài kiểm tra.")
     db.commit()
