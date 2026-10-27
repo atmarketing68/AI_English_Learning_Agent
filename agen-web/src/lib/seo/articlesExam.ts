@@ -132,7 +132,7 @@ export const EXAM_ARTICLES: Article[] = [
         id: 'luyen-tap',
         h2: 'Luyện theo đúng cấu trúc đề với AI AGENT ENGLISH',
         paras: [
-          'Trong ứng dụng, phần Thi thử có các mini test IELTS Listening và Reading giữ nguyên dạng câu hỏi ở trên, chấm ngay và quy ra band ước tính; phần thi thử Speaking có giám khảo AI hỏi đủ Part 1–3, chấm theo bốn tiêu chí. Khi luyện viết, chọn dạng IELTS Task 1 hoặc Task 2 để được chấm band từng tiêu chí và xem bài đã sửa.',
+          'Trong ứng dụng, phần Thi thử có các mini test IELTS Listening và Reading giữ nguyên dạng câu hỏi ở trên, chấm ngay và quy ra band ước tính; phần thi thử Speaking có giám khảo AI hỏi đủ Part 1–3, chấm theo bốn tiêu chí. Khi luyện viết, chọn IELTS Task 2 (bài luận) hoặc Task 1 dạng thư (General Training) để được chấm band từng tiêu chí và xem bài đã sửa.',
           'Band trên ứng dụng là ước tính để theo dõi tiến bộ; hãy dùng nó để biết kỹ năng nào đang kéo điểm Overall xuống và ôn đúng chỗ đó.',
         ],
       },

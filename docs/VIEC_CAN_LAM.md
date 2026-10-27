@@ -112,7 +112,12 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
 - [ ] **4.8 Các trang nội dung đã có** (có trong sitemap): `/luyen-thi-ielts`, `/luyen-thi-toeic`, `/tieng-anh-cho-tre-em`, `/tieng-anh-giao-tiep`, `/lop-hoc-va-doanh-nghiep`.
   Sửa chữ: `agen-web/src/lib/seo/pages.ts` (tiêu đề, mô tả, nội dung, hỏi đáp). Ảnh chia sẻ mạng xã hội: `agen-web/public/og.png` (1200×630) — thay bằng ảnh thương hiệu nếu muốn.
   Khu vực sau đăng nhập đã chặn trong `robots.txt`; trang Đăng nhập/Đăng ký đặt `noindex`.
-- Nên quyết sớm (ảnh hưởng uy tín với Google): số liệu "1.247 học viên", "4,9 sao", "98% hài lòng" và 3 lời đánh giá trên landing — nếu chưa có thật nên thay bằng số liệu thật hoặc bỏ. Code **không** khai báo điểm đánh giá (AggregateRating) cho Google vì chưa có nguồn thật.
+- [ ] **4.9 Gửi trang mới cho Google** (sau 4.7): trong Search Console → Kiểm tra URL → Yêu cầu lập chỉ mục cho `/cam-nang`, `/huong-dan-su-dung`
+  và 4 trang con `/huong-dan-su-dung/nguoi-hoc|hoc-sinh|phu-huynh|giao-vien` (sitemap đã có sẵn). Kiểm tra: trang hiện ảnh chụp, không lỗi 404.
+- [ ] **4.10 Gắn nguồn cho link quảng cáo** để bảng "Giữ chân" (admin) biết người dùng đến từ đâu: thêm `?utm_source=<tên>` vào link chia sẻ,
+  ví dụ `https://aiagentenglish.com/?utm_source=facebook`, `…?utm_source=zalo`, `…?utm_source=tiktok`. Kiểm tra: đăng ký thử qua link → admin → tab Giữ chân → bảng Nguồn.
+- Landing đã bỏ các số liệu/lời đánh giá chưa có thật. Khi có đánh giá thật của học viên (có đồng ý), sửa `agen-web/src/components/landing/LandingPage.tsx`.
+- Ảnh hướng dẫn (`agen-web/public/guides/*.webp`) chụp từ dữ liệu mẫu; khi giao diện đổi nhiều, nhờ Claude chụp lại (xem `docs/HANDOFF.md` mục 6).
 
 ## Mức 5 — Kiểm soát chi phí AI (khuyên đặt khi có người dùng thật)
 

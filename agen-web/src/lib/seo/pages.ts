@@ -30,14 +30,14 @@ export const SEO_PAGES: SeoPage[] = [
     cardTitle: 'Luyện thi IELTS',
     cardDesc: 'Thi thử 4 kỹ năng, chấm band Writing/Speaking, kế hoạch ôn theo ngày thi.',
     title: 'Luyện thi IELTS online với AI – thi thử & chấm band',
-    description: 'Luyện thi IELTS online với AI: thi thử Listening, Reading, Speaking có giám khảo AI, chấm Writing theo 4 tiêu chí band và kế hoạch ôn theo ngày thi. Học thử miễn phí.',
+    description: 'Luyện thi IELTS online với AI: thi thử Listening, Reading, Speaking có giám khảo AI, chấm Writing Task 2 theo 4 tiêu chí band và kế hoạch ôn theo ngày thi. Học thử miễn phí.',
     eyebrow: 'IELTS · Listening · Reading · Writing · Speaking',
     h1: 'Luyện thi IELTS online với AI',
     lead: 'Làm đề thi thử đúng định dạng, nhận band ước tính ngay sau khi nộp, được AI chấm Writing và Speaking theo bốn tiêu chí chính thức — rồi ôn đúng phần còn yếu theo kế hoạch tính ngược từ ngày thi của bạn.',
     highlights: [
       { title: 'Thi thử Listening & Reading', desc: 'Mini test đúng dạng đề thật: điền form, trắc nghiệm, True/False/Not Given, hoàn thành câu. Có đồng hồ, phần nghe phát một lần.' },
       { title: 'Speaking với giám khảo AI', desc: 'Part 1, Part 2 (cue card: 1 phút chuẩn bị, nói đến 2 phút) và Part 3. Trả lời bằng micro, nhận band theo 4 tiêu chí.' },
-      { title: 'Chấm Writing Task 1 & Task 2', desc: 'Band theo Task Response, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy, kèm lỗi và câu sửa.' },
+      { title: 'Chấm Writing Task 2 & Task 1 (thư)', desc: 'Band theo Task Response, Coherence & Cohesion, Lexical Resource, Grammatical Range & Accuracy, kèm lỗi và câu sửa.' },
       { title: 'Kế hoạch ôn theo ngày thi', desc: 'Nhập band mục tiêu và ngày thi, app chia lộ trình theo tuần, ưu tiên kỹ năng đang thấp nhất.' },
     ],
     sections: [
@@ -59,7 +59,7 @@ export const SEO_PAGES: SeoPage[] = [
       {
         h2: 'Chấm IELTS Writing theo 4 tiêu chí',
         body: [
-          'Viết Task 1 (mô tả biểu đồ) hoặc Task 2 (nghị luận) ngay trong app. AI trả về band từng tiêu chí, band tổng làm tròn theo quy tắc IELTS, danh sách lỗi ngữ pháp kèm giải thích tiếng Việt, bài viết đã sửa và gợi ý để lên nửa band tiếp theo.',
+          'Viết Task 2 (bài luận) hoặc Task 1 dạng thư của General Training ngay trong app. AI trả về band từng tiêu chí, band tổng làm tròn theo quy tắc IELTS, danh sách lỗi ngữ pháp kèm giải thích tiếng Việt, bài viết đã sửa và gợi ý để lên nửa band tiếp theo.',
           'Nếu bạn học trong lớp có giáo viên dùng AI AGENT ENGLISH, giáo viên có thể chấm lại theo rubric 4 tiêu chí và theo dõi biểu đồ tiến bộ band của bạn qua từng bài.',
         ],
       },
@@ -80,7 +80,7 @@ export const SEO_PAGES: SeoPage[] = [
       { q: 'Band ước tính trên app có giống điểm thi thật không?', a: 'Band là ước tính để theo dõi tiến bộ, dựa trên bảng quy đổi chính thức cho Listening/Reading và tiêu chí chấm công khai cho Writing/Speaking. Điểm thi thật có thể chênh lệch; hãy dùng band trên app để biết mình đang tiến hay lùi và phần nào cần luyện thêm.' },
       { q: 'Luyện IELTS Speaking với AI cần thiết bị gì?', a: 'Chỉ cần điện thoại hoặc máy tính có micro và trình duyệt Chrome, Edge hoặc Safari. Bạn cho phép trang dùng micro khi được hỏi là có thể bắt đầu.' },
       { q: 'Tài khoản miễn phí thi thử được bao nhiêu đề?', a: 'Tài khoản miễn phí làm được một đề thi thử Listening/Reading và một lượt thi thử Speaking mỗi ngày. Gói Premium thi không giới hạn.' },
-      { q: 'App có chấm IELTS Writing Task 1 không?', a: 'Có. Bạn chọn dạng IELTS Task 1 hoặc Task 2 khi luyện viết; AI chấm band theo 4 tiêu chí, chỉ lỗi và gợi ý cách viết tốt hơn.' },
+      { q: 'App có chấm IELTS Writing Task 1 không?', a: 'Có với Task 1 dạng thư (General Training): bạn chọn IELTS Task 1 khi luyện viết và được chấm band theo 4 tiêu chí. Task 1 Academic (mô tả biểu đồ) hiện chưa có; Task 2 (bài luận) dùng chung cho cả hai hình thức.' },
     ],
     cta: { title: 'Bắt đầu luyện IELTS hôm nay', desc: 'Kiểm tra trình độ miễn phí, nhận kế hoạch ôn thi theo band mục tiêu.', label: 'Học thử miễn phí', href: '/register' },
     related: ['luyen-thi-toeic', 'tieng-anh-giao-tiep', 'lop-hoc-va-doanh-nghiep'],

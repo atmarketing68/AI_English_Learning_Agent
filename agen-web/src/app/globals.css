@@ -3236,3 +3236,17 @@ a.member-cert:hover { color: var(--agen-primary); }
 .funnel-bar span { display: block; height: 100%; border-radius: 99px; background: var(--agen-primary); }
 .funnel-pct { color: var(--text-muted); text-align: right; }
 @media (max-width: 560px) { .funnel-row { grid-template-columns: 1fr 44px 44px; } .funnel-row .funnel-bar { grid-column: 1 / -1; grid-row: 2; } }
+
+/* G14 · Hướng dẫn sử dụng (/huong-dan-su-dung) */
+.guide-badge { width: 56px; height: 56px; border-radius: 16px; margin: 0 auto 14px; display: inline-flex; align-items: center; justify-content: center; }
+.guide-step { display: grid; gap: 0; }
+.guide-shot { margin: 10px 0 18px; }
+.guide-shot a { display: block; cursor: zoom-in; }
+.guide-shot img { display: block; width: 100%; height: auto; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); box-shadow: 0 18px 40px -24px rgba(15, 23, 42, 0.35); background: var(--bg-elevated); }
+.guide-shot figcaption { margin-top: 8px; font-size: 0.85rem; color: var(--text-muted); text-align: center; }
+.guide-shot-row { display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }
+.guide-shot-mobile { width: min(300px, 70vw); }
+.guide-shot-mobile img { border-radius: 22px; }
+.guide-hub { max-width: 1120px; margin: 0 auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; }
+.lp-nav-actions { display: flex; align-items: center; gap: 16px; font-size: 0.88rem; }
+@media (max-width: 480px) { .lp-nav-inner { gap: 10px; } .lp-nav-actions { gap: 6px; } }

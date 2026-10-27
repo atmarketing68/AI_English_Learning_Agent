@@ -97,6 +97,12 @@ Mọi cấu hình / việc chủ dự án phải tự làm (khoá, biến môi t
   `lib/seo/landingFaqs.ts`. Trang nội dung: dữ liệu `lib/seo/pages.ts` → `components/seo/SeoLanding.tsx`, thêm trang = thêm mục + thư mục
   `app/<slug>/page.tsx` + thêm slug vào `ALWAYS_CLASSIC` (SkinProvider). Trang app mới sau đăng nhập → thêm vào `PRIVATE` trong `app/robots.ts`.
   Không ghi số liệu/đánh giá không có thật vào nội dung SEO; URL gốc qua `lib/seo/site.ts` (`NEXT_PUBLIC_SITE_URL`).
+- G14: tên miền mặc định `aiagentenglish.com` (`lib/seo/site.ts`). Cẩm nang `/cam-nang` (`lib/seo/articles*.ts` → `ArticleView`), hướng dẫn sử dụng
+  `/huong-dan-su-dung` (`lib/seo/guides.ts` → `GuideView`, ảnh thật `public/guides/*.webp`); cả hai trong ALWAYS_CLASSIC + sitemap. Giữ chân
+  `services/retention.py` (`User.signup_source` từ `lib/signupSource.ts`, gửi khi đăng ký/học thử) → admin tab "Giữ chân". Sửa chuỗi ngày
+  `streak_service.repair_offer/repair_streak` (`streak_lost_value/_on`, 50 💎). Bài kiểm tra lớp lặp tháng `GroupTest.repeat` → `groups.roll_recurring_tests`
+  (cron giờ); bảng điểm in `app/teacher/[groupId]/tests/[testId]`; `groups.speaking_history` (biểu đồ `RubricChart kind="speaking"`);
+  phụ huynh thấy `class_tests` của con. Landing không có số liệu/lời đánh giá bịa.
 - Lỗi/LLM không được làm hỏng luồng học: luôn có fallback.
 
 ## Kiểm tra trước khi đẩy
