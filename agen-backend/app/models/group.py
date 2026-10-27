@@ -82,6 +82,8 @@ class GroupTest(Base):
     opens_on = Column(Date, nullable=False)
     due_on = Column(Date, nullable=False)
     reminded_on = Column(Date, nullable=True)                        # "due today" reminder sent
+    repeat = Column(String(10), nullable=True)                       # G14 · "monthly" → next month's test is created when this one closes
+    next_test_id = Column(String(36), nullable=True)                 # the test created from this one
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 

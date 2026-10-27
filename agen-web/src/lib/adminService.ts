@@ -247,6 +247,17 @@ export async function deleteGeneratedExam(id: string): Promise<void> {
   await api.delete(`/admin/exams/${id}`);
 }
 
+// ── G14 · Giữ chân học viên ───────────────────────────────────────────────────
+export interface RetentionCohort { week_start: string; signups: number; d1: number | null; d7: number | null; d30: number | null; d1_eligible: number; d7_eligible: number; d30_eligible: number }
+export interface RetentionSummary {
+  generated_for: string;
+  cohorts: RetentionCohort[];
+  funnel: { days: number; steps: { key: string; label: string; count: number; pct: number | null }[] };
+  sources: { source: string; signups: number; activated: number; paid: number; activation_pct: number | null; paid_pct: number | null }[];
+  windows: Record<'d1' | 'd7' | 'd30', string>;
+}
+export const getRetentionSummary = async (weeks = 8): Promise<RetentionSummary> => (await api.get(`/admin/retention/summary?weeks=${weeks}`)).data;
+
 // ── G13 · Đề thi thử Speaking do AI sinh ──────────────────────────────────────
 export interface GeneratedSpeakingExam {
   id: string;

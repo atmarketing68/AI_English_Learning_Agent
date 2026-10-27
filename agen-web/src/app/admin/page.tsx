@@ -13,6 +13,7 @@ import {
   deleteGeneratedExam, generateExam, getGeneratedExam, listGeneratedExams, setGeneratedExamStatus,
   deleteGeneratedSpeakingExam, generateSpeakingExam, getGeneratedSpeakingExam, listGeneratedSpeakingExams, setGeneratedSpeakingExamStatus,
   type GeneratedSpeakingExam, type SpeakingExamContent,
+  getRetentionSummary, type RetentionSummary,
   type AdminOrder, type GeneratedExam, type EvalSummary, type EvalTraceItem, type ContentItem, type PilotSummary, type RevenueSummary,
 } from '@/lib/adminService';
 import { ArrowLeft, Check, Flag, LoaderCircle, Lock, Settings, ShieldCheck, X, Zap } from 'lucide-react';
@@ -527,6 +528,75 @@ function ExamsPanel() {
   );
 }
 
+// ── G14 · Giữ chân học viên ──────────────────────────────────────────────────
+function RetentionPanel() {
+  const [data, setData] = useState<RetentionSummary | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => { getRetentionSummary(8).then(setData).catch(() => setError('Không tải được số liệu.')); }, []);
+  if (error) return <div className="alert-error">{error}</div>;
+  if (!data) return <div style={{ color: 'var(--text-muted)' }}><LoaderCircle className="animate-spin" size={16} /> Đang tải…</div>;
+  const cell = (v: number | null, n: number) => (
+    <td className="retention-cell" style={{ ['--heat' as string]: v == null ? '0%' : `${Math.round(Math.min(100, v) * 0.55)}%` }} title={v == null ? 'Chưa đủ ngày để tính' : `${n} người đủ điều kiện`}>
+      {v == null ? '—' : `${v.toFixed(0)}%`}
+    </td>
+  );
+  const top = data.funnel.steps[0]?.count || 0;
+  return (
+    <div style={{ display: 'grid', gap: 'var(--spacing-lg)' }}>
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 18px 4px' }}>
+          <div style={{ fontWeight: 600 }}>Học viên quay lại theo tuần đăng ký</div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>% học viên có hoạt động học vào {data.windows.d1} / {data.windows.d7} / {data.windows.d30} sau khi đăng ký. Không tính khách học thử chưa lưu tài khoản; dấu — là chưa đủ ngày.</div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="teacher-table retention-table">
+            <thead><tr><th>Tuần bắt đầu</th><th>Đăng ký</th><th>Ngày 1</th><th>Ngày 7–13</th><th>Ngày 30–36</th></tr></thead>
+            <tbody>
+              {data.cohorts.map(c => (
+                <tr key={c.week_start}>
+                  <td>{new Date(`${c.week_start}T00:00:00`).toLocaleDateString('vi-VN')}</td><td><b>{c.signups}</b></td>
+                  {cell(c.d1, c.d1_eligible)}{cell(c.d7, c.d7_eligible)}{cell(c.d30, c.d30_eligible)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>Phễu {data.funnel.days} ngày gần nhất</div>
+        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 12 }}>Tính trên học viên đăng ký trong {data.funnel.days} ngày qua.</div>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {data.funnel.steps.map(s => (
+            <div key={s.key} className="funnel-row">
+              <span>{s.label}</span>
+              <div className="funnel-bar"><span style={{ width: `${top ? Math.max(2, (s.count / top) * 100) : 0}%` }} /></div>
+              <b>{s.count}</b><span className="funnel-pct">{s.pct == null ? '—' : `${s.pct.toFixed(0)}%`}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 18px 4px' }}>
+          <div style={{ fontWeight: 600 }}>Nguồn đăng ký (90 ngày)</div>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>Lấy từ <code>utm_source</code> hoặc <code>?ref=</code> trên link quảng cáo, nếu không có thì từ trang giới thiệu. Đặt link dạng <code>aiagentenglish.com/?utm_source=facebook</code> để đo từng kênh.</div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="teacher-table">
+            <thead><tr><th>Nguồn</th><th>Đăng ký</th><th>Học bài đầu</th><th>Trả phí</th></tr></thead>
+            <tbody>
+              {data.sources.length === 0 ? <tr><td colSpan={4} style={{ color: 'var(--text-muted)' }}>Chưa có đăng ký.</td></tr> : data.sources.map(s => (
+                <tr key={s.source}><td>{s.source}</td><td><b>{s.signups}</b></td><td>{s.activated} ({s.activation_pct?.toFixed(0) ?? 0}%)</td><td>{s.paid} ({s.paid_pct?.toFixed(0) ?? 0}%)</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── G13 · Đề thi thử Speaking do AI sinh ──────────────────────────────────────
 function SpeakingExamsPanel() {
   const [items, setItems] = useState<GeneratedSpeakingExam[] | null>(null);
@@ -827,7 +897,7 @@ export default function AdminDashboardPage() {
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [agent, setAgent] = useState('');
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'pilot' | 'revenue' | 'ai' | 'quality' | 'content' | 'exams' | 'podcasts'>('pilot');
+  const [tab, setTab] = useState<'pilot' | 'retention' | 'revenue' | 'ai' | 'quality' | 'content' | 'exams' | 'podcasts'>('pilot');
   const [pilotSummary, setPilotSummary] = useState<PilotSummary | null>(null);
   const [revenue, setRevenue] = useState<RevenueSummary | null>(null);
 
@@ -902,6 +972,7 @@ export default function AdminDashboardPage() {
         {/* Tabs */}
         <div className="segmented" style={{ marginBottom: 'var(--spacing-lg)' }}>
           <button onClick={() => setTab('pilot')} aria-pressed={tab === 'pilot'}>Pilot KPI</button>
+          <button onClick={() => setTab('retention')} aria-pressed={tab === 'retention'}>Giữ chân</button>
           <button onClick={() => setTab('revenue')} aria-pressed={tab === 'revenue'}>Doanh thu</button>
           <button onClick={() => setTab('ai')} aria-pressed={tab === 'ai'}>Chi phí AI</button>
           <button onClick={() => setTab('quality')} aria-pressed={tab === 'quality'}>Chất lượng AI</button>
@@ -912,6 +983,8 @@ export default function AdminDashboardPage() {
 
         {tab === 'pilot' ? (
           pilotSummary ? <div className="card"><PilotPanel summary={pilotSummary} /></div> : <div className="card">Chưa có dữ liệu pilot.</div>
+        ) : tab === 'retention' ? (
+          <RetentionPanel />
         ) : tab === 'revenue' ? (
           <>{revenue ? <RevenuePanel r={revenue} /> : <div className="card">Chưa có dữ liệu doanh thu.</div>}<OrdersPanel /></>
         ) : tab === 'ai' ? (

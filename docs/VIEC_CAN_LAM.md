@@ -26,6 +26,16 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
   - Render: `APP_URL` = `<web>`; `ALLOWED_ORIGINS` = `<web>` (nhiều địa chỉ cách nhau bằng dấu phẩy); `API_PUBLIC_URL` = `<api>`.
   - Vercel: `NEXT_PUBLIC_API_URL` = `<api>/api/v1` → Redeploy.
   - Kiểm tra: mở `<web>`, đăng ký tài khoản mới không báo lỗi mạng.
+- [ ] **1.2b Gắn tên miền chính `aiagentenglish.com`** (đã chốt; code đã dùng làm địa chỉ gốc cho SEO, sitemap, ảnh chia sẻ)
+  1. Vercel → dự án web → **Settings → Domains** → Add `aiagentenglish.com` và `www.aiagentenglish.com` → chọn chuyển `www` về `aiagentenglish.com`.
+  2. Ở nơi mua tên miền (DNS): bản ghi **A** `@` → `76.76.21.21`; bản ghi **CNAME** `www` → `cname.vercel-dns.com` (đúng giá trị Vercel hiển thị ở bước 1). Chờ Vercel báo "Valid" (vài phút đến vài giờ).
+  3. (Nên làm) API riêng: Render → `agen-api` → **Settings → Custom Domains** → `api.aiagentenglish.com`; DNS thêm **CNAME** `api` → `agen-api.onrender.com`.
+  4. Render → Environment: `APP_URL=https://aiagentenglish.com`; `ALLOWED_ORIGINS=https://aiagentenglish.com,https://www.aiagentenglish.com` (giữ thêm địa chỉ `*.vercel.app` cũ nếu còn dùng để thử);
+     `API_PUBLIC_URL=https://api.aiagentenglish.com` (nếu làm bước 3).
+  5. Vercel → Environment: `NEXT_PUBLIC_API_URL=https://api.aiagentenglish.com/api/v1` (nếu làm bước 3), `NEXT_PUBLIC_SITE_URL=https://aiagentenglish.com` → Redeploy.
+  6. GitHub Secrets: `REMINDER_API_URL=https://api.aiagentenglish.com` (nếu đổi API).
+  7. Đổi các địa chỉ đã khai báo ở bên ngoài cho khớp: URL trả về/IPN của VNPay, MoMo; webhook Stripe; webhook Zalo OA; tên miền gửi email Resend (xác minh `aiagentenglish.com` để gửi từ `no-reply@aiagentenglish.com`).
+  Kiểm tra: mở `https://aiagentenglish.com` có khoá 🔒, đăng ký/đăng nhập không báo lỗi mạng, `https://aiagentenglish.com/sitemap.xml` hiện đúng tên miền.
 - [ ] **1.3 Tài khoản quản trị** — Render: `ADMIN_EMAILS` = email của bạn (nhiều email cách nhau dấu phẩy).
   Kiểm tra: đăng nhập email đó → vào `<web>/admin` thấy các tab Doanh thu, Chi phí AI, Đề thi, Podcast AI.
 - [ ] **1.4 Lịch chạy tự động (cron)**
@@ -94,8 +104,8 @@ Thay `<api>` bằng địa chỉ backend Render thật (vd. `https://agen-api.on
 
 ## Mức 4b — SEO (để Google lập chỉ mục đúng tên miền)
 
-- [ ] **4.6 Địa chỉ chính thức của web** — Vercel: `NEXT_PUBLIC_SITE_URL` = tên miền thật, có `https://`, không có `/` cuối (vd. `https://aiagentenglish.com`) → Redeploy.
-  Chưa đặt thì app dùng tên miền production Vercel tự cấp. Kiểm tra: mở `<web>/robots.txt` và `<web>/sitemap.xml` — địa chỉ trong đó phải là tên miền thật.
+- [x] **4.6 Địa chỉ chính thức của web** — mặc định đã là `https://aiagentenglish.com` trong code; chỉ đặt `NEXT_PUBLIC_SITE_URL` trên Vercel nếu muốn tạm dùng tên miền khác.
+  Kiểm tra sau khi gắn tên miền (1.2b): `https://aiagentenglish.com/robots.txt` và `/sitemap.xml` hiện đúng tên miền.
 - [ ] **4.7 Google Search Console** — search.google.com/search-console → Thêm tài sản (*Tiền tố URL* = tên miền ở 4.6) → chọn xác minh bằng **Thẻ HTML** → chép giá trị `content="…"` →
   Vercel: `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` = giá trị đó → Redeploy → bấm Xác minh. Sau đó: **Sơ đồ trang web** → gửi `sitemap.xml`; **Kiểm tra URL** từng trang ở 4.8 → Yêu cầu lập chỉ mục.
   (Nếu xác minh bằng DNS ở nhà cung cấp tên miền thì bỏ qua biến này.)

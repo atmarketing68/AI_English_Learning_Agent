@@ -1,12 +1,8 @@
 /**
  * SEO · địa chỉ gốc và thông tin chung của trang công khai.
- * Đặt `NEXT_PUBLIC_SITE_URL` trên Vercel khi có tên miền riêng (vd. https://aiagentenglish.com);
- * nếu không, dùng tên miền production Vercel tự cấp lúc build.
+ * Tên miền chính: https://aiagentenglish.com. Có thể đè bằng `NEXT_PUBLIC_SITE_URL` (vd. khi thử trên tên miền khác).
  */
-const vercelProd = process.env.VERCEL_PROJECT_PRODUCTION_URL;
-
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL
-  || (vercelProd ? `https://${vercelProd}` : 'https://agen-web.vercel.app')).replace(/\/+$/, '');
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'https://aiagentenglish.com').replace(/\/+$/, '');
 
 export const SITE_NAME = 'AI AGENT ENGLISH';
 export const SITE_TAGLINE = 'Học tiếng Anh cùng AI Coach cá nhân';

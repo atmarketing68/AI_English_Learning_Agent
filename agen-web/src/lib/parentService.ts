@@ -1,3 +1,4 @@
+import type { ClassTest } from '@/lib/groupsService';
 import api from '@/lib/api';
 
 // ── Types (mirror backend api/parent.py) ──────────────────────────────────────
@@ -34,6 +35,8 @@ export interface ChildReport {
   what_improved: string;
   what_needs_help: string;
   what_to_do: string;
+  /** G14 · class tests the child's teachers assigned, with the child's own result in `mine` */
+  class_tests?: ClassTest[];
 }
 
 // ── API Calls ────────────────────────────────────────────────────────────────

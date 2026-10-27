@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import confetti from 'canvas-confetti';
-import { CircleCheck, Flame, Gift, Snowflake } from 'lucide-react';
-import { claimWeeklyReward, setWeeklyGoal, type Engagement } from '@/lib/engagementService';
+import { CircleCheck, Flame, Gem, Gift, Snowflake, Wrench } from 'lucide-react';
+import { claimWeeklyReward, repairStreak, setWeeklyGoal, type Engagement } from '@/lib/engagementService';
 import { playSound } from '@/lib/soundEffects';
 import { track } from '@/lib/analytics';
 
@@ -49,6 +49,23 @@ export default function StreakWeekCard({
     }
   };
 
+  // G14 · sửa chuỗi trong 24 giờ
+  const repair = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const next = await repairStreak();
+      playSound('success');
+      track('streak_repaired', { restored: next.streak.current });
+      onChange(next);
+    } catch (err: unknown) {
+      const detail = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      setError(detail || 'Chưa sửa được chuỗi, thử lại nhé.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const status = streak.freeze_used_today
     ? 'Bảo vệ chuỗi đã giữ chuỗi cho những ngày bạn vắng.'
     : streak.studied_today
@@ -70,6 +87,19 @@ export default function StreakWeekCard({
           <div className="streak-status">{status}</div>
         </div>
       </div>
+
+      {streak.repair && (
+        <div className="streak-repair">
+          <Wrench size={18} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <b>Chuỗi {streak.repair.lost} ngày vừa bị đứt</b>
+            <div>Sửa ngay hôm nay để giữ lại {streak.repair.restored} ngày liên tiếp.</div>
+          </div>
+          <button type="button" className="btn btn-primary btn-sm" onClick={repair} disabled={busy}>
+            Sửa · {streak.repair.cost} <Gem size={13} />
+          </button>
+        </div>
+      )}
 
       <div className="freeze-row" title="Mỗi bảo vệ chuỗi giữ chuỗi khi bạn lỡ 1 ngày. Nhận thêm khi đạt mục tiêu tuần.">
         <span className="freeze-icons" aria-label={`${streak.freezes}/${streak.max_freezes} bảo vệ chuỗi`}>

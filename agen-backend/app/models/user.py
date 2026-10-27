@@ -20,6 +20,7 @@ class User(Base):
     # G3 · học thử: created without an email/password; claimed later via /auth/claim.
     is_guest = Column(Boolean, default=False, server_default=sa_false(), nullable=False)
     claimed_at = Column(DateTime, nullable=True)      # G5 · when a guest saved the account (conversion stats)
+    signup_source = Column(String(60), nullable=True, index=True)  # G14 · first-touch utm_source / referrer host
     # G9 · Zalo OA: the follower id once the person sent their link code to the OA; the code they must send.
     zalo_user_id = Column(String(40), unique=True, nullable=True)
     zalo_link_code = Column(String(12), unique=True, nullable=True)

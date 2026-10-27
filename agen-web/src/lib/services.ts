@@ -1,9 +1,10 @@
 import api from './api';
+import { signupSource } from './signupSource';
 import type { AuthToken, RegisterPayload, LoginPayload, LearnerProfile, User } from '@/types';
 
 // --- Auth ---
 export async function register(payload: RegisterPayload): Promise<{ id: string; email: string; role: string }> {
-  const res = await api.post('/auth/register', payload);
+  const res = await api.post('/auth/register', { ...payload, signup_source: signupSource() });
   return res.data;
 }
 
@@ -24,7 +25,7 @@ export async function login(payload: LoginPayload): Promise<AuthToken> {
 
 // --- G3 · Học thử không cần đăng ký ---
 export async function startGuestTrial(): Promise<AuthToken> {
-  const res = await api.post('/auth/guest');
+  const res = await api.post('/auth/guest', { signup_source: signupSource() });
   return res.data;
 }
 
