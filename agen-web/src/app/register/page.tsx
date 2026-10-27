@@ -79,7 +79,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <AuthShell image="auth-register" title="Bắt đầu hành trình" text="Miễn phí, không cần thẻ. Kiểm tra trình độ 8 phút và nhận lộ trình học riêng cho bạn.">
+    <AuthShell size="md" image="auth-register" title="Bắt đầu hành trình" text="Miễn phí, không cần thẻ. Kiểm tra trình độ 8 phút và nhận lộ trình học riêng cho bạn.">
       <div className="animate-fade-in-up" style={{ width: '100%', maxWidth: 480 }}>
         <Link href="/" aria-label="AI AGENT ENGLISH — trang chủ" style={{ display: 'flex', justifyContent: 'center', marginBottom: 28, opacity: 1 }}><Logo size={64} wordmark={false} /></Link>
         <div className="card" style={{ padding: 'clamp(24px, 5vw, 40px)', boxShadow: 'var(--shadow-md)', border: 'none' }}>

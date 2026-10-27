@@ -66,7 +66,7 @@ export default function OnboardingPage() {
   if (!learner) return null; // Or a loading spinner
 
   return (
-    <AuthShell
+    <AuthShell size="lg"
       image={['onb-goal', 'onb-time', 'onb-reminder', 'onb-ready'][Math.min(Math.max(step, 1), 4) - 1]}
       title={['Chọn đích đến của bạn', 'Học vừa sức mỗi ngày', 'Giữ nhịp học đều đặn', 'Mọi thứ đã sẵn sàng'][Math.min(Math.max(step, 1), 4) - 1]}
       text={[
