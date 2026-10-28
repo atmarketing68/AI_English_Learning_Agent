@@ -1,0 +1,77 @@
+# AI AGENT ENGLISH — chạy API + PostgreSQL trên máy chủ Linux bằng Docker.
+# Web (Next.js) vẫn nằm trên Vercel và gọi API qua tên miền công khai.
+# Xem deploy/HUONG_DAN_DOCKER.md.
+name: agen
+
+services:
+  db:
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agen_production}
+      POSTGRES_USER: ${POSTGRES_USER:-agen}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong file .env}
+    volumes:
+      - pgdata:/var/lib/postgresql          # PostgreSQL 18: gắn volume ở /var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    ports:
+      - "127.0.0.1:5432:5432"               # chỉ máy chủ này truy cập được
+
+  api:
+    build: ../agen-backend
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agen}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-agen_production}
+      PORT: "8000"
+    volumes:
+      - tts_cache:/app/.tts_cache           # cache giọng đọc, giữ qua các lần cập nhật
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
+      interval: 20s
+      timeout: 6s
+      retries: 5
+      start_period: 90s
+
+  # Cách 1 — Cloudflare Tunnel (không cần mở cổng, không cần IP tĩnh):  docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: always
+    profiles: ["tunnel"]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - api
+
+  # Cách 2 — Caddy (tự lấy HTTPS; cần IP công khai + mở cổng 80/443):  docker compose --profile caddy up -d
+  caddy:
+    image: caddy:2
+    restart: always
+    profiles: ["caddy"]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  tts_cache:
+  caddy_data:
+  caddy_config:
