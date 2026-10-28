@@ -34,6 +34,7 @@ COPY . .
 
 # Non-root user for security
 RUN addgroup --system agen && adduser --system --ingroup agen agen
+RUN mkdir -p /app/.tts_cache
 RUN chown -R agen:agen /app
 USER agen
 

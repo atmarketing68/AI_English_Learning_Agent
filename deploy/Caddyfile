@@ -1,0 +1,5 @@
+# Đặt API_DOMAIN trong .env (vd. api.aiagentenglish.com) và trỏ bản ghi A của tên miền về IP công khai của máy chủ.
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:8000
+}
